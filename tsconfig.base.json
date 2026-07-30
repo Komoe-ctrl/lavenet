@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "noUncheckedSideEffectImports": false,
+    "types": ["node"],
+    "paths": {
+      "@lavenet/shared-domain": ["./libs/shared/domain/src/index.ts"],
+      "@lavenet/shared-schemas": ["./libs/shared/schemas/src/index.ts"],
+      "@lavenet/shared-types": ["./libs/shared/types/src/index.ts"]
+    }
+  }
+}
