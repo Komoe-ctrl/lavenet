@@ -251,18 +251,17 @@ répercutés dans ce document :
 - **Calendrier** : objectif révisé à une URL publique présentable dès la fin du lot 2,
   lot 5 confirmé comme point d'arrêt "démo cohérente" (voir §6).
 
-**Statut au 2026-07-30** : ces deux points restent formellement en attente d'une valeur
-concrète de votre part (les deux réponses reçues contenaient un gabarit `<REMPLIS>` non
-complété) — je ne les invente pas, un chiffre de jours et un statut de compte engagent
-des choix réels (dont une dépense récurrente sur Render) que je ne dois pas deviner :
+**Résolu le 2026-07-30** :
 
-1. **Temps réellement disponible** — nombre de jours pleins (ou soirées/week-ends
-   équivalents) encore non chiffré.
-2. **Comptes Neon / Render / Vercel-Netlify** — "déjà créés" ou "à créer aujourd'hui" :
-   la réponse conditionne si je peux enchaîner directement sur le déploiement ou si je
-   dois d'abord vous guider pas à pas dans la création des comptes (et notamment
-   l'activation du plan payant Render, qui implique un moyen de paiement de votre côté,
-   pas du mien).
+1. **Temps réellement disponible : ~1 semaine pleine (5 jours).** Le point d'arrêt
+   "démo cohérente" reste le **lot 5** (voir §6) ; au-delà, paiement et livraison
+   (lots 6-7) et le polish (lot 8) sont enchaînés si le temps le permet, sinon
+   documentés comme suite immédiate non codée plutôt que bâclés.
+2. **Comptes Neon / Render / Vercel-Netlify : à créer aujourd'hui, rien n'existe
+   encore.** Ça inclut l'activation du plan payant Render (7 $/mois), qui exige un
+   moyen de paiement — une action que je ne peux pas effectuer à votre place. Le lot 0
+   comportera donc des étapes où je fournis des instructions précises (créer le compte,
+   quel plan choisir, quelles variables d'environnement renseigner) que vous exécutez
+   vous-même, en parallèle du code et de la configuration que je peux produire seul.
 
-Je n'entame pas la génération du workspace ni un déploiement réel tant que ces deux
-valeurs ne sont pas données explicitement.
+Les deux questions bloquantes sont levées. Le lot 0 démarre.
