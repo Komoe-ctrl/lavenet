@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { cleanupOpenApiDoc } from 'nestjs-zod';
 // `env` must be imported first: it validates process.env and exits the
 // process immediately if a required variable is missing or invalid,
 // before any other module (Prisma, Nest) has a chance to boot on top
@@ -26,7 +27,7 @@ async function bootstrap() {
     .addCookieAuth('refresh_token')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, swaggerDocument);
+  SwaggerModule.setup('docs', app, cleanupOpenApiDoc(swaggerDocument));
 
   await app.listen(env.PORT);
   Logger.log(`🚀 Application is running on: http://localhost:${env.PORT}/${globalPrefix}`);
