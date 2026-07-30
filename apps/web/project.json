@@ -23,7 +23,6 @@
         ],
         "styles": ["apps/web/src/styles.scss"],
         "server": "apps/web/src/main.server.ts",
-        "prerender": true,
         "outputMode": "static"
       },
       "configurations": {
