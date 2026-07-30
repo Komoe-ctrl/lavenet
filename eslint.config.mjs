@@ -16,9 +16,21 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
+            // apps/web -> libs/shared/* only. Never apps/api, never Prisma.
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'scope:web',
+              onlyDependOnLibsWithTags: ['scope:shared'],
+            },
+            // apps/api -> libs/shared/* only.
+            {
+              sourceTag: 'scope:api',
+              onlyDependOnLibsWithTags: ['scope:shared'],
+            },
+            // libs/shared/domain imports nothing else in the workspace:
+            // pure code, no Prisma, no Angular/React.
+            {
+              sourceTag: 'type:domain',
+              onlyDependOnLibsWithTags: [],
             },
           ],
         },
