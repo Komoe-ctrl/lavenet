@@ -4,7 +4,7 @@
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "apps/web/src",
-  "tags": [],
+  "tags": ["scope:web"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
@@ -23,10 +23,8 @@
         ],
         "styles": ["apps/web/src/styles.scss"],
         "server": "apps/web/src/main.server.ts",
-        "ssr": {
-          "entry": "apps/web/src/server.ts"
-        },
-        "outputMode": "server"
+        "prerender": true,
+        "outputMode": "static"
       },
       "configurations": {
         "production": {
