@@ -3,7 +3,18 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "nx run-many -t typecheck",
+    "lint": "nx run-many -t lint",
+    "test": "nx run-many -t test",
+    "build": "nx run-many -t build",
+    "test:e2e": "nx run-many -t e2e",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "api:client:spec": "node tools/scripts/generate-openapi-spec.js",
+    "api:client:generate": "ng-openapi-gen --config ng-openapi-gen.json",
+    "api:client": "pnpm api:client:spec && pnpm api:client:generate",
+    "api:client:check": "pnpm api:client && git diff --exit-code -- apps/web/src/app/core/api-client"
   },
   "private": true,
   "devDependencies": {
@@ -46,6 +57,7 @@
     "husky": "^9.1.7",
     "jsdom": "^27.1.0",
     "lint-staged": "^17.2.0",
+    "ng-openapi-gen": "^1.0.5",
     "nx": "23.1.0",
     "prettier": "^3.8.1",
     "prisma": "^7.9.1",
