@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: lavenet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lavenet
+      POSTGRES_PASSWORD: lavenet
+      POSTGRES_DB: lavenet
+    ports:
+      # Host port 5433, not 5432: avoids clashing with a native/other
+      # Postgres already running on the host's default port.
+      - '5433:5432'
+    volumes:
+      - lavenet-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lavenet -d lavenet']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lavenet-postgres-data:

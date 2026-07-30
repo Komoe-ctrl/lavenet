@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URLs live in `prisma.config.ts` (CLI) and are passed
+// as a driver adapter to `new PrismaClient({ adapter })` at runtime (see
+// apps/api/src/prisma/prisma.service.ts) — no `url`/`directUrl` here.
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CLIENT
+  STAFF
+  COURIER
+  ADMIN
+}
+
+model User {
+  id              String    @id @default(cuid())
+  role            UserRole  @default(CLIENT)
+  email           String?   @unique
+  phone           String    @unique
+  phoneVerifiedAt DateTime?
+  passwordHash    String
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
