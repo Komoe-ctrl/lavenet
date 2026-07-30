@@ -172,7 +172,7 @@ sur le point 7 (facturation TVA, ci-dessous).
 | **Contrat OpenAPI généré via `nestjs-zod` + `@nestjs/swagger`** | Écosystème moins éprouvé que le `class-validator` par défaut de NestJS ; un décalage entre schéma zod et spec OpenAPI générée casserait la promesse "le client généré ne diverge jamais du back" | Spike d'une heure au tout début du lot 0 sur un endpoint trivial pour valider que la chaîne zod → OpenAPI → client Angular fonctionne réellement avant d'en dépendre pour toutes les features suivantes ; si ça coince, alternative de repli à documenter en ADR (ex. DTO `class-validator` + schéma zod dupliqué uniquement côté validation métier fine) |
 | **Zoneless Angular 21 + signals** | Écosystème encore jeune ; une librairie tierce non "zoneless-ready" peut ne pas déclencher la détection de changement | `ChangeDetectionStrategy.OnPush` strict partout + signals pour tout état, éviter toute librairie qui suppose zone.js (vérifier avant d'ajouter une dépendance, conformément à l'interdiction CLAUDE.md sur les dépendances non justifiées) |
 | **Deux plateformes de déploiement distinctes (web statique + API)** | Deux jeux de variables d'environnement, deux points de défaillance, previews de PR compliquées (une preview web doit pointer vers une API — laquelle ? staging partagée ou preview API dédiée ?) | Tranché le 2026-07-30 : **API de staging unique** partagée par toutes les previews web (pas une API par PR, trop coûteux/lent pour un portfolio), documentée dans le README |
-| **Mise en veille des offres gratuites (cold start)** *(ajouté le 2026-07-30)* | Les hébergements gratuits d'API (ex. Render free web service) s'endorment après quelques minutes d'inactivité, avec un réveil de 30 à 60 secondes. Un visiteur de portfolio qui clique une fois et tombe sur un écran blanc pendant une minute ferme l'onglet — le premier chargement à froid est la seule impression qui compte ici | Tranché au **lot 0**, documenté en ADR : plateforme sans mise en veille, offre payante minimale, ou ping de maintien en éveil — le choix concret dépend de la question 3 (§7, comptes déjà disponibles). Temps de réponse à froid réel **mesuré et documenté** avant de considérer le lot 0 terminé. La mise en veille de la base managée (scale-to-zero Neon) est acceptable seulement si la reprise mesurée reste sous la seconde — à vérifier aussi |
+| **Mise en veille des offres gratuites (cold start)** *(ajouté le 2026-07-30, tranché le 2026-07-30)* | Les hébergements gratuits d'API (ex. Render free web service) s'endorment après quelques minutes d'inactivité, avec un réveil de 30 à 60 secondes, sans moyen supporté de l'éviter. Un visiteur de portfolio qui clique une fois et tombe sur un écran blanc pendant une minute ferme l'onglet | **Décision actée** : API sur Render en **instance payante** (7 $/mois) dès le lot 0 — le plan gratuit est jugé rédhibitoire pour un portfolio, pas de ping de maintien en éveil en repli. Base sur **Neon plan gratuit** : la mise en veille existe mais la reprise annoncée est de l'ordre de quelques centaines de ms, jugée acceptable. Web statique sur Vercel/Netlify (gratuit, pas de cold start côté statique). **Le temps de réponse à froid réel (pas la promesse du fournisseur) doit être mesuré et documenté dans `docs/ADR/0003-cold-start-strategy.md` avant de déclarer le lot 0 terminé**, y compris la reprise de la base après veille. Le README doit expliquer que l'API tourne sur une instance payante minimale et que la base se met en veille automatiquement, pour qu'un lecteur comprenne la contrainte d'hébergement comme une décision d'ingénierie assumée |
 | **Périmètre du cahier des charges trop large pour "déployer vite"** | Livrable incomplet ou bâclé si on vise tout le V1 du cahier des charges tel quel | Voir §6 — découpage explicite en lots, avec un point d'arrêt recommandé si le temps réel est court |
 
 ---
@@ -191,7 +191,7 @@ fullstack") ; je chiffre cet écart honnêtement plutôt que de le lisser.
 
 | Lot | Objectif | Projets Nx touchés | Critère de fin | Estimation |
 |---|---|---|---|---|
-| **0. Fondations bout-en-bout déployées** | Workspace Nx généré, Postgres managé (Neon), API déployée (Render/Railway), web déployé (Vercel/Netlify statique), CI verte (`nx affected`), migration exécutée en prod, **un appel authentifié réel traversant les deux domaines déployés**, stratégie anti-veille tranchée | `apps/web`, `apps/api`, `libs/shared/*`, `prisma/schema.prisma` (User + RefreshToken minimum), `.github/workflows/ci.yml`, `docs/ADR/0003-cold-start-strategy.md` | URL publique web → appel à l'URL publique API → login retourne un cookie refresh cross-domain fonctionnel **en prod**, `nx affected -t lint typecheck test build` vert en CI, `prisma migrate deploy` exécuté sur la base managée (pas `db push`), **temps de réponse à froid API + base mesuré et documenté** (reprise base < 1s) | 3 jours |
+| **0. Fondations bout-en-bout déployées** | Workspace Nx généré, Postgres managé (**Neon, plan gratuit**), API déployée (**Render, instance payante 7 $/mois**), web déployé (**Vercel ou Netlify, statique, gratuit**), CI verte (`nx affected`), migration exécutée en prod, **un appel authentifié réel traversant les deux domaines déployés** | `apps/web`, `apps/api`, `libs/shared/*`, `prisma/schema.prisma` (User + RefreshToken minimum), `.github/workflows/ci.yml`, `docs/ADR/0003-cold-start-strategy.md`, README (section hébergement/contraintes) | URL publique web → appel à l'URL publique API → login retourne un cookie refresh cross-domain fonctionnel **en prod**, `nx affected -t lint typecheck test build` vert en CI, `prisma migrate deploy` exécuté sur la base managée (pas `db push`), **temps de réponse à froid réel de l'API (payante, ne devrait pas dormir) et de la base Neon mesuré et documenté** dans l'ADR, README expliquant les contraintes d'hébergement | 3 jours |
 | **1. Auth complète** | Inscription email+mdp, OTP téléphone simulé, connexion, profil, adresses (F-AUTH-01,02,03,05,06), intercepteur de refresh silencieux | `apps/web` (feature `auth`), `apps/api` (module `auth`), `libs/shared/schemas` | Un compte de démo s'inscrit, reçoit un OTP simulé affiché en mode démo, se connecte, édite profil et adresse ; session survit à un refresh de page ; testé à 375px | 2,5 jours |
 | **2. Catalogue et tarifs** | Services, catégories, grille tarifaire, page publique (F-CAT-01→05) | `apps/api` (module `catalog`), `apps/web` (feature `catalog`), seed | Page tarifs publique consultable sans compte, données réalistes Abidjan | 1 jour |
 | **3. Panier + checkout + créneaux** | Panier (SignalStore), créneaux à capacité garantie par contrainte unique, récapitulatif, référence de commande (F-CMD-01→07) | `apps/web` (features `cart`, `checkout`), `apps/api` (modules `orders`, `delivery`), `libs/shared/domain` (prix, validité créneau) | Commande complète validée de bout en bout, total recalculé côté API, créneau plein non sélectionnable, test d'intégration à deux requêtes concurrentes sur le dernier siège | 3 jours |
@@ -245,19 +245,24 @@ répercutés dans ce document :
   automatisé doit vérifier que le client généré correspond à l'API réellement exposée**,
   sinon la promesse de non-divergence front/back n'est qu'une intention. zod reste la
   source de vérité dans `libs/shared/domain` dans tous les cas.
-- **Risque de mise en veille (cold start)** : ajouté au §5, à trancher et mesurer
-  explicitement au lot 0 (critère de fin mis à jour en §6, `docs/ADR/0003-cold-start-strategy.md`
-  à écrire pendant le lot 0 lui-même).
+- **Risque de mise en veille (cold start)** : tranché — Render en instance payante pour
+  l'API, Neon gratuit pour la base (reprise sub-seconde jugée acceptable), Vercel/Netlify
+  statique pour le web. Mesure réelle exigée avant de clore le lot 0 (voir §5, §6).
 - **Calendrier** : objectif révisé à une URL publique présentable dès la fin du lot 2,
   lot 5 confirmé comme point d'arrêt "démo cohérente" (voir §6).
 
-Il reste deux questions bloquantes avant de démarrer le lot 0 :
+**Statut au 2026-07-30** : ces deux points restent formellement en attente d'une valeur
+concrète de votre part (les deux réponses reçues contenaient un gabarit `<REMPLIS>` non
+complété) — je ne les invente pas, un chiffre de jours et un statut de compte engagent
+des choix réels (dont une dépense récurrente sur Render) que je ne dois pas deviner :
 
-1. **Temps réellement disponible** — le nombre exact de jours pleins (ou soirées/
-   week-ends équivalents) n'est pas encore chiffré ; c'est ce qui permet de caler les
-   lots 3 à 8 sans deviner, au-delà du point d'arrêt "lot 5" déjà confirmé.
-2. **Comptes de déploiement concrets** — Vercel/Netlify, Render/Railway, Neon : déjà
-   créés pour ce projet, ou à créer ? Conditionne directement le choix de plateforme
-   anti-veille (§5) et le calendrier réel du lot 0.
+1. **Temps réellement disponible** — nombre de jours pleins (ou soirées/week-ends
+   équivalents) encore non chiffré.
+2. **Comptes Neon / Render / Vercel-Netlify** — "déjà créés" ou "à créer aujourd'hui" :
+   la réponse conditionne si je peux enchaîner directement sur le déploiement ou si je
+   dois d'abord vous guider pas à pas dans la création des comptes (et notamment
+   l'activation du plan payant Render, qui implique un moyen de paiement de votre côté,
+   pas du mien).
 
-Je n'écris aucun code tant que ces deux points ne sont pas clarifiés.
+Je n'entame pas la génération du workspace ni un déploiement réel tant que ces deux
+valeurs ne sont pas données explicitement.
