@@ -255,8 +255,9 @@ Un bug corrigé = un test de non-régression dans le même commit.
 ## 8. Git — discipline attendue
 
 **Branches** : `main` protégée et toujours déployable ; `feat/<slug>`, `fix/<slug>`,
-`chore/<slug>`, `refactor/<slug>`, `docs/<slug>`. Jamais de commit direct sur `main`.
-Une PR par feature, rebase avant merge.
+`chore/<slug>`, `refactor/<slug>`, `docs/<slug>`. Les commits `docs` et `chore` peuvent
+aller directement sur `main`. Tout le reste (`feat`, `fix`, `refactor`) passe par une PR,
+rebasée avant merge.
 
 **Commits — Conventional Commits, en anglais, à l'impératif, scope = app ou module :**
 ```
