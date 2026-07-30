@@ -14,6 +14,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    seed: 'node -r @swc-node/register prisma/seed.ts',
   },
   // Migrations run against the direct (non-pooled) connection — see
   // CLAUDE.md §4 rule 11 and docs/AUDIT.md's Prisma pooling risk.
