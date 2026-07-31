@@ -1,1 +1,1 @@
-export * from './lib/shared-schemas';
+export * from './lib/auth.schemas';

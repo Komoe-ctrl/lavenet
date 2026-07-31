@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 // `env` must be imported first: it validates process.env and exits the
 // process immediately if a required variable is missing or invalid,
@@ -13,6 +14,7 @@ import { API_GLOBAL_PREFIX, buildSwaggerConfig } from './swagger.config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix(API_GLOBAL_PREFIX);
+  app.use(cookieParser());
   app.enableCors({
     origin: env.CORS_ORIGIN,
     credentials: true,

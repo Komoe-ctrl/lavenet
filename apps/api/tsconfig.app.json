@@ -2,6 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    // Needed because src imports libs/shared/* via the @lavenet/* path
+    // alias: without an explicit rootDir, tsc infers one from apps/api
+    // alone and rejects those cross-package files (TS6059) once outDir is
+    // set. This project isn't part of a TS project-reference graph (see
+    // tsconfig.base.json — composite mode was removed, it broke the
+    // @nx/angular:application generator), so each app/lib is typechecked
+    // as an independent tsc invocation instead.
+    "rootDir": "../..",
     "module": "commonjs",
     "types": ["node"],
     "experimentalDecorators": true,

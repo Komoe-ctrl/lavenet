@@ -2,6 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc",
+    // See apps/api/tsconfig.app.json for why this is needed once src
+    // imports @lavenet/shared-domain via the path alias.
+    "rootDir": "../../..",
     "declaration": true,
     "types": ["node"]
   },
