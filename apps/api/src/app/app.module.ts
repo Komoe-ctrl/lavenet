@@ -5,12 +5,14 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '../auth/auth.module';
+import { CatalogModule } from '../catalog/catalog.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    CatalogModule,
     // Default rate limit for the whole API; the login route overrides it
     // with a stricter one (see AuthController) per CLAUDE.md §5.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
