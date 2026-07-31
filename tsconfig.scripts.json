@@ -1,0 +1,22 @@
+// Used only as @swc-node/register's SWC_NODE_PROJECT for standalone scripts
+// that import apps/api code (tools/scripts/generate-openapi-spec.ts). Must
+// live at the workspace root: @swc-node/register defaults `baseUrl` (when
+// unset) to the directory of the tsconfig file passed via SWC_NODE_PROJECT,
+// not the directory of whichever config in the `extends` chain declares
+// `paths` — unlike real `tsc`, which resolves `paths` relative to
+// tsconfig.base.json correctly. Pointing SWC_NODE_PROJECT at
+// apps/api/tsconfig.app.json directly resolved `@lavenet/*` paths against
+// apps/api instead of the workspace root and failed at runtime.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["tools/scripts/**/*.ts", "apps/api/src/**/*.ts"]
+}

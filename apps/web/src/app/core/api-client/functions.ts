@@ -3,3 +3,11 @@
 
 export type { AppControllerGetData$Params as AppControllerGetData$Params } from './fn/app/app-controller-get-data';
 export { appControllerGetData as appControllerGetData } from './fn/app/app-controller-get-data';
+export type { AuthControllerLogin$Params as AuthControllerLogin$Params } from './fn/auth/auth-controller-login';
+export { authControllerLogin as authControllerLogin } from './fn/auth/auth-controller-login';
+export type { AuthControllerRefresh$Params as AuthControllerRefresh$Params } from './fn/auth/auth-controller-refresh';
+export { authControllerRefresh as authControllerRefresh } from './fn/auth/auth-controller-refresh';
+export type { AuthControllerLogout$Params as AuthControllerLogout$Params } from './fn/auth/auth-controller-logout';
+export { authControllerLogout as authControllerLogout } from './fn/auth/auth-controller-logout';
+export type { AuthControllerMe$Params as AuthControllerMe$Params } from './fn/auth/auth-controller-me';
+export { authControllerMe as authControllerMe } from './fn/auth/auth-controller-me';
