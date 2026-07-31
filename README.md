@@ -70,6 +70,24 @@ appel peut prendre jusqu'à une minute pour réveiller le service — visible et
 côté web (jamais un écran figé), détails et chiffre mesuré dans
 `docs/ADR/0003-cold-start-strategy.md`.
 
+## Déploiement
+
+`render.yaml` applique les migrations en production à chaque déploiement
+(`prisma migrate deploy`), mais ne seed jamais — le seed est une action manuelle,
+volontaire, à part.
+
+**Seeder les comptes de démo en production** (une fois, après le premier déploiement ou
+après une remise à zéro de la base) :
+
+1. `cp .env.production.local.example .env.production.local` et renseigner
+   `DATABASE_URL` avec la chaîne de la branche **production** Neon. Ce fichier est
+   ignoré par git (`.env.*.local`) et n'est jamais lu que par le script ci-dessous — le
+   `.env` de développement n'est jamais touché.
+2. `pnpm db:seed:prod`
+
+Le script refuse de s'exécuter si la base cible contient déjà des utilisateurs — pas de
+risque d'écraser des données par erreur de cible ou de double exécution.
+
 ## Développement
 
 Prérequis : Node 26, pnpm (version épinglée dans `package.json#packageManager`), un

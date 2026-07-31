@@ -11,6 +11,7 @@ node_modules
 # environment
 .env
 .env.local
+.env.*.local
 
 # IDEs and editors
 /.idea

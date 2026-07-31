@@ -12,6 +12,7 @@
     "test:e2e": "nx run-many -t e2e",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node -r @swc-node/register prisma/seed.ts",
+    "db:seed:prod": "node -r @swc-node/register prisma/seed.ts .env.production.local",
     "db:studio": "prisma studio",
     "api:client:spec": "node tools/scripts/generate-openapi-spec.js",
     "api:client:generate": "ng-openapi-gen --config ng-openapi-gen.json",
