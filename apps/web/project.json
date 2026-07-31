@@ -58,6 +58,10 @@
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
+      "// options.port": "Explicit: the Angular dev-server otherwise honors a generic PORT env var, and Nx auto-loads the root .env (which sets PORT=3000 for apps/api) into every task's environment — without this, `nx serve web` silently tries to bind 3000 too and collides with a running API.",
+      "options": {
+        "port": 4200
+      },
       "configurations": {
         "production": {
           "buildTarget": "web:build:production"

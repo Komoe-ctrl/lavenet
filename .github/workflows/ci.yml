@@ -17,7 +17,8 @@ permissions:
 
 env:
   NODE_ENV: test
-  PORT: 3000
+  # No PORT: the zod schema defaults it to 3000 (see .env's comment on why
+  # it's deliberately absent here too).
   # Throwaway CI-only Postgres — not the free-tier Neon DB used for local dev
   # (see .env.example) or production.
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lavenet_ci
