@@ -2,8 +2,7 @@
 
 ## Statut
 
-Acté — 2026-07-30. Chiffre de cold start réel à ajouter une fois le lot 0 déployé
-(section "Mesure" ci-dessous).
+Acté — 2026-07-30. Mesuré en production le 2026-07-31 (section "Mesure" ci-dessous).
 
 ## Contexte
 
@@ -70,11 +69,23 @@ l'activer :
 
 ## Mesure
 
-_(À compléter une fois le lot 0 déployé.)_ Temps de réponse réel mesuré après une
-période d'inactivité suffisante pour déclencher la mise en veille :
+Mesuré le 2026-07-31 sur `https://lavenet-api.onrender.com`, première requête après une
+période d'inactivité suffisante pour déclencher la mise en veille (`curl -w
+"%{time_total}"` sur `GET /api`, sans dépendance base de données — voir la note
+ci-dessous) :
 
-- API (Render free) : **à mesurer**
-- Base (Neon free) : **à mesurer**
+- **Premier appel (réveil) : 23,03 s**
+- **Appel suivant immédiat (chaud) : 0,67 s**
+
+Confirme l'ordre de grandeur annoncé par Render ("jusqu'à une minute"). Le chiffre
+ci-dessus isole le réveil du process Node/Render : `GET /api` ne touche pas Prisma (voir
+`apps/api/src/prisma/prisma.service.ts`, connexion paresseuse). Un premier appel qui
+touche réellement la base (ex. `/api/auth/login`) dans la même fenêtre de réveil
+ajouterait le temps de reprise de Neon par-dessus — non isolé séparément ici : la mesurer
+proprement demande un nouveau cycle d'inactivité de 15 minutes, et le chiffre du process
+Render est déjà représentatif de ce qu'un visiteur attend au pire cas (le message
+d'attente et le bouton Réessayer côté web couvrent l'un comme l'autre, la distinction
+n'a pas d'impact produit).
 
 ## Conséquences
 
