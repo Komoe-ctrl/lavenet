@@ -1,12 +1,10 @@
-# Automatic triggers (pull_request/push) are temporarily disabled: the
-# GitHub account this repo lives under is billing-locked, so every run
-# fails instantly before a runner is even assigned — each push would stack
-# a red cross on the repo's home page for something unrelated to the code.
-# `workflow_dispatch` only, for now. RESTORE the pull_request/push triggers
-# below once the account is unlocked.
 name: CI
 
 on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

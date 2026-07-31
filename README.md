@@ -1,5 +1,7 @@
 # LaveNet
 
+[![CI](https://github.com/Komoe-ctrl/lavenet/actions/workflows/ci.yml/badge.svg)](https://github.com/Komoe-ctrl/lavenet/actions/workflows/ci.yml)
+
 Le pressing en ligne pour Abidjan : commande de lavage/repassage, collecte et livraison,
 suivi de commande, paiement Mobile Money ou espèces. Ce dépôt est une pièce de
 portfolio — la qualité du code, des commits et du contrat d'API compte autant que les
@@ -73,9 +75,7 @@ côté web (jamais un écran figé), détails et chiffre mesuré dans
 Prérequis : Node 26, pnpm (version épinglée dans `package.json#packageManager`), un
 fichier `.env` à la racine (voir `.env.example`).
 
-La CI GitHub Actions est temporairement en déclenchement manuel uniquement
-(`workflow_dispatch`, voir le commentaire en tête de `.github/workflows/ci.yml`) — en
-attendant, joue la même séquence en local avant chaque merge :
+Pour rejouer la même séquence que la CI avant de pousser :
 
 ```bash
 pnpm ci:local
