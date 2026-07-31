@@ -7,11 +7,16 @@ import { SessionStore } from './session.store';
 // just because the app loaded — /compte is the only route that actually
 // needs to know who's logged in.
 export const authGuard: CanActivateFn = async () => {
+  // Both injected before the first `await`: `inject()` only works
+  // synchronously within the router's injection context — calling it after
+  // an await throws NG0203, not just in a test harness, in real navigation
+  // too.
   const session = inject(SessionStore);
+  const router = inject(Router);
 
   if (session.status() === 'idle') {
     await session.restore();
   }
 
-  return session.isAuthenticated() || inject(Router).createUrlTree(['/login']);
+  return session.isAuthenticated() || router.createUrlTree(['/login']);
 };
