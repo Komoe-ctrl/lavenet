@@ -14,7 +14,7 @@ professionnels en Côte d'Ivoire. Le client commande en ligne, planifie un retra
 livraison, suit l'état de ses vêtements, paie (Mobile Money / carte / à la livraison).
 Un back-office permet de gérer clients, commandes, livreurs et statistiques.
 
-Le mobile est une **WebView** de l'app web → tout doit être *mobile-first*, utilisable
+Le mobile est une **WebView** de l'app web → tout doit être _mobile-first_, utilisable
 sur réseau lent (3G Abidjan), et fonctionner sans hover.
 
 **Ce dépôt est une pièce de portfolio.** La qualité du code, des commits, du contrat
@@ -30,24 +30,24 @@ défendu explicitement dans `docs/ADR/0001-stack.md` — pas subi.
 
 ## 2. Stack imposée
 
-| Couche | Choix | Non négociable |
-|---|---|---|
-| Monorepo | Nx workspace, pnpm | oui |
-| Frontend | Angular 21 — standalone components, **signals**, zoneless, nouveau control flow (`@if` / `@for`) | oui |
-| Backend | NestJS 11 (REST) | oui |
-| Langage | TypeScript `strict: true` des deux côtés | oui |
-| ORM | Prisma (backend uniquement) | oui |
-| Base | PostgreSQL 16 | oui |
-| Validation | **zod**, schémas partagés dans `libs/shared` (via `nestjs-zod` côté API) | oui |
-| Contrat d'API | OpenAPI généré par `@nestjs/swagger`, client Angular généré depuis la spec | oui |
-| UI | Tailwind CSS + Angular CDK (a11y, overlay, table) | oui |
-| État client | Signals natifs ; NgRx **SignalStore** uniquement pour panier et session | oui |
-| Auth | JWT court + refresh token en cookie `httpOnly` | oui |
-| Tests | Vitest (web + api unitaires), Supertest (api e2e), Playwright (3 parcours) | oui |
-| Lint | ESLint + Prettier + `@nx/enforce-module-boundaries` | oui |
-| Hooks git | Husky + lint-staged + commitlint | oui |
-| CI | GitHub Actions avec `nx affected` | oui |
-| Déploiement | Web : Vercel/Netlify (static) · API : Render ou Railway · DB : Neon | oui |
+| Couche        | Choix                                                                                            | Non négociable |
+| ------------- | ------------------------------------------------------------------------------------------------ | -------------- |
+| Monorepo      | Nx workspace, pnpm                                                                               | oui            |
+| Frontend      | Angular 21 — standalone components, **signals**, zoneless, nouveau control flow (`@if` / `@for`) | oui            |
+| Backend       | NestJS 11 (REST)                                                                                 | oui            |
+| Langage       | TypeScript `strict: true` des deux côtés                                                         | oui            |
+| ORM           | Prisma (backend uniquement)                                                                      | oui            |
+| Base          | PostgreSQL 16                                                                                    | oui            |
+| Validation    | **zod**, schémas partagés dans `libs/shared` (via `nestjs-zod` côté API)                         | oui            |
+| Contrat d'API | OpenAPI généré par `@nestjs/swagger`, client Angular généré depuis la spec                       | oui            |
+| UI            | Tailwind CSS + Angular CDK (a11y, overlay, table)                                                | oui            |
+| État client   | Signals natifs ; NgRx **SignalStore** uniquement pour panier et session                          | oui            |
+| Auth          | JWT court + refresh token en cookie `httpOnly`                                                   | oui            |
+| Tests         | Vitest (web + api unitaires), Supertest (api e2e), Playwright (3 parcours)                       | oui            |
+| Lint          | ESLint + Prettier + `@nx/enforce-module-boundaries`                                              | oui            |
+| Hooks git     | Husky + lint-staged + commitlint                                                                 | oui            |
+| CI            | GitHub Actions avec `nx affected`                                                                | oui            |
+| Déploiement   | Web : Vercel/Netlify (static) · API : Render ou Railway · DB : Neon                              | oui            |
 
 **Interdits :** `any` non justifié par un commentaire, `@ts-ignore` sans ticket,
 `console.log` hors logger, appel `HttpClient` direct depuis un composant, Prisma importé
@@ -172,8 +172,10 @@ SupportTicket / TicketMessage / Notification / AuditLog
    consommée dans la même transaction que la création de la facture.
 6. **Paiements idempotents.** `Payment.idempotencyKey` unique, signature du provider
    vérifiée avant tout traitement, montant recalculé côté serveur — jamais lu du client.
-7. **Secrets jamais en clair** : `passwordHash` (argon2id), `otpHash`, `tokenHash`.
-   OTP 6 chiffres, TTL 10 min, 5 tentatives, rate-limit par téléphone.
+7. **Secrets jamais en clair** : `passwordHash` (argon2id via `@node-rs/argon2` —
+   binaires précompilés par plateforme, aucune chaîne de compilation native requise,
+   contrairement au paquet `argon2` historique), `otpHash`, `tokenHash`. OTP 6 chiffres,
+   TTL 10 min, 5 tentatives, rate-limit par téléphone.
 8. **Soft delete** (`deletedAt`) sur `User`, `Order`, `Service` ; exclu des exports et stats.
 9. `id` = `cuid()`. `Order.reference` lisible et unique : `LN-2026-000142`.
 10. Index sur toutes les FK filtrées + `Order(status, createdAt)`.
@@ -200,6 +202,15 @@ cache, un `curl` le verra.
   c'est le piège n°1 de cette architecture.
 - Access token en mémoire côté Angular (jamais `localStorage`), refresh silencieux par
   interceptor, file d'attente des requêtes pendant le refresh.
+- **Restauration de session paresseuse, pas au bootstrap.** `SessionStore.restore()`
+  (l'appel qui échange le cookie refresh contre un access token) ne se déclenche
+  jamais au démarrage global de l'app : il est appelé depuis le guard de la première
+  route privée visitée (`status() === 'idle'` → un seul appel, mémoïsé ensuite par le
+  statut). Les pages publiques (accueil, tarifs, login) ne doivent jamais provoquer
+  d'appel API au seul chargement — condition de lot 0 vérifiée explicitement (API
+  éteinte, zéro requête réseau au chargement de la racine). Un `inject()` utilisé
+  après un `await` dans un guard fonctionnel casse le contexte d'injection
+  (`NG0203`) : tout `inject()` nécessaire se fait avant le premier `await`.
 - Secrets via configuration validée par zod au démarrage. `.env.example` committé.
 - Aucune donnée personnelle dans les logs (téléphone, adresse masqués).
 - Uploads : type et taille vérifiés côté serveur.
@@ -209,10 +220,11 @@ cache, un `curl` le verra.
 ## 6. Conventions de code
 
 **Commun** — fichiers `kebab-case.ts`, une responsabilité par fonction exportée
-(> 60 lignes → découper), commenter le *pourquoi* jamais le *quoi*, textes UI en
+(> 60 lignes → découper), commenter le _pourquoi_ jamais le _quoi_, textes UI en
 français / code en anglais, dates stockées en UTC et affichées en `Africa/Abidjan`.
 
 **Angular**
+
 - Standalone partout, `ChangeDetectionStrategy.OnPush` systématique.
 - `input()` / `output()` / `model()` en fonctions signal, pas les décorateurs.
 - `inject()` plutôt que l'injection par constructeur.
@@ -224,6 +236,7 @@ français / code en anglais, dates stockées en UTC et affichées en `Africa/Abi
 - Pas de chaîne en dur dans les templates : `shared/i18n/fr.ts`.
 
 **NestJS**
+
 - Un module par contexte métier, exports explicites.
 - DTO dérivés des schémas zod partagés — pas de duplication de forme entre front et back.
 - Erreurs métier → exceptions typées mappées en codes HTTP par un filtre global, avec un
@@ -260,6 +273,7 @@ aller directement sur `main`. Tout le reste (`feat`, `fix`, `refactor`) passe pa
 rebasée avant merge.
 
 **Commits — Conventional Commits, en anglais, à l'impératif, scope = app ou module :**
+
 ```
 feat(api/orders): snapshot unit price at checkout (F-CMD-05)
 feat(web/cart): add signal store for cart persistence (F-CMD-02)
@@ -269,9 +283,10 @@ test(shared/domain): cover full state transition matrix (F-STA-01)
 chore(ci): run nx affected on pull requests
 docs(adr): record Angular + NestJS stack decision
 ```
+
 - Un commit = un changement cohérent qui **compile et passe les tests**.
 - Référence l'exigence du cahier des charges (`F-CMD-04`) quand elle existe.
-- Corps de commit obligatoire dès que le *pourquoi* n'est pas évident.
+- Corps de commit obligatoire dès que le _pourquoi_ n'est pas évident.
 - Pas de `wip`, `update`, `fix bug`. Pas de commit de 40 fichiers non liés.
 - Le client API généré est committé, dans un commit séparé de son utilisation.
 
@@ -307,6 +322,15 @@ pnpm db:migrate  db:seed  db:studio
 pnpm nx affected -t lint typecheck test build
 pnpm test:e2e
 ```
+
+**Scripts de seed et fichier d'environnement en argument, pas en variable.** `db:seed`
+lit `.env` par défaut ; toute variante (ex. `db:seed:prod` → base de production) passe le
+fichier `.env.*.local` voulu en argument CLI explicite (`node ... prisma/seed.ts
+.env.production.local`), jamais via une variable d'environnement shell — `VAR=val cmd`
+ne fonctionne pas identiquement sur PowerShell/cmd.exe et bash, un argument CLI si. Le
+fichier de dev (`.env`) n'est jamais touché par une variante de production : deux scripts
+séparés, deux fichiers séparés, aucun risque d'oubli de restauration. Voir
+`prisma/seed.ts` et le README §Déploiement.
 
 Le seed doit produire une démo crédible : 5 catégories, ~10 services, ~15 types
 d'articles aux tarifs XOF réalistes pour Abidjan, 3 clients (dont 1 professionnel),
