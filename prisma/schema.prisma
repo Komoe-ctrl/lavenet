@@ -47,3 +47,74 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+enum ServiceUnit {
+  PIECE
+  KG
+}
+
+model ServiceCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  position  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  id              String      @id @default(cuid())
+  categoryId      String
+  slug            String      @unique
+  name            String
+  unit            ServiceUnit
+  processingHours Int
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  priceRules PriceRule[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("services")
+}
+
+model ArticleType {
+  id        String   @id @default(cuid())
+  name      String
+  iconKey   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  priceRules PriceRule[]
+
+  @@map("article_types")
+}
+
+// Historized price grid: a row is never overwritten when a price changes —
+// a new row is inserted with its own effectiveFrom, and the previous row's
+// effectiveTo is closed. `resolveActivePriceRule` (libs/shared/domain)
+// picks the one active for a given date from the full row set, the same
+// function the checkout of lot 3 will use to snapshot OrderItem.unitPriceXof.
+model PriceRule {
+  id            String    @id @default(cuid())
+  serviceId     String
+  articleTypeId String?
+  amountXof     Int
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  service     Service      @relation(fields: [serviceId], references: [id])
+  articleType ArticleType? @relation(fields: [articleTypeId], references: [id])
+
+  @@index([serviceId, articleTypeId, effectiveFrom])
+  @@map("price_rules")
+}
