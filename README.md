@@ -88,6 +88,21 @@ après une remise à zéro de la base) :
 Le script refuse de s'exécuter si la base cible contient déjà des utilisateurs — pas de
 risque d'écraser des données par erreur de cible ou de double exécution.
 
+**Seeder / mettre à jour le catalogue en production** (catégories, services, types
+d'article, tarifs — indépendant des comptes, rejouable sans risque) :
+
+1. `.env.production.local` déjà en place (voir ci-dessus).
+2. `pnpm db:seed:catalog:prod`
+
+Contrairement au seed de comptes, ce script n'a pas de garde sur une base vide : il
+upsert `ServiceCategory`/`Service`/`ArticleType` par slug (les métadonnées affichées se
+mettent à jour si elles changent dans `prisma/catalog-data.ts`) et n'ajoute que les
+`PriceRule` qui n'existent pas encore — un tarif déjà enregistré n'est jamais réécrit
+(l'historique des prix ne se modifie pas, voir CLAUDE.md §4). Rejouer la commande après
+avoir ajouté un nouveau service ou un nouveau tarif dans `prisma/catalog-data.ts` ne fait
+qu'ajouter ce qui manque. Vérifié contre le scénario réel (utilisateurs déjà en base,
+catalogue vide) sur la branche dev Neon avant la mise en production.
+
 ## Développement
 
 Prérequis : Node 26, pnpm (version épinglée dans `package.json#packageManager`), un
