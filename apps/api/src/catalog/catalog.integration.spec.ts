@@ -37,7 +37,12 @@ describe('Catalog (integration)', () => {
       data: { id: categoryId, slug: `lavage-test-${runId}`, name: 'Lavage (test)', position: 999 },
     });
     await prisma.articleType.create({
-      data: { id: articleTypeId, name: 'Chemise (test)', iconKey: 'shirt' },
+      data: {
+        id: articleTypeId,
+        slug: `chemise-test-${runId}`,
+        name: 'Chemise (test)',
+        iconKey: 'shirt',
+      },
     });
 
     // KG service: single open-ended base rule (no articleType).

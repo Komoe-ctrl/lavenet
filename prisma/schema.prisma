@@ -91,6 +91,10 @@ model Service {
 
 model ArticleType {
   id        String   @id @default(cuid())
+  // Stable identity for idempotent catalog seeding (prisma/seed-catalog.ts
+  // upserts by slug) — distinct from `name`, which is the display label and
+  // free to be edited later without breaking re-seeding.
+  slug      String   @unique
   name      String
   iconKey   String
   createdAt DateTime @default(now())
@@ -119,6 +123,11 @@ model PriceRule {
   service     Service      @relation(fields: [serviceId], references: [id])
   articleType ArticleType? @relation(fields: [articleTypeId], references: [id])
 
-  @@index([serviceId, articleTypeId, effectiveFrom])
+  // Best-effort duplicate protection for prisma/seed-catalog.ts's re-seeding:
+  // Postgres unique constraints treat NULL as distinct from NULL, so this
+  // does NOT catch duplicate base-price rows (articleTypeId null, e.g. KG
+  // services) — the seed script's own findFirst-before-create covers that
+  // case; this index covers the per-article-type case at the DB level too.
+  @@unique([serviceId, articleTypeId, effectiveFrom])
   @@map("price_rules")
 }
