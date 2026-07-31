@@ -2,6 +2,7 @@
   "name": "@lavenet/source",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "prepare": "husky",
     "typecheck": "nx run-many -t typecheck",

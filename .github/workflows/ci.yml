@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  NODE_ENV: test
+  PORT: 3000
+  # Throwaway CI-only Postgres — not the free-tier Neon DB used for local dev
+  # (see .env.example) or production.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lavenet_ci
+  DIRECT_URL: postgresql://postgres:postgres@localhost:5432/lavenet_ci
+  # CI-only, not real secrets — safe to commit, never used outside this job.
+  JWT_ACCESS_SECRET: 9c2bb7136a1a6c2f3594573708067171d2bc0c18e53aadc0d9c1b4b9df97f3bf
+  JWT_REFRESH_SECRET: 7e546bf4ad1f9b9d7a49a4add89f727314a03037df4083fc5bcbec52130e314f
+  CORS_ORIGIN: http://localhost:4200
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lavenet_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: nx-set-shas and `nx affected` need it to diff
+          # against the last successful run on main.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: nrwl/nx-set-shas@v5
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Apply migrations to the CI database
+        run: pnpm exec prisma migrate deploy
+
+      - name: Typecheck
+        run: pnpm exec nx affected -t typecheck
+
+      - name: Lint
+        run: pnpm exec nx affected -t lint
+
+      # Not an nx target (it also `git diff`s generated output) — the
+      # contract-first check: fails if the OpenAPI spec apps/api actually
+      # exposes has drifted from the committed Angular client.
+      - name: Verify generated API client matches the exposed contract
+        run: pnpm api:client:check
+
+      - name: Build
+        run: pnpm exec nx affected -t build
+
+      - name: Test
+        run: pnpm exec nx affected -t test
