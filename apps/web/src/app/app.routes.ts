@@ -11,6 +11,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./features/auth/feature/login-page').then((m) => m.LoginPage),
   },
   {
+    path: 'tarifs',
+    loadComponent: () => import('./features/catalog/feature/tarifs-page').then((m) => m.TarifsPage),
+  },
+  {
     path: 'compte',
     canActivate: [authGuard],
     loadComponent: () =>

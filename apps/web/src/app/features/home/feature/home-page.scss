@@ -16,6 +16,53 @@ h1 {
   line-height: 1.5;
 }
 
+.services {
+  max-width: 32rem;
+  margin: 0 auto 3rem;
+  padding: 0 1.5rem;
+  text-align: center;
+
+  h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+}
+
+.state {
+  color: #4b5563;
+
+  &-error {
+    color: #b91c1c;
+  }
+}
+
+.teasers {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.teaser {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+
+  .price {
+    color: #6b7280;
+  }
+}
+
+.see-all {
+  color: #2563eb;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid #1e3a8a;
+    outline-offset: 2px;
+  }
+}
+
 .cta {
   display: inline-flex;
   align-items: center;
