@@ -73,7 +73,11 @@ model Service {
   name            String
   unit            ServiceUnit
   processingHours Int
+  // isActive: temporarily unavailable (still exists, hidden from the public
+  // catalog). deletedAt: soft delete per CLAUDE.md §4 rule 8, excluded from
+  // exports/stats too — the two are independent, both required.
   isActive        Boolean     @default(true)
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
