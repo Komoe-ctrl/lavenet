@@ -1,1 +1,1 @@
-export * from './lib/shared-domain';
+export * from './lib/user-role';

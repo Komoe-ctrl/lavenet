@@ -32,6 +32,14 @@ export default [
               sourceTag: 'scope:api',
               onlyDependOnLibsWithTags: ['scope:shared'],
             },
+            // libs/shared/* -> other libs/shared/* (e.g. schemas -> domain
+            // for the shared UserRole enum). Combined (AND) with the
+            // type:domain rule below for shared-domain itself, which still
+            // can't depend on anything.
+            {
+              sourceTag: 'scope:shared',
+              onlyDependOnLibsWithTags: ['scope:shared'],
+            },
             // libs/shared/domain imports nothing else in the workspace:
             // pure code, no Prisma, no Angular/React.
             {
