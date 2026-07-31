@@ -11,3 +11,5 @@ export type { AuthControllerLogout$Params as AuthControllerLogout$Params } from 
 export { authControllerLogout as authControllerLogout } from './fn/auth/auth-controller-logout';
 export type { AuthControllerMe$Params as AuthControllerMe$Params } from './fn/auth/auth-controller-me';
 export { authControllerMe as authControllerMe } from './fn/auth/auth-controller-me';
+export type { CatalogControllerGetCatalog$Params as CatalogControllerGetCatalog$Params } from './fn/catalog/catalog-controller-get-catalog';
+export { catalogControllerGetCatalog as catalogControllerGetCatalog } from './fn/catalog/catalog-controller-get-catalog';
