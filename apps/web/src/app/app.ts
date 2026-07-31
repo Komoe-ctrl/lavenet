@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
+import { RouterOutlet } from '@angular/router';
+import { ColdStartBanner } from './core/http/cold-start-banner';
 
 @Component({
-  imports: [NxWelcome, RouterModule],
+  imports: [RouterOutlet, ColdStartBanner],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.scss',

@@ -1,0 +1,40 @@
+<main class="login-page">
+  <h1>Connexion</h1>
+
+  <form (submit)="submit($event)" novalidate>
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input
+        id="login-email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        required
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="login-password">Mot de passe</label>
+      <input
+        id="login-password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        required
+        minlength="8"
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+      />
+    </div>
+
+    @if (error()) {
+      <p class="field-error" role="alert">{{ error() }}</p>
+    }
+
+    <button type="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Connexion…' : 'Se connecter' }}
+    </button>
+  </form>
+</main>
