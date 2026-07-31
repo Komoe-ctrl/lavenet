@@ -87,6 +87,31 @@ Render est déjà représentatif de ce qu'un visiteur attend au pire cas (le mes
 d'attente et le bouton Réessayer côté web couvrent l'un comme l'autre, la distinction
 n'a pas d'impact produit).
 
+## Conséquence supplémentaire (lot 2) : le build dépend désormais de l'API
+
+Le catalogue (F-CAT-04) est prerendu comme le reste des pages publiques (point 1
+ci-dessus), mais `/` et `/tarifs` récupèrent maintenant de vraies données via
+`GET /catalog` **au moment du build**, pas au chargement navigateur. Cela introduit une
+dépendance que les pages purement statiques précédentes n'avaient pas : `ng build` doit
+joindre une API qui répond.
+
+Cette dépendance a un plafond dur découvert en construisant cette feature :
+`@angular/build` impose un **timeout fixe de 30 secondes par route prerendue**, non
+configurable (`render-worker.js`, `AbortSignal.timeout(30_000)`). Un Render froid plus un
+Neon froid mesurés ensemble peuvent dépasser ce plafond dès le premier appel — reproduit
+localement (build cassé, `TimeoutError` sur `/` et `/tarifs`) pendant le développement de
+ce lot, pas un risque théorique.
+
+**Mitigation : `tools/scripts/warm-up-api.js`**, exécuté par `vercel.json` avant
+`ng build`. Réchauffe l'API (2 tentatives, 45 s chacune) avant que le build ne lance le
+prerendering ; échoue bruyamment (code de sortie non nul) si l'API ne répond toujours pas
+— un build cassé est sans danger (Vercel garde le dernier déploiement réussi), une page
+tarifs prerendue avec une liste vide en production ne l'est pas.
+
+Vérifié contre l'API réelle le 2026-07-31 : la tentative 1 a expiré au bout des 45 s
+complètes (un réveil plus froid que les 23,03 s mesurées plus haut), la tentative 2 a
+réussi en 8,187 s. La deuxième tentative n'est donc pas une précaution théorique.
+
 ## Conséquences
 
 - Aucun coût d'infrastructure tant que le projet n'a pas de trafic réel à justifier une

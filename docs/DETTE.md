@@ -26,6 +26,34 @@ utile (ex. décision de passer Neon seul en payant sans upgrader Render, ou l'in
 Mesurer : un `GET /api` (froid, sans DB) puis immédiatement un premier
 `POST /api/auth/login` (froid, avec DB) sur la même fenêtre de réveil, comparer les deux.
 
+## Les tarifs prerendus ne se rafraîchissent qu'au prochain déploiement web
+
+**Où** : `apps/web/src/app/features/catalog` (`/`, `/tarifs`), `docs/ADR/0003-cold-start-strategy.md`.
+**État actuel** : `/` et `/tarifs` sont prerendus au build (F-CAT-04) — les prix affichés
+sont figés au moment du dernier `ng build`. Créer ou modifier une `PriceRule` côté API
+n'est visible en production qu'après le prochain déploiement web, pas immédiatement.
+Acceptable pour l'instant : rien ne peut modifier un tarif en production, il n'y a pas
+encore de back-office.
+**Solution retenue (pas encore implémentée)** : quand le back-office tarifaire (F-ADM-04)
+permettra de créer/modifier une `PriceRule`, déclencher un **webhook de déploiement
+Vercel** depuis l'API à la fin de cette mutation (`deploy hook` Vercel, une simple requête
+POST sans authentification forte — à protéger par un secret côté API). Un déploiement
+Vercel régénère le prerendering avec les nouveaux prix en quelques minutes, sans
+intervention manuelle.
+**Déclencheur** : implémentation de F-ADM-04 (back-office tarifaire).
+
+## Le module `auth` n'a pas de couche repository
+
+**Où** : `apps/api/src/auth/auth.service.ts` (accède directement à `PrismaService`).
+**État actuel** : `apps/api/src/catalog` pose le précédent documenté par CLAUDE.md §3
+(`controller → service → repository`) — `auth` a été écrit avant que cette convention ne
+soit fixée et accède à Prisma directement depuis `auth.service.ts`. Fonctionne, mais
+incohérent avec le reste du dépôt et avec ce que `docs/ADR/0001-stack.md` défend comme
+architecture.
+**Déclencheur** : la prochaine intervention significative sur `auth` (lot 1 — auth
+complète : inscription, OTP téléphone). Extraire `auth.repository.ts` à ce moment-là,
+pas comme un correctif isolé aujourd'hui.
+
 ## `render.yaml` exécute `prisma migrate deploy` dans `buildCommand`
 
 **Où** : `render.yaml`.
