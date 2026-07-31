@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: lavenet-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    # `prisma migrate deploy` runs here rather than via preDeployCommand:
+    # that field's availability on the free plan isn't clearly documented,
+    # buildCommand definitely works on every plan. Applies pending
+    # migrations to whatever DATABASE_URL/DIRECT_URL point at — the Neon
+    # production branch, never touched otherwise (see CLAUDE.md §4 rule 11).
+    buildCommand: pnpm install --frozen-lockfile && pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm exec nx build api
+    startCommand: node dist/apps/api/main.js
+    healthCheckPath: /api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render assigns PORT itself; apps/api/src/config/env.ts reads it, no
+      # need to set it here.
+      - key: DATABASE_URL
+        sync: false # Neon pooled connection string
+      - key: DIRECT_URL
+        sync: false # Neon direct (unpooled) connection string, migrations only
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false # the deployed Vercel URL, e.g. https://lavenet.vercel.app
