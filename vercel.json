@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm exec nx build web",
+  "buildCommand": "node tools/scripts/warm-up-api.js && pnpm exec nx build web",
   "outputDirectory": "dist/apps/web/browser",
   "rewrites": [{ "source": "/compte", "destination": "/index.csr.html" }]
 }
