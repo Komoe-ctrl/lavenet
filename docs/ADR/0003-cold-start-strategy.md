@@ -87,6 +87,15 @@ Render est déjà représentatif de ce qu'un visiteur attend au pire cas (le mes
 d'attente et le bouton Réessayer côté web couvrent l'un comme l'autre, la distinction
 n'a pas d'impact produit).
 
+**Variance observée (lot 2, 2026-07-31) : ce chiffre n'est pas un plafond.** En vérifiant
+le warm-up du build (section suivante), un appel à `GET /api/catalog` — qui touche
+réellement Prisma/Neon, contrairement à `GET /api` ci-dessus — a mis **plus de 45 s**
+(timeout de la tentative, pas une mesure exacte) avant qu'une deuxième tentative ne
+réussisse en 8,19 s. Un Render froid **plus** un Neon froid mesurés ensemble peuvent donc
+dépasser largement les 23,03 s isolés ci-dessus. Les 23,03 s restent la mesure de
+référence du réveil Render seul ; ne pas les lire comme un plafond garanti du réveil
+combiné.
+
 ## Conséquence supplémentaire (lot 2) : le build dépend désormais de l'API
 
 Le catalogue (F-CAT-04) est prerendu comme le reste des pages publiques (point 1

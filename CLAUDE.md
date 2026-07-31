@@ -332,6 +332,17 @@ fichier de dev (`.env`) n'est jamais touché par une variante de production : de
 séparés, deux fichiers séparés, aucun risque d'oubli de restauration. Voir
 `prisma/seed.ts` et le README §Déploiement.
 
+**Deux formes de seed, selon que la cible peut déjà contenir des données.** `prisma/seed.ts`
+(comptes de démo) refuse toute base non vide — adapté à une base fraîche uniquement.
+`prisma/seed-catalog.ts` (catégories/services/types d'article/tarifs, lot 2) est
+idempotent à la place : upsert par `slug` pour les entités de catalogue, et pour
+`PriceRule` (jamais réécrit — §4 règle 2) une ligne n'est ajoutée que si elle n'existe pas
+déjà. Choisir la forme selon la nature de la donnée : garde stricte pour une donnée qui ne
+doit jamais être fusionnée avec de l'existant (comptes), upsert idempotent pour une donnée
+qu'on veut pouvoir renvoyer en production après le premier déploiement (catalogue). Les
+deux scripts partagent leurs données dans `prisma/catalog-data.ts` plutôt que de les
+dupliquer.
+
 Le seed doit produire une démo crédible : 5 catégories, ~10 services, ~15 types
 d'articles aux tarifs XOF réalistes pour Abidjan, 3 clients (dont 1 professionnel),
 1 livreur, 1 agent, 1 admin, ~25 commandes réparties sur tous les statuts et sur 60 jours
