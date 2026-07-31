@@ -1,0 +1,37 @@
+<main class="tarifs-page">
+  <h1>Nos tarifs</h1>
+
+  @if (catalog.isLoading()) {
+    <p class="state">Chargement des tarifs…</p>
+  } @else if (catalog.error()) {
+    <p class="state state-error" role="alert">
+      Impossible de charger les tarifs pour le moment. Réessayez dans un instant.
+    </p>
+  } @else if (!catalog.value()?.categories?.length) {
+    <p class="state">Aucun tarif disponible pour le moment.</p>
+  } @else {
+    @for (category of catalog.value()!.categories; track category.id) {
+      <section class="category">
+        <h2>{{ category.name }}</h2>
+        @for (service of category.services; track service.id) {
+          <article class="service">
+            <h3>{{ service.name }}</h3>
+            <p class="processing-time">Délai : {{ service.processingHours }} h</p>
+            <ul class="prices">
+              @for (price of service.prices; track price.articleTypeId ?? 'base') {
+                <li>
+                  <span class="label">
+                    {{
+                      price.articleTypeName ?? (service.unit === 'KG' ? 'au kilo' : 'à la pièce')
+                    }}
+                  </span>
+                  <span class="amount">{{ price.amountXof | money }}</span>
+                </li>
+              }
+            </ul>
+          </article>
+        }
+      </section>
+    }
+  }
+</main>
