@@ -1,0 +1,11 @@
+@if (coldStart.showBanner()) {
+  <div class="cold-start-banner" role="status" aria-live="polite">
+    @if (coldStart.isTimedOut()) {
+      <p>Le serveur ne répond pas. Réessayez dans quelques instants.</p>
+      <button type="button" (click)="retry()">Réessayer</button>
+    } @else {
+      <span class="cold-start-banner__spinner" aria-hidden="true"></span>
+      <p>Démarrage du serveur, cela peut prendre jusqu'à une minute.</p>
+    }
+  </div>
+}

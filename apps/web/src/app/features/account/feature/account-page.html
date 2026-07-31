@@ -1,0 +1,16 @@
+<main class="account-page">
+  @if (user(); as u) {
+    <h1>Mon compte</h1>
+    <dl>
+      <dt>Email</dt>
+      <dd>{{ u.email ?? '—' }}</dd>
+      <dt>Téléphone</dt>
+      <dd>{{ u.phone }}</dd>
+      <dt>Rôle</dt>
+      <dd>{{ u.role }}</dd>
+    </dl>
+    <button type="button" (click)="logout()">Se déconnecter</button>
+  } @else {
+    <p>Chargement du profil…</p>
+  }
+</main>
