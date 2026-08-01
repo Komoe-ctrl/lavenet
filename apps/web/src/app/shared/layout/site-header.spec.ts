@@ -8,8 +8,10 @@ import { SiteHeader } from './site-header';
 
 const SAMPLE_USER: AuthUserDtoOutput = {
   id: 'u1',
+  fullName: 'Client Démo',
   email: 'client@lavenet.ci',
   phone: '+2250700000002',
+  phoneVerified: true,
   role: 'CLIENT',
 };
 

@@ -1,0 +1,55 @@
+<app-site-header />
+
+<main class="otp-verify-page">
+  <h1>Vérifiez votre téléphone</h1>
+  <p class="lede">
+    Un code à 6 chiffres vous a été envoyé par SMS. Vous pouvez aussi vérifier plus tard depuis
+    votre compte.
+  </p>
+
+  @if (demoOtpCode(); as demoCode) {
+    <div class="demo-panel">
+      <p class="demo-panel__title">Mode démonstration</p>
+      <p class="demo-panel__text">
+        Aucun SMS réel n'est envoyé. Votre code : <code>{{ demoCode }}</code>
+      </p>
+      <button type="button" (click)="fillDemoCode()">Remplir</button>
+    </div>
+  }
+
+  <form (submit)="submit($event)" novalidate>
+    <div class="field">
+      <label for="otp-code">Code reçu par SMS</label>
+      <input
+        id="otp-code"
+        name="code"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        pattern="\d{6}"
+        maxlength="6"
+        required
+        [value]="code()"
+        (input)="code.set($any($event.target).value)"
+      />
+    </div>
+
+    @if (error()) {
+      <p class="field-error" role="alert">{{ error() }}</p>
+    }
+    @if (resendNotice()) {
+      <p class="field-note" role="status">{{ resendNotice() }}</p>
+    }
+
+    <button type="submit" class="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Vérification…' : 'Vérifier' }}
+    </button>
+    <button type="button" class="secondary-action" [disabled]="resending()" (click)="resend()">
+      {{ resending() ? 'Envoi…' : 'Renvoyer le code' }}
+    </button>
+  </form>
+
+  <p class="later-link"><a routerLink="/compte">Plus tard</a></p>
+</main>
+
+<app-site-footer />

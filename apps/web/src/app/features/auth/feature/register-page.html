@@ -1,0 +1,77 @@
+<app-site-header />
+
+<main class="register-page">
+  <h1>Créer un compte</h1>
+  <p class="lede">
+    Le téléphone est obligatoire : c'est votre identifiant principal, vérifié par un code envoyé par
+    SMS à l'étape suivante.
+  </p>
+
+  <form (submit)="submit($event)" novalidate>
+    <div class="field">
+      <label for="register-full-name">Nom complet</label>
+      <input
+        id="register-full-name"
+        name="fullName"
+        type="text"
+        autocomplete="name"
+        required
+        minlength="2"
+        [value]="fullName()"
+        (input)="fullName.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="register-phone">Téléphone</label>
+      <input
+        id="register-phone"
+        name="phone"
+        type="tel"
+        autocomplete="tel"
+        placeholder="+2250700000000"
+        required
+        [value]="phone()"
+        (input)="phone.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="register-email">Email <span class="optional">(facultatif)</span></label>
+      <input
+        id="register-email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="register-password">Mot de passe</label>
+      <input
+        id="register-password"
+        name="password"
+        type="password"
+        autocomplete="new-password"
+        required
+        minlength="8"
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+      />
+    </div>
+
+    @if (error()) {
+      <p class="field-error" role="alert">{{ error() }}</p>
+    }
+
+    <button type="submit" class="submit" [disabled]="submitting()">
+      {{ submitting() ? 'Création…' : 'Créer mon compte' }}
+    </button>
+  </form>
+
+  <p class="login-link">Déjà un compte ? <a routerLink="/login">Se connecter</a></p>
+</main>
+
+<app-site-footer />

@@ -34,7 +34,7 @@ describe('SessionStore', () => {
     const loginPromise = store.login('admin@lavenet.ci', 'Demo1234!');
     const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/login`);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ email: 'admin@lavenet.ci', password: 'Demo1234!' });
+    expect(req.request.body).toEqual({ identifier: 'admin@lavenet.ci', password: 'Demo1234!' });
     req.flush({
       accessToken: 'token-123',
       user: { id: 'usr_1', email: 'admin@lavenet.ci', phone: '+2250700000001', role: 'ADMIN' },
@@ -56,6 +56,70 @@ describe('SessionStore', () => {
     await expect(loginPromise).rejects.toBeTruthy();
     expect(store.isAuthenticated()).toBe(false);
     expect(store.accessToken()).toBeNull();
+  });
+
+  it('registers, logs the user in immediately, and surfaces the demo OTP code', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const registerPromise = store.register({
+      fullName: 'Aya Kouassi',
+      phone: '+2250700000009',
+      password: 'Demo1234!',
+    });
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/register`);
+    expect(req.request.method).toBe('POST');
+    req.flush({
+      accessToken: 'token-789',
+      user: {
+        id: 'usr_2',
+        fullName: 'Aya Kouassi',
+        email: null,
+        phone: '+2250700000009',
+        phoneVerified: false,
+        role: 'CLIENT',
+      },
+      demoOtpCode: '123456',
+    });
+
+    const result = await registerPromise;
+
+    expect(result.demoOtpCode).toBe('123456');
+    expect(store.isAuthenticated()).toBe(true);
+    expect(store.user()?.phoneVerified).toBe(false);
+  });
+
+  it('verifyOtp updates the user in place', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const verifyPromise = store.verifyOtp('123456');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/otp/verify`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ code: '123456' });
+    req.flush({
+      user: {
+        id: 'usr_2',
+        fullName: 'Aya Kouassi',
+        email: null,
+        phone: '+2250700000009',
+        phoneVerified: true,
+        role: 'CLIENT',
+      },
+    });
+    await verifyPromise;
+
+    expect(store.user()?.phoneVerified).toBe(true);
+  });
+
+  it('resendOtp returns a fresh demo code without touching the session', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const resendPromise = store.resendOtp();
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/otp/resend`);
+    expect(req.request.method).toBe('POST');
+    req.flush({ demoOtpCode: '654321' });
+
+    const result = await resendPromise;
+    expect(result.demoOtpCode).toBe('654321');
   });
 
   it('restores an authenticated session from the refresh cookie', async () => {

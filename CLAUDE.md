@@ -129,8 +129,11 @@ divergence front/back doit casser le typecheck, pas se découvrir en production.
 Nommage anglais, `camelCase` en Prisma, tables `snake_case` via `@@map`.
 
 ```
-User(id, role[CLIENT|STAFF|COURIER|ADMIN], email?, phone, phoneVerifiedAt, passwordHash, deletedAt?)
+User(id, role[CLIENT|STAFF|COURIER|ADMIN], fullName?, email?, phone, phoneVerifiedAt,
+     passwordHash, notifyEmail, notifySms, deletedAt?)
 RefreshToken(id, userId, tokenHash, expiresAt, revokedAt?, userAgent)
+OtpCode(id, userId, purpose[PHONE_VERIFICATION|PASSWORD_RESET], codeHash, expiresAt,
+        attempts, consumedAt?)
 Address(id, userId, label, commune, quartier, details, geoLat?, geoLng?, isDefault)
 Agency(id, name, address, openingHours)
 ServiceCategory(id, slug, name, position)

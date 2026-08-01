@@ -3,6 +3,12 @@
 
 export type { AppControllerGetData$Params as AppControllerGetData$Params } from './fn/app/app-controller-get-data';
 export { appControllerGetData as appControllerGetData } from './fn/app/app-controller-get-data';
+export type { AuthControllerRegister$Params as AuthControllerRegister$Params } from './fn/auth/auth-controller-register';
+export { authControllerRegister as authControllerRegister } from './fn/auth/auth-controller-register';
+export type { AuthControllerVerifyOtp$Params as AuthControllerVerifyOtp$Params } from './fn/auth/auth-controller-verify-otp';
+export { authControllerVerifyOtp as authControllerVerifyOtp } from './fn/auth/auth-controller-verify-otp';
+export type { AuthControllerResendOtp$Params as AuthControllerResendOtp$Params } from './fn/auth/auth-controller-resend-otp';
+export { authControllerResendOtp as authControllerResendOtp } from './fn/auth/auth-controller-resend-otp';
 export type { AuthControllerLogin$Params as AuthControllerLogin$Params } from './fn/auth/auth-controller-login';
 export { authControllerLogin as authControllerLogin } from './fn/auth/auth-controller-login';
 export type { AuthControllerRefresh$Params as AuthControllerRefresh$Params } from './fn/auth/auth-controller-refresh';

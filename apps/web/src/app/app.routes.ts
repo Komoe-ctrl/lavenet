@@ -11,6 +11,17 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./features/auth/feature/login-page').then((m) => m.LoginPage),
   },
   {
+    path: 'register',
+    loadComponent: () =>
+      import('./features/auth/feature/register-page').then((m) => m.RegisterPage),
+  },
+  {
+    path: 'otp-verify',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/auth/feature/otp-verify-page').then((m) => m.OtpVerifyPage),
+  },
+  {
     path: 'tarifs',
     loadComponent: () => import('./features/catalog/feature/tarifs-page').then((m) => m.TarifsPage),
   },

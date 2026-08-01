@@ -2,11 +2,15 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { Api } from '../api-client/api';
 import { AuthUserDtoOutput } from '../api-client/models/auth-user-dto-output';
+import { RegisterDto } from '../api-client/models/register-dto';
 import {
   authControllerLogin,
   authControllerLogout,
   authControllerMe,
   authControllerRefresh,
+  authControllerRegister,
+  authControllerResendOtp,
+  authControllerVerifyOtp,
 } from '../api-client/functions';
 
 type SessionStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
@@ -38,10 +42,12 @@ export const SessionStore = signalStore(
     const api = inject(Api);
 
     return {
-      async login(email: string, password: string): Promise<void> {
+      async login(identifier: string, password: string): Promise<void> {
         patchState(store, { status: 'loading' });
         try {
-          const response = await api.invoke(authControllerLogin, { body: { email, password } });
+          const response = await api.invoke(authControllerLogin, {
+            body: { identifier, password },
+          });
           patchState(store, {
             user: response.user,
             accessToken: response.accessToken,
@@ -51,6 +57,36 @@ export const SessionStore = signalStore(
           patchState(store, { user: null, accessToken: null, status: 'unauthenticated' });
           throw err;
         }
+      },
+
+      // Registration logs the user in immediately (same as login) -- an
+      // unverified phone can browse, just not order. Returns the demo OTP
+      // code (present only when the API runs with DEMO_MODE=true) so the
+      // caller can show it in the demo banner.
+      async register(input: RegisterDto): Promise<{ demoOtpCode?: string }> {
+        patchState(store, { status: 'loading' });
+        try {
+          const response = await api.invoke(authControllerRegister, { body: input });
+          patchState(store, {
+            user: response.user,
+            accessToken: response.accessToken,
+            status: 'authenticated',
+          });
+          return { demoOtpCode: response.demoOtpCode };
+        } catch (err) {
+          patchState(store, { user: null, accessToken: null, status: 'unauthenticated' });
+          throw err;
+        }
+      },
+
+      async verifyOtp(code: string): Promise<void> {
+        const response = await api.invoke(authControllerVerifyOtp, { body: { code } });
+        patchState(store, { user: response.user });
+      },
+
+      async resendOtp(): Promise<{ demoOtpCode?: string }> {
+        const response = await api.invoke(authControllerResendOtp);
+        return { demoOtpCode: response.demoOtpCode };
       },
 
       async logout(): Promise<void> {

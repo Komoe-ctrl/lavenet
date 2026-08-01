@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SessionStore } from '../../../core/auth/session.store';
 import { LoginPage } from './login-page';
 
-type FakeSession = { login: (email: string, password: string) => Promise<void> };
+type FakeSession = { login: (identifier: string, password: string) => Promise<void> };
 
 // SiteHeader (rendered by LoginPage) reads isAuthenticated()/user() -- not
 // under test here, so always "logged out" regardless of what the login
@@ -49,9 +49,10 @@ describe('LoginPage', () => {
     button.click();
     fixture.detectChanges();
 
-    const emailInput: HTMLInputElement = fixture.nativeElement.querySelector('#login-email');
+    const identifierInput: HTMLInputElement =
+      fixture.nativeElement.querySelector('#login-identifier');
     const passwordInput: HTMLInputElement = fixture.nativeElement.querySelector('#login-password');
-    expect(emailInput.value).toBe('client@lavenet.ci');
+    expect(identifierInput.value).toBe('client@lavenet.ci');
     expect(passwordInput.value).toBe('Demo1234!');
   });
 
