@@ -18,5 +18,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["tools/scripts/**/*.ts", "apps/api/src/**/*.ts"]
+  "include": ["tools/scripts/**/*.ts", "apps/api/src/**/*.ts", "apps/web/src/environments/**/*.ts"]
 }

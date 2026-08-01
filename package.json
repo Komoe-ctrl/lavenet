@@ -20,7 +20,8 @@
     "api:client:generate": "ng-openapi-gen --config ng-openapi-gen.json",
     "api:client": "pnpm api:client:spec && pnpm api:client:generate",
     "api:client:check": "pnpm api:client && git diff --exit-code -- apps/web/src/app/core/api-client",
-    "ci:local": "pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm api:client:check"
+    "test:scripts": "vitest run tools/scripts",
+    "ci:local": "pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm test:scripts && pnpm build && pnpm api:client:check"
   },
   "private": true,
   "devDependencies": {
