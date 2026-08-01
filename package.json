@@ -22,7 +22,8 @@
     "api:client": "pnpm api:client:spec && pnpm api:client:generate",
     "api:client:check": "pnpm api:client && git diff --exit-code -- apps/web/src/app/core/api-client",
     "test:scripts": "vitest run tools/scripts",
-    "ci:local": "pnpm install --frozen-lockfile && pnpm db:check-drift && pnpm lint && pnpm typecheck && pnpm test && pnpm test:scripts && pnpm build && pnpm api:client:check"
+    "verify:og-tags": "node tools/scripts/verify-prerendered-meta.js",
+    "ci:local": "pnpm install --frozen-lockfile && pnpm db:check-drift && pnpm lint && pnpm typecheck && pnpm test && pnpm test:scripts && pnpm build && pnpm api:client:check && pnpm verify:og-tags"
   },
   "private": true,
   "devDependencies": {

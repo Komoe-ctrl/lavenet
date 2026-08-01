@@ -28,6 +28,11 @@ export function setPageMeta(
   metaService.updateTag({ property: 'og:title', content: title });
   metaService.updateTag({ property: 'og:description', content: description });
   metaService.updateTag({ property: 'og:image', content: imageUrl });
+  // Explicit type/dimensions so a crawler doesn't need to download the
+  // image first to decide whether/how to use it.
+  metaService.updateTag({ property: 'og:image:type', content: 'image/webp' });
+  metaService.updateTag({ property: 'og:image:width', content: '1200' });
+  metaService.updateTag({ property: 'og:image:height', content: '630' });
   metaService.updateTag({ property: 'og:url', content: url });
   metaService.updateTag({ name: 'twitter:card', content: 'summary_large_image' });
 }
