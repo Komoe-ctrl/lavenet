@@ -1,1 +1,74 @@
-/* You can add global styles to this file, and also import other style files */
+// Design tokens shared by every component's own SCSS (Angular's ViewEncapsulation
+// means these custom properties need to live somewhere global to cross component
+// boundaries -- component :host blocks consume them via var()).
+:root {
+  // Palette: propreté / eau. Deux teintes + neutres, pas de dégradé.
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-tint: #ecfeff;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-border: #e2e8f0;
+  --color-primary: #0e7490;
+  --color-primary-dark: #155e75;
+  --color-primary-contrast: #ffffff;
+  --color-error: #b91c1c;
+  --color-focus-ring: #155e75;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --font-size-h1: clamp(1.875rem, 5vw + 0.5rem, 2.75rem);
+  --font-size-h2: clamp(1.375rem, 2.5vw + 0.5rem, 1.75rem);
+  --font-size-h3: 1.125rem;
+  --font-size-body: 1rem;
+  --font-size-small: 0.875rem;
+
+  // Base 8px.
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --space-6: 4rem;
+  --space-7: 6rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.06);
+
+  --content-width: 72rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
