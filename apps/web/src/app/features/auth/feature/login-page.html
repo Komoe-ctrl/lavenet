@@ -1,5 +1,28 @@
+<app-site-header />
+
 <main class="login-page">
   <h1>Connexion</h1>
+
+  <div class="demo-panel">
+    <p class="demo-panel__title">Mode démonstration</p>
+    <p class="demo-panel__text">
+      Ce site est un projet de démonstration. Utilisez l'un de ces comptes pour vous connecter :
+    </p>
+    <ul class="demo-panel__accounts">
+      @for (account of demoAccounts; track account.email) {
+        <li>
+          <div>
+            <span class="demo-panel__role">{{ account.label }}</span>
+            <span class="demo-panel__email">{{ account.email }}</span>
+          </div>
+          <button type="button" (click)="fillDemo(account)">Remplir</button>
+        </li>
+      }
+    </ul>
+    <p class="demo-panel__password">
+      Mot de passe : <code>{{ demoPassword }}</code>
+    </p>
+  </div>
 
   <form (submit)="submit($event)" novalidate>
     <div class="field">
@@ -33,8 +56,10 @@
       <p class="field-error" role="alert">{{ error() }}</p>
     }
 
-    <button type="submit" [disabled]="submitting()">
+    <button type="submit" class="submit" [disabled]="submitting()">
       {{ submitting() ? 'Connexion…' : 'Se connecter' }}
     </button>
   </form>
 </main>
+
+<app-site-footer />

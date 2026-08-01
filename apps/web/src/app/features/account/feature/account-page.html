@@ -1,16 +1,45 @@
+<app-site-header />
+
 <main class="account-page">
   @if (user(); as u) {
     <h1>Mon compte</h1>
-    <dl>
-      <dt>Email</dt>
-      <dd>{{ u.email ?? '—' }}</dd>
-      <dt>Téléphone</dt>
-      <dd>{{ u.phone }}</dd>
-      <dt>Rôle</dt>
-      <dd>{{ u.role }}</dd>
-    </dl>
-    <button type="button" (click)="logout()">Se déconnecter</button>
+
+    <section class="profile-card">
+      <dl>
+        <dt>Email</dt>
+        <dd>{{ u.email ?? '—' }}</dd>
+        <dt>Téléphone</dt>
+        <dd>{{ u.phone }}</dd>
+        <dt>Rôle</dt>
+        <dd>{{ u.role }}</dd>
+      </dl>
+      <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
+    </section>
+
+    <section class="roadmap">
+      <h2>Bientôt disponible</h2>
+      <p class="roadmap__intro">
+        Ce compte est fonctionnel (connexion, session, déconnexion), mais le parcours commande n'est
+        pas encore développé sur cette démonstration :
+      </p>
+      <ul class="roadmap__list">
+        <li>
+          <span class="roadmap__label">Commandes</span>
+          <span>Créer une commande, choisir les articles et le service.</span>
+        </li>
+        <li>
+          <span class="roadmap__label">Suivi</span>
+          <span>Suivre l'avancement : collecte, traitement, livraison.</span>
+        </li>
+        <li>
+          <span class="roadmap__label">Paiement</span>
+          <span>Régler une commande en ligne.</span>
+        </li>
+      </ul>
+    </section>
   } @else {
-    <p>Chargement du profil…</p>
+    <p class="state">Chargement du profil…</p>
   }
 </main>
+
+<app-site-footer />
