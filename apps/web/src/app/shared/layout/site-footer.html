@@ -1,12 +1,38 @@
 <footer class="site-footer">
   <div class="footer-content">
-    <p class="brand">LaveNet</p>
-    <p>Service de blanchisserie en ligne — Abidjan, Côte d'Ivoire.</p>
-    <p class="demo-note">Ce site est un projet de démonstration.</p>
-    <p class="contact">
-      <a href="mailto:contact@lavenet.example">contact@lavenet.example</a>
-      <span class="contact-note">(adresse de démonstration, en attente de la vraie)</span>
-    </p>
+    <p class="brand">{{ config.brandName }}</p>
+    <p>{{ config.tagline }}</p>
+    <p class="demo-note">{{ config.demoNotice }}</p>
+
+    @if (config.contact.email; as email) {
+      <p class="contact">
+        <a [href]="'mailto:' + email">{{ email }}</a>
+        @if (config.contact.emailNote; as note) {
+          <span class="contact-note">({{ note }})</span>
+        }
+      </p>
+    }
+    @if (config.contact.phone; as phone) {
+      <p class="contact">
+        <a [href]="'tel:' + phone">{{ phone }}</a>
+      </p>
+    }
+    @if (config.contact.whatsapp; as whatsapp) {
+      <p class="contact">
+        <a [href]="whatsappHref(whatsapp)" target="_blank" rel="noopener">WhatsApp</a>
+      </p>
+    }
+    @if (config.contact.address; as address) {
+      <p class="address">{{ address }}</p>
+    }
+    @if (config.social.length > 0) {
+      <p class="social">
+        @for (link of config.social; track link.url) {
+          <a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>
+        }
+      </p>
+    }
+
     @if (showPhotoCredit()) {
       <p class="credit">Photo : Dan Lefebvre (Unsplash)</p>
     }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SessionStore } from '../../core/auth/session.store';
+import { siteConfig } from '../config/site-config';
 
 @Component({
   selector: 'app-site-header',
@@ -19,4 +20,5 @@ export class SiteHeader {
   private readonly session = inject(SessionStore);
   protected readonly isAuthenticated = this.session.isAuthenticated;
   protected readonly user = this.session.user;
+  protected readonly config = siteConfig;
 }

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { SessionStore } from '../../../core/auth/session.store';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { siteConfig } from '../../../shared/config/site-config';
 import { CatalogService } from '../../catalog/data-access/catalog.service';
 import { HomePage } from './home-page';
 
@@ -87,6 +88,22 @@ describe('HomePage', () => {
     // No invented figures: the copy must say these are still pending, not
     // state a fabricated fee/schedule as if it were real.
     expect(text).toContain('seront communiqués');
+  });
+
+  // All of this must come from shared/config/site-config.ts, not be
+  // hardcoded in the component -- a single edit there should be enough to
+  // update every page.
+  it('sources the covered communes and hours note from the shared site config', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const items = Array.from(
+      fixture.nativeElement.querySelectorAll('.coverage__list li') as NodeListOf<HTMLLIElement>,
+    ).map((li) => li.textContent);
+    expect(items).toEqual(siteConfig.coverage.communes);
+    expect(fixture.nativeElement.textContent).toContain(siteConfig.coverage.hoursNote);
   });
 
   it('sets the page title and Open Graph tags', async () => {

@@ -9,6 +9,7 @@ import {
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { siteConfig } from '../../../shared/config/site-config';
 import { DevelopmentNotice } from '../../../shared/layout/development-notice';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
@@ -21,17 +22,6 @@ interface CategoryTeaser {
   name: string;
   startingFromXof: number | null;
 }
-
-const COVERED_COMMUNES = [
-  'Cocody',
-  'Plateau',
-  'Marcory',
-  'Treichville',
-  'Yopougon',
-  'Adjamé',
-  'Koumassi',
-  'Port-Bouët',
-];
 
 // Public, prerendered, zero API calls on load from the visitor's browser --
 // the catalog fetch below runs at build time (see docs/DETTE.md for the
@@ -47,11 +37,11 @@ const COVERED_COMMUNES = [
 export class HomePage {
   private readonly catalogService = inject(CatalogService);
 
-  protected readonly communes = COVERED_COMMUNES;
+  protected readonly config = siteConfig;
 
   constructor() {
     setPageMeta(inject(Title), inject(Meta), {
-      title: 'LaveNet — Pressing en ligne à Abidjan',
+      title: `${siteConfig.brandName} — Pressing en ligne à Abidjan`,
       description:
         'Pressing à Abidjan : lavage, repassage, collecte et livraison. Consultez nos tarifs, notre zone de livraison et nos horaires.',
       path: '/',

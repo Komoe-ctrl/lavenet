@@ -1,5 +1,5 @@
 <header class="site-header">
-  <a routerLink="/" class="brand">LaveNet</a>
+  <a routerLink="/" class="brand">{{ config.brandName }}</a>
   @if (isAuthenticated()) {
     <a routerLink="/compte" class="account-link">{{ user()?.email ?? 'Mon compte' }}</a>
   } @else {

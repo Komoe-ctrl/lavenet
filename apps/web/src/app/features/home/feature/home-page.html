@@ -130,15 +130,13 @@
     <h3>Communes couvertes</h3>
     <p class="coverage__intro">Nous intervenons actuellement dans les communes suivantes :</p>
     <ul class="coverage__list">
-      @for (commune of communes; track commune) {
+      @for (commune of config.coverage.communes; track commune) {
         <li>{{ commune }}</li>
       }
     </ul>
 
     <h3>Horaires de collecte et de livraison</h3>
-    <p class="coverage__hours">
-      Les horaires précis seront communiqués avant l'ouverture de la commande en ligne.
-    </p>
+    <p class="coverage__hours">{{ config.coverage.hoursNote }}</p>
   </section>
 
   <section class="faq">
