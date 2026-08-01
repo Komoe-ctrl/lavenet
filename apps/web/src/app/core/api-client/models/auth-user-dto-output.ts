@@ -3,7 +3,9 @@
 
 export interface AuthUserDtoOutput {
   email: string | null;
+  fullName: string | null;
   id: string;
   phone: string;
+  phoneVerified: boolean;
   role: 'CLIENT' | 'STAFF' | 'COURIER' | 'ADMIN';
 }

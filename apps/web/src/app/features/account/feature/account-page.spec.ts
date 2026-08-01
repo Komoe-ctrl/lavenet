@@ -8,8 +8,10 @@ import { AccountPage } from './account-page';
 
 const SAMPLE_USER: AuthUserDtoOutput = {
   id: 'u1',
+  fullName: 'Client Démo',
   email: 'client@lavenet.ci',
   phone: '+2250700000002',
+  phoneVerified: true,
   role: 'CLIENT',
 };
 
@@ -48,12 +50,27 @@ describe('AccountPage', () => {
 
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('LaveNet');
+    expect(text).toContain('Client Démo');
     expect(text).toContain('client@lavenet.ci');
     expect(text).toContain('CLIENT');
     expect(text).toContain('Bientôt disponible');
     expect(text).toContain('Commandes');
     expect(text).toContain('Suivi');
     expect(text).toContain('Paiement');
+    // Already verified in SAMPLE_USER -- no nudge to go verify.
+    expect(text).not.toContain('non vérifié');
+  });
+
+  it('nudges an unverified phone toward /otp-verify', () => {
+    configureWith({ user: signal({ ...SAMPLE_USER, phoneVerified: false }), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('non vérifié');
+    expect(text).toContain("n'est pas encore vérifié");
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.verify-notice a');
+    expect(link.getAttribute('href')).toBe('/otp-verify');
   });
 
   it('shows the account email in the header instead of a login link', () => {

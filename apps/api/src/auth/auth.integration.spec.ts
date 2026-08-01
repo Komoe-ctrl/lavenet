@@ -58,7 +58,7 @@ describe('Auth (integration)', () => {
     // the file-level comment on why call count is kept low.
     loginA = await request(app.getHttpServer())
       .post(`/${API_GLOBAL_PREFIX}/auth/login`)
-      .send({ email: userA.email, password: PASSWORD });
+      .send({ identifier: userA.email, password: PASSWORD });
   });
 
   afterAll(async () => {
@@ -74,10 +74,10 @@ describe('Auth (integration)', () => {
     expect(loginA.headers['set-cookie']?.[0]).toMatch(/^refresh_token=/);
   });
 
-  it('rejects an invalid password without revealing whether the email exists', async () => {
+  it('rejects an invalid password without revealing whether the identifier exists', async () => {
     const res = await request(app.getHttpServer())
       .post(`/${API_GLOBAL_PREFIX}/auth/login`)
-      .send({ email: userA.email, password: 'wrong-password' });
+      .send({ identifier: userA.email, password: 'wrong-password' });
 
     expect(res.status).toBe(401);
     expect(res.body.message).toBe('Identifiants invalides.');
@@ -90,7 +90,7 @@ describe('Auth (integration)', () => {
   it("/me returns the token's own identity, never another user's", async () => {
     const loginB = await request(app.getHttpServer())
       .post(`/${API_GLOBAL_PREFIX}/auth/login`)
-      .send({ email: userB.email, password: PASSWORD });
+      .send({ identifier: userB.email, password: PASSWORD });
     expect(loginB.status).toBe(200);
 
     const meA = await request(app.getHttpServer())

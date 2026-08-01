@@ -14,7 +14,17 @@ import { ZodResponse } from 'nestjs-zod';
 import type { Request, Response } from 'express';
 import { env } from '../config/env';
 import { AuthService } from './auth.service';
-import { AuthUserDto, LoginDto, LoginResponseDto, RefreshResponseDto } from './auth.dto';
+import {
+  AuthUserDto,
+  LoginDto,
+  LoginResponseDto,
+  OtpResponseDto,
+  RefreshResponseDto,
+  RegisterDto,
+  RegisterResponseDto,
+  VerifyOtpDto,
+  VerifyOtpResponseDto,
+} from './auth.dto';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -28,6 +38,39 @@ const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ZodResponse({ type: RegisterResponseDto })
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken, refreshToken, user, demoOtpCode } = await this.authService.register(
+      dto,
+      req.headers['user-agent'],
+    );
+    this.setRefreshCookie(res, refreshToken);
+    return { accessToken, user, demoOtpCode };
+  }
+
+  @Post('otp/verify')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: VerifyOtpResponseDto })
+  async verifyOtp(@CurrentUser() userId: string, @Body() dto: VerifyOtpDto) {
+    const user = await this.authService.verifyOtp(userId, dto.code);
+    return { user };
+  }
+
+  @Post('otp/resend')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: OtpResponseDto })
+  resendOtp(@CurrentUser() userId: string) {
+    return this.authService.resendOtp(userId);
+  }
+
   @Post('login')
   @HttpCode(200)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -38,7 +81,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { accessToken, refreshToken, user } = await this.authService.login(
-      dto.email,
+      dto.identifier,
       dto.password,
       req.headers['user-agent'],
     );

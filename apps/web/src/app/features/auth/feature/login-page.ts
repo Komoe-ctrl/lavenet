@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { SessionStore } from '../../../core/auth/session.store';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
@@ -20,7 +20,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
 
 @Component({
   selector: 'app-login-page',
-  imports: [SiteHeader, SiteFooter],
+  imports: [RouterLink, SiteHeader, SiteFooter],
   templateUrl: './login-page.html',
   styleUrl: './login-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,13 +32,13 @@ export class LoginPage {
   protected readonly demoAccounts = DEMO_ACCOUNTS;
   protected readonly demoPassword = DEMO_PASSWORD;
 
-  protected readonly email = signal('');
+  protected readonly identifier = signal('');
   protected readonly password = signal('');
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
 
   protected fillDemo(account: DemoAccount): void {
-    this.email.set(account.email);
+    this.identifier.set(account.email);
     this.password.set(DEMO_PASSWORD);
     this.error.set(null);
   }
@@ -48,7 +48,7 @@ export class LoginPage {
     this.submitting.set(true);
     this.error.set(null);
     try {
-      await this.session.login(this.email(), this.password());
+      await this.session.login(this.identifier(), this.password());
       await this.router.navigateByUrl('/compte');
     } catch {
       this.error.set('Identifiants invalides.');

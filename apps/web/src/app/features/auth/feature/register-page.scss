@@ -1,0 +1,31 @@
+@use '../../../shared/styles/auth-form';
+
+.register-page {
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-6);
+
+  h1 {
+    font-size: var(--font-size-h2);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .lede {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    margin-bottom: var(--space-3);
+  }
+}
+
+.login-link {
+  margin-top: var(--space-3);
+  text-align: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+
+  a {
+    color: var(--color-primary-dark);
+    font-weight: 600;
+  }
+}

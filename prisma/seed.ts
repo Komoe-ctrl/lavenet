@@ -31,8 +31,18 @@ try {
 const DEMO_PASSWORD = 'Demo1234!';
 
 const DEMO_USERS = [
-  { phone: '+2250700000001', email: 'admin@lavenet.ci', role: 'ADMIN' as const },
-  { phone: '+2250700000002', email: 'client@lavenet.ci', role: 'CLIENT' as const },
+  {
+    phone: '+2250700000001',
+    email: 'admin@lavenet.ci',
+    fullName: 'Admin LaveNet',
+    role: 'ADMIN' as const,
+  },
+  {
+    phone: '+2250700000002',
+    email: 'client@lavenet.ci',
+    fullName: 'Client Démo',
+    role: 'CLIENT' as const,
+  },
 ];
 
 async function main() {

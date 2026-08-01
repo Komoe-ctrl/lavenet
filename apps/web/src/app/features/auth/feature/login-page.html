@@ -26,15 +26,15 @@
 
   <form (submit)="submit($event)" novalidate>
     <div class="field">
-      <label for="login-email">Email</label>
+      <label for="login-identifier">Email ou téléphone</label>
       <input
-        id="login-email"
-        name="email"
-        type="email"
-        autocomplete="email"
+        id="login-identifier"
+        name="identifier"
+        type="text"
+        autocomplete="username"
         required
-        [value]="email()"
-        (input)="email.set($any($event.target).value)"
+        [value]="identifier()"
+        (input)="identifier.set($any($event.target).value)"
       />
     </div>
 
@@ -60,6 +60,8 @@
       {{ submitting() ? 'Connexion…' : 'Se connecter' }}
     </button>
   </form>
+
+  <p class="register-link">Pas encore de compte ? <a routerLink="/register">Créer un compte</a></p>
 </main>
 
 <app-site-footer />

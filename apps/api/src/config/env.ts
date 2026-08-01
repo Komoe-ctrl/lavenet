@@ -8,6 +8,19 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   CORS_ORIGIN: z.url(),
+  // Gates two things, and only these two: whether an OTP response ever
+  // includes the raw code (registerResponseSchema/otpResponseSchema's
+  // demoOtpCode) and whether SandboxSmsProvider logs it. Default false --
+  // must be explicitly opted into, never assumed (CLAUDE.md §11).
+  //
+  // Not z.coerce.boolean(): that coerces via JS `Boolean(value)`, so the
+  // literal string 'false' from an env file -- non-empty -- comes out
+  // `true`. Comparing against the exact string is the only correct way to
+  // parse a boolean-shaped env var.
+  DEMO_MODE: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

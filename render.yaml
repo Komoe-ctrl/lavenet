@@ -28,3 +28,8 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false # the deployed Vercel URL, e.g. https://lavenet.vercel.app
+      # No real SMS provider is wired up (CLAUDE.md §11) -- this deployment
+      # *is* the portfolio demo, so OTP codes must surface to the visitor
+      # instead of being silently unreachable.
+      - key: DEMO_MODE
+        value: 'true'

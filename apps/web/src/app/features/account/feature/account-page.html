@@ -6,13 +6,26 @@
 
     <section class="profile-card">
       <dl>
+        <dt>Nom</dt>
+        <dd>{{ u.fullName ?? '—' }}</dd>
         <dt>Email</dt>
         <dd>{{ u.email ?? '—' }}</dd>
         <dt>Téléphone</dt>
-        <dd>{{ u.phone }}</dd>
+        <dd>
+          {{ u.phone }}
+          @if (!u.phoneVerified) {
+            <span class="unverified">non vérifié</span>
+          }
+        </dd>
         <dt>Rôle</dt>
         <dd>{{ u.role }}</dd>
       </dl>
+      @if (!u.phoneVerified) {
+        <p class="verify-notice">
+          Votre téléphone n'est pas encore vérifié.
+          <a routerLink="/otp-verify">Vérifier maintenant</a>
+        </p>
+      }
       <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
     </section>
 
