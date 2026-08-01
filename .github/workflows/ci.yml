@@ -95,6 +95,15 @@ jobs:
       - name: Build
         run: pnpm exec nx affected -t build
 
+      # verify:og-tags always reads dist/apps/web/browser, but the step
+      # above only builds web when nx affected decides it changed -- an
+      # api-only diff (e.g. the AuthRepository refactor, run #24) skips it
+      # entirely, leaving no dist and failing this check for a reason that
+      # has nothing to do with Open Graph tags. Build web unconditionally;
+      # nx's build cache makes this a no-op if affected already built it.
+      - name: Build web (dist required by the OG tag check below)
+        run: pnpm exec nx build web
+
       # Crawlers (WhatsApp, Facebook, ...) never execute JS -- they only
       # ever see the static HTML `ng build` prerendered. This catches a tag
       # being set at runtime only, or a relative (non-absolute) URL, which
