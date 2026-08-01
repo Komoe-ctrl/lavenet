@@ -20,4 +20,9 @@ export const appRoutes: Route[] = [
     loadComponent: () =>
       import('./features/account/feature/account-page').then((m) => m.AccountPage),
   },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./features/not-found/feature/not-found-page').then((m) => m.NotFoundPage),
+  },
 ];
