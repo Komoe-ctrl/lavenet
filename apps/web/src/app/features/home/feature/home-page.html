@@ -11,24 +11,26 @@
   <section class="services">
     <h2>Nos services</h2>
 
-    @if (catalog.isLoading()) {
+    @if (lastGoodCatalog()) {
+      @if (categoryTeasers().length === 0) {
+        <p class="state">Aucun service disponible pour le moment.</p>
+      } @else {
+        <ul class="teasers">
+          @for (category of categoryTeasers(); track category.id) {
+            <li class="teaser">
+              <span class="name">{{ category.name }}</span>
+              @if (category.startingFromXof !== null) {
+                <span class="price">à partir de {{ category.startingFromXof | money }}</span>
+              }
+            </li>
+          }
+        </ul>
+        <a routerLink="/tarifs" class="see-all">Voir tous les tarifs</a>
+      }
+    } @else if (catalog.isLoading()) {
       <p class="state">Chargement des services…</p>
     } @else if (catalog.error()) {
       <p class="state state-error" role="alert">Services indisponibles pour le moment.</p>
-    } @else if (categoryTeasers().length === 0) {
-      <p class="state">Aucun service disponible pour le moment.</p>
-    } @else {
-      <ul class="teasers">
-        @for (category of categoryTeasers(); track category.id) {
-          <li class="teaser">
-            <span class="name">{{ category.name }}</span>
-            @if (category.startingFromXof !== null) {
-              <span class="price">à partir de {{ category.startingFromXof | money }}</span>
-            }
-          </li>
-        }
-      </ul>
-      <a routerLink="/tarifs" class="see-all">Voir tous les tarifs</a>
     }
   </section>
 </main>

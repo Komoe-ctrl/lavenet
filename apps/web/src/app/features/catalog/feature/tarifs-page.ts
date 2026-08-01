@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, resource } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, linkedSignal, resource } from '@angular/core';
+import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CatalogService } from '../data-access/catalog.service';
 
@@ -17,5 +18,17 @@ export class TarifsPage {
 
   protected readonly catalog = resource({
     loader: () => this.catalogService.loadCatalog(),
+  });
+
+  // resource() drops its value the moment a reload errors -- catalog.value()
+  // throws in that state. This carries the last successfully loaded catalog
+  // forward through any later loading/error state, so a background refresh
+  // (in flight or failed) never blanks out prices already on screen.
+  protected readonly lastGoodCatalog = linkedSignal<
+    CatalogResponseDtoOutput | null,
+    CatalogResponseDtoOutput | null
+  >({
+    source: () => (this.catalog.hasValue() ? this.catalog.value() : null),
+    computation: (source, previous) => source ?? previous?.value ?? null,
   });
 }
