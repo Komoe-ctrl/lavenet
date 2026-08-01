@@ -21,7 +21,13 @@ function configureWith(session: {
     providers: [
       provideZonelessChangeDetection(),
       provideRouter([{ path: 'login', children: [] }]),
-      { provide: SessionStore, useValue: session },
+      {
+        // SiteHeader (rendered by AccountPage) reads isAuthenticated() too --
+        // derived from the same fake `user` so the header and the profile
+        // section never disagree in a test.
+        provide: SessionStore,
+        useValue: { ...session, isAuthenticated: () => session.user() !== null },
+      },
     ],
   });
 }
@@ -48,6 +54,16 @@ describe('AccountPage', () => {
     expect(text).toContain('Commandes');
     expect(text).toContain('Suivi');
     expect(text).toContain('Paiement');
+  });
+
+  it('shows the account email in the header instead of a login link', () => {
+    configureWith({ user: signal(SAMPLE_USER), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).not.toContain('Se connecter');
+    expect(fixture.nativeElement.querySelector('.account-link')).not.toBeNull();
   });
 
   it('logs out and navigates to /login', async () => {

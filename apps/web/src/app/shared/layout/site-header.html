@@ -1,4 +1,8 @@
 <header class="site-header">
   <a routerLink="/" class="brand">LaveNet</a>
-  <a routerLink="/login" class="login-link">Se connecter</a>
+  @if (isAuthenticated()) {
+    <a routerLink="/compte" class="account-link">{{ user()?.email ?? 'Mon compte' }}</a>
+  } @else {
+    <a routerLink="/login" class="login-link">Se connecter</a>
+  }
 </header>
