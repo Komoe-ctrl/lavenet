@@ -59,6 +59,18 @@ describe('TarifsPage', () => {
     expect(text).toContain('projet de démonstration');
   });
 
+  it('shows the development notice and delivery info without inventing figures', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(TarifsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('en cours de développement');
+    expect(text).toContain('Frais de livraison et minimum de commande');
+    expect(text).toContain('seront communiqués');
+  });
+
   it('sets the page title and Open Graph tags', async () => {
     configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
     const fixture = TestBed.createComponent(TarifsPage);
@@ -112,6 +124,10 @@ describe('TarifsPage', () => {
     expect(text).toContain('Lavage');
     expect(text).toContain('Lavage au kilo');
     expect(text).toContain(EXPECTED_PRICE);
+    // "Tarif de base" duplicated the unit badge ("au kilo") shown right
+    // above it -- replaced with a plain, non-redundant label.
+    expect(text).toContain('Prix');
+    expect(text).not.toContain('Tarif de base');
   });
 
   // Regression guard: resource() reruns its loader on the client after

@@ -54,11 +54,39 @@ describe('HomePage', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('LaveNet');
     expect(text).toContain('Le pressing en ligne pour Abidjan');
-    expect(text).toContain('Commander');
+    expect(text).toContain('Voir nos tarifs');
     expect(text).toContain('projet de démonstration');
     expect(text).toContain('Dan Lefebvre (Unsplash)');
     const cta: HTMLAnchorElement = fixture.nativeElement.querySelector('.cta');
     expect(cta.getAttribute('href')).toBe('/tarifs');
+  });
+
+  // The hero used to promise "Commander" with no order tunnel behind it --
+  // this guards against that regressing.
+  it('never promises an order it cannot fulfil', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Commander');
+  });
+
+  it('shows the delivery coverage, hours placeholder and FAQ', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Cocody');
+    expect(text).toContain('Port-Bouët');
+    expect(text).toContain('Horaires de collecte et de livraison');
+    expect(text).toContain('Questions fréquentes');
+    expect(text).toContain('Comment payer ma commande');
+    // No invented figures: the copy must say these are still pending, not
+    // state a fabricated fee/schedule as if it were real.
+    expect(text).toContain('seront communiqués');
   });
 
   it('sets the page title and Open Graph tags', async () => {

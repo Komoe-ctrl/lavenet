@@ -9,6 +9,7 @@ import {
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { DevelopmentNotice } from '../../../shared/layout/development-notice';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -21,13 +22,24 @@ interface CategoryTeaser {
   startingFromXof: number | null;
 }
 
+const COVERED_COMMUNES = [
+  'Cocody',
+  'Plateau',
+  'Marcory',
+  'Treichville',
+  'Yopougon',
+  'Adjamé',
+  'Koumassi',
+  'Port-Bouët',
+];
+
 // Public, prerendered, zero API calls on load from the visitor's browser --
 // the catalog fetch below runs at build time (see docs/DETTE.md for the
 // tradeoff this implies) so the free-tier API can still be completely
 // asleep and this page still renders instantly (docs/ADR/0003).
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, MoneyPipe, SiteHeader, SiteFooter],
+  imports: [RouterLink, MoneyPipe, SiteHeader, SiteFooter, DevelopmentNotice],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,11 +47,13 @@ interface CategoryTeaser {
 export class HomePage {
   private readonly catalogService = inject(CatalogService);
 
+  protected readonly communes = COVERED_COMMUNES;
+
   constructor() {
     setPageMeta(inject(Title), inject(Meta), {
       title: 'LaveNet — Pressing en ligne à Abidjan',
       description:
-        'Lavage, repassage, collecte et livraison à Abidjan, sans vous déplacer. Consultez nos tarifs et commandez en ligne.',
+        'Pressing à Abidjan : lavage, repassage, collecte et livraison. Consultez nos tarifs, notre zone de livraison et nos horaires.',
       path: '/',
     });
   }
