@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Meta, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { SessionStore } from '../../../core/auth/session.store';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CatalogService } from '../../catalog/data-access/catalog.service';
 import { HomePage } from './home-page';
@@ -36,6 +37,9 @@ function configureWith(catalogService: Pick<CatalogService, 'loadCatalog'>) {
       provideZonelessChangeDetection(),
       provideRouter([]),
       { provide: CatalogService, useValue: catalogService },
+      // SiteHeader reads this; on / it's always 'idle' in real usage (no
+      // guard ever ran restore()) -- unauthenticated is the honest default.
+      { provide: SessionStore, useValue: { isAuthenticated: () => false, user: () => null } },
     ],
   });
 }

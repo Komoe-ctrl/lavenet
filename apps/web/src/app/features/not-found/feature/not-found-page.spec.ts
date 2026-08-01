@@ -2,12 +2,17 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
+import { SessionStore } from '../../../core/auth/session.store';
 import { NotFoundPage } from './not-found-page';
 
 describe('NotFoundPage', () => {
   it('shows the header, footer, a 404 message and a link back home', () => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        { provide: SessionStore, useValue: { isAuthenticated: () => false, user: () => null } },
+      ],
     });
     const fixture = TestBed.createComponent(NotFoundPage);
     fixture.detectChanges();

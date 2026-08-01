@@ -20,7 +20,8 @@
   }
 }
 
-.login-link {
+.login-link,
+.account-link {
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
   text-decoration: none;
@@ -33,4 +34,9 @@
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
   }
+}
+
+.account-link {
+  font-weight: 600;
+  color: var(--color-primary-dark);
 }
