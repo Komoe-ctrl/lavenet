@@ -71,6 +71,15 @@ jobs:
       - name: Apply migrations to the CI database
         run: pnpm exec prisma migrate deploy
 
+      # Catches a migration that's missing or doesn't match schema.prisma
+      # -- exactly the class of bug that otherwise only surfaces in
+      # production (P2022, a column schema.prisma expects but no committed
+      # migration ever created). `migrate deploy` above only applies what's
+      # committed; it doesn't know what schema.prisma expects on top of
+      # that, which is what this step checks instead.
+      - name: Check schema.prisma matches the migrations directory
+        run: pnpm db:check-drift
+
       - name: Typecheck
         run: pnpm exec nx affected -t typecheck
 

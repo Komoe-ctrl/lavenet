@@ -182,6 +182,11 @@ SupportTicket / TicketMessage / Notification / AuditLog
 11. Migrations générées (`prisma migrate dev --name ...`), relues, committées.
     **Jamais `db push` sur une base contenant des données.** Prisma utilise
     `DATABASE_URL` (connexion poolée) et `DIRECT_URL` (non poolée, pour les migrations).
+    **`pnpm db:check-drift`** (câblé en CI, juste après `prisma migrate deploy`) compare
+    la base réellement migrée à `schema.prisma` et casse le build en cas d'écart — un
+    champ ajouté au schéma sans migration correspondante (ou une migration écrite à la
+    main qui ne correspond pas exactement) ne doit jamais se découvrir seulement en
+    production.
 
 ---
 
