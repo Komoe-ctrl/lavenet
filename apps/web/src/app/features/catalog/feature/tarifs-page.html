@@ -10,10 +10,8 @@
 
   <section class="delivery-info">
     <h2>Livraison</h2>
-    <p>
-      Frais de livraison et minimum de commande : seront communiqués avant l'ouverture de la
-      commande en ligne.
-    </p>
+    <p>{{ config.delivery.feeNote }}</p>
+    <p>{{ config.delivery.minimumOrderNote }}</p>
   </section>
 
   @if (lastGoodCatalog(); as data) {

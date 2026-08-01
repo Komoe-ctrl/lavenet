@@ -4,6 +4,7 @@ import { Meta, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { SessionStore } from '../../../core/auth/session.store';
+import { siteConfig } from '../../../shared/config/site-config';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CatalogService } from '../data-access/catalog.service';
 import { TarifsPage } from './tarifs-page';
@@ -67,7 +68,9 @@ describe('TarifsPage', () => {
 
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('en cours de développement');
-    expect(text).toContain('Frais de livraison et minimum de commande');
+    // Sourced from shared/config/site-config.ts -- no invented figures.
+    expect(text).toContain(siteConfig.delivery.feeNote);
+    expect(text).toContain(siteConfig.delivery.minimumOrderNote);
     expect(text).toContain('seront communiqués');
   });
 

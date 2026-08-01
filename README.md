@@ -63,6 +63,25 @@ Créés par `pnpm db:seed` (mot de passe identique pour les deux) :
 | ADMIN  | admin@lavenet.ci  | `Demo1234!`  |
 | CLIENT | client@lavenet.ci | `Demo1234!`  |
 
+## Mise en service
+
+Toutes les informations d'entreprise affichées sur les pages publiques (nom commercial,
+email, téléphone, WhatsApp, adresse, communes desservies, frais de livraison, minimum de
+commande, horaires, réseaux sociaux) viennent d'un seul fichier, typé et validé par un
+schéma zod : `apps/web/src/app/shared/config/site-config.ts`. Aucune de ces valeurs n'est
+écrite en dur ailleurs dans les gabarits.
+
+Pour passer de la démo au réel :
+
+1. Ouvrir `apps/web/src/app/shared/config/site-config.ts` et renseigner les champs de
+   `contact` (`email`, `phone`, `whatsapp`, `address`) et de `social`.
+2. Chaque champ de contact est optionnel (`null` tant qu'il n'est pas renseigné) : le
+   bouton ou lien correspondant n'apparaît sur le site que si sa valeur est renseignée —
+   aucun lien mort, aucune coordonnée inventée.
+3. Une valeur manquante ou mal formée (email invalide, téléphone non conforme au format
+   E.164) fait échouer le build (`siteConfigSchema.parse` s'exécute au chargement du
+   module) plutôt que de laisser passer une donnée cassée en production.
+
 ## Hébergement
 
 L'API tourne sur une offre gratuite Render : après une période d'inactivité, le premier
