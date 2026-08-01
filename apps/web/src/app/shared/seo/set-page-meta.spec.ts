@@ -25,6 +25,9 @@ describe('setPageMeta', () => {
     expect(metaService.getTag('property="og:image"')?.content).toBe(
       `${environment.siteUrl}/images/og-image.webp`,
     );
+    expect(metaService.getTag('property="og:image:type"')?.content).toBe('image/webp');
+    expect(metaService.getTag('property="og:image:width"')?.content).toBe('1200');
+    expect(metaService.getTag('property="og:image:height"')?.content).toBe('630');
     expect(metaService.getTag('name="twitter:card"')?.content).toBe('summary_large_image');
   });
 

@@ -95,5 +95,13 @@ jobs:
       - name: Build
         run: pnpm exec nx affected -t build
 
+      # Crawlers (WhatsApp, Facebook, ...) never execute JS -- they only
+      # ever see the static HTML `ng build` prerendered. This catches a tag
+      # being set at runtime only, or a relative (non-absolute) URL, which
+      # a TestBed-level Meta/Title assertion can't: it only proves Angular's
+      # model is correct, not that it landed in the file a crawler fetches.
+      - name: Verify Open Graph tags in the prerendered HTML
+        run: pnpm verify:og-tags
+
       - name: Test
         run: pnpm exec nx affected -t test
