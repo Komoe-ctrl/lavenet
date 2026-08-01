@@ -42,18 +42,6 @@ Vercel régénère le prerendering avec les nouveaux prix en quelques minutes, s
 intervention manuelle.
 **Déclencheur** : implémentation de F-ADM-04 (back-office tarifaire).
 
-## Le module `auth` n'a pas de couche repository
-
-**Où** : `apps/api/src/auth/auth.service.ts` (accède directement à `PrismaService`).
-**État actuel** : `apps/api/src/catalog` pose le précédent documenté par CLAUDE.md §3
-(`controller → service → repository`) — `auth` a été écrit avant que cette convention ne
-soit fixée et accède à Prisma directement depuis `auth.service.ts`. Fonctionne, mais
-incohérent avec le reste du dépôt et avec ce que `docs/ADR/0001-stack.md` défend comme
-architecture.
-**Déclencheur** : la prochaine intervention significative sur `auth` (lot 1 — auth
-complète : inscription, OTP téléphone). Extraire `auth.repository.ts` à ce moment-là,
-pas comme un correctif isolé aujourd'hui.
-
 ## Type de compte pro (F-AUTH-07) non implémenté
 
 **Où** : `docs/CAHIER-DES-CHARGES.md` §5.1 (F-AUTH-07, priorité Should), ligne 293

@@ -4,7 +4,7 @@ import { verify } from '@node-rs/argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import type { AuthUser } from '@lavenet/shared-schemas';
 import { env } from '../config/env';
-import { PrismaService } from '../prisma/prisma.service';
+import { AuthRepository } from './auth.repository';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -25,12 +25,12 @@ interface UserRecord {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repository: AuthRepository,
     private readonly jwt: JwtService,
   ) {}
 
   async login(email: string, password: string, userAgent?: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.repository.findUserByEmail(email);
     if (!user || user.deletedAt) {
       // Same message for "no such user" and "wrong password": don't let the
       // login endpoint be used to enumerate registered emails.
@@ -53,9 +53,7 @@ export class AuthService {
       throw new UnauthorizedException('Session expirée.');
     }
 
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: hashToken(rawToken) },
-    });
+    const stored = await this.repository.findRefreshTokenByHash(hashToken(rawToken));
 
     if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
       throw new UnauthorizedException('Session expirée.');
@@ -63,12 +61,9 @@ export class AuthService {
 
     // Rotation: the presented token is single-use — revoke it and issue a
     // fresh one, even though the access token it mints is the same user.
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    });
+    await this.repository.revokeRefreshTokenById(stored.id);
 
-    const user = await this.prisma.user.findUnique({ where: { id: stored.userId } });
+    const user = await this.repository.findUserById(stored.userId);
     if (!user || user.deletedAt) {
       throw new UnauthorizedException('Session expirée.');
     }
@@ -83,14 +78,11 @@ export class AuthService {
     if (!rawToken) {
       return;
     }
-    await this.prisma.refreshToken.updateMany({
-      where: { tokenHash: hashToken(rawToken), revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.repository.revokeRefreshTokenByHash(hashToken(rawToken));
   }
 
   async me(userId: string): Promise<AuthUser> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.repository.findUserById(userId);
     if (!user || user.deletedAt) {
       throw new UnauthorizedException();
     }
@@ -110,13 +102,11 @@ export class AuthService {
 
   private async issueRefreshToken(userId: string, userAgent?: string): Promise<string> {
     const rawToken = randomBytes(32).toString('hex');
-    await this.prisma.refreshToken.create({
-      data: {
-        userId,
-        tokenHash: hashToken(rawToken),
-        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
-        userAgent,
-      },
+    await this.repository.createRefreshToken({
+      userId,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+      userAgent,
     });
     return rawToken;
   }
