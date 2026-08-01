@@ -19,6 +19,30 @@
   margin-top: var(--space-1);
 }
 
+app-development-notice {
+  display: block;
+  margin-bottom: var(--space-3);
+}
+
+.delivery-info {
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--color-surface-tint);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+
+  h2 {
+    font-size: var(--font-size-h3);
+    font-weight: 700;
+    margin-bottom: 0.375rem;
+  }
+
+  p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+  }
+}
+
 .state {
   color: var(--color-text-muted);
 

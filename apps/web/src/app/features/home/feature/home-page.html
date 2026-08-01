@@ -5,7 +5,8 @@
     <div class="hero-content">
       <h1>Le pressing en ligne pour Abidjan</h1>
       <p class="tagline">Lavage, repassage, collecte et livraison, sans vous déplacer.</p>
-      <a routerLink="/tarifs" class="cta">Commander</a>
+      <a routerLink="/tarifs" class="cta">Voir nos tarifs</a>
+      <app-development-notice />
     </div>
     <div class="hero-media">
       <img
@@ -121,6 +122,59 @@
         <p>Votre linge propre est livré à l'adresse de votre choix.</p>
       </li>
     </ol>
+  </section>
+
+  <section class="coverage">
+    <h2>Livraison</h2>
+
+    <h3>Communes couvertes</h3>
+    <p class="coverage__intro">Nous intervenons actuellement dans les communes suivantes :</p>
+    <ul class="coverage__list">
+      @for (commune of communes; track commune) {
+        <li>{{ commune }}</li>
+      }
+    </ul>
+
+    <h3>Horaires de collecte et de livraison</h3>
+    <p class="coverage__hours">
+      Les horaires précis seront communiqués avant l'ouverture de la commande en ligne.
+    </p>
+  </section>
+
+  <section class="faq">
+    <h2>Questions fréquentes</h2>
+
+    <details>
+      <summary>Comment payer ma commande ?</summary>
+      <p>
+        Une fois la commande en ligne disponible, vous pourrez payer par Mobile Money, carte
+        bancaire ou à la livraison.
+      </p>
+    </details>
+
+    <details>
+      <summary>Que se passe-t-il en cas de dommage sur un article ?</summary>
+      <p>
+        Tout dommage constaté est signalé à la collecte et au retour du linge, et traité au cas par
+        cas avec vous.
+      </p>
+    </details>
+
+    <details>
+      <summary>Un délai express est-il possible ?</summary>
+      <p>
+        Selon la disponibilité, un traitement accéléré pourra être proposé. Cette option n'est pas
+        encore réservable en ligne.
+      </p>
+    </details>
+
+    <details>
+      <summary>Comment annuler une commande ?</summary>
+      <p>
+        La commande en ligne n'est pas encore disponible. Une fois active, l'annulation sera
+        possible tant que votre commande n'aura pas été prise en charge.
+      </p>
+    </details>
   </section>
 </main>
 

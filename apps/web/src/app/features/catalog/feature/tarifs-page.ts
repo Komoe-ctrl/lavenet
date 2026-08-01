@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, linkedSignal, resource } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { DevelopmentNotice } from '../../../shared/layout/development-notice';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -12,7 +13,7 @@ import { CatalogService } from '../data-access/catalog.service';
 // browser -- see docs/DETTE.md for the freshness tradeoff this implies.
 @Component({
   selector: 'app-tarifs-page',
-  imports: [MoneyPipe, SiteHeader, SiteFooter],
+  imports: [MoneyPipe, SiteHeader, SiteFooter, DevelopmentNotice],
   templateUrl: './tarifs-page.html',
   styleUrl: './tarifs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
