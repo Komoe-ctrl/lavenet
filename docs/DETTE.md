@@ -54,6 +54,18 @@ architecture.
 complète : inscription, OTP téléphone). Extraire `auth.repository.ts` à ce moment-là,
 pas comme un correctif isolé aujourd'hui.
 
+## Type de compte pro (F-AUTH-07) non implémenté
+
+**Où** : `docs/CAHIER-DES-CHARGES.md` §5.1 (F-AUTH-07, priorité Should), ligne 293
+(question ouverte : facturation par commande ou récapitulatif mensuel).
+**État actuel** : reporté hors du lot 1 (authentification). Le cahier des charges
+lui-même n'a pas tranché la facturation professionnelle, et "voit les tarifs au kilo"
+toucherait potentiellement `PriceRule` (lot 2, déjà livré) selon la réponse retenue —
+pas seulement un attribut de profil.
+**Déclencheur** : décision explicite sur la facturation professionnelle (réponse à la
+question ouverte ligne 293). Trancher ce point avant d'implémenter quoi que ce soit pour
+F-AUTH-07, pas deviner une règle métier (CLAUDE.md §12.6).
+
 ## `render.yaml` exécute `prisma migrate deploy` dans `buildCommand`
 
 **Où** : `render.yaml`.
