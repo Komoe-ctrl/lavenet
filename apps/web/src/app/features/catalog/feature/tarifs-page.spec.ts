@@ -83,4 +83,57 @@ describe('TarifsPage', () => {
     expect(text).toContain('Lavage au kilo');
     expect(text).toContain(EXPECTED_PRICE);
   });
+
+  // Regression guard: resource() reruns its loader on the client after
+  // hydration (see docs/DETTE.md). A background reload -- in flight or
+  // failed -- must never blank out prices that were already correctly
+  // displayed; loading/error states are for when there's nothing to show.
+  it('keeps the last successful catalog on screen while a reload is in flight', async () => {
+    let calls = 0;
+    configureWith({
+      loadCatalog: () => {
+        calls++;
+        return calls === 1 ? Promise.resolve(SAMPLE_CATALOG) : new Promise(() => undefined);
+      },
+    });
+    const fixture = TestBed.createComponent(TarifsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.textContent).toContain('Lavage au kilo');
+
+    (fixture.componentInstance as unknown as { catalog: { reload(): boolean } }).catalog.reload();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Lavage au kilo');
+    expect(text).toContain(EXPECTED_PRICE);
+    expect(text).not.toContain('Chargement des tarifs');
+  });
+
+  it('keeps the last successful catalog on screen when a reload fails', async () => {
+    let calls = 0;
+    configureWith({
+      loadCatalog: () => {
+        calls++;
+        return calls === 1
+          ? Promise.resolve(SAMPLE_CATALOG)
+          : Promise.reject(new Error('network error'));
+      },
+    });
+    const fixture = TestBed.createComponent(TarifsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.textContent).toContain('Lavage au kilo');
+
+    (fixture.componentInstance as unknown as { catalog: { reload(): boolean } }).catalog.reload();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Lavage au kilo');
+    expect(text).toContain(EXPECTED_PRICE);
+    expect(text).not.toContain('Impossible de charger les tarifs');
+  });
 });

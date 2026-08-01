@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, resource } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  linkedSignal,
+  resource,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CatalogService } from '../../catalog/data-access/catalog.service';
 
@@ -27,8 +35,20 @@ export class HomePage {
     loader: () => this.catalogService.loadCatalog(),
   });
 
+  // resource() drops its value the moment a reload errors -- catalog.value()
+  // throws in that state. This carries the last successfully loaded catalog
+  // forward through any later loading/error state, so a background refresh
+  // (in flight or failed) never blanks out prices already on screen.
+  protected readonly lastGoodCatalog = linkedSignal<
+    CatalogResponseDtoOutput | null,
+    CatalogResponseDtoOutput | null
+  >({
+    source: () => (this.catalog.hasValue() ? this.catalog.value() : null),
+    computation: (source, previous) => source ?? previous?.value ?? null,
+  });
+
   protected readonly categoryTeasers = computed<CategoryTeaser[]>(() => {
-    const categories = this.catalog.value()?.categories ?? [];
+    const categories = this.lastGoodCatalog()?.categories ?? [];
     return categories.map((category) => ({
       id: category.id,
       name: category.name,
