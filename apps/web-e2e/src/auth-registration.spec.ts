@@ -25,5 +25,5 @@ test('registers, verifies the phone via the demo OTP banner, and reaches the acc
   await expect(page).toHaveURL(/\/compte$/);
   await expect(page.getByRole('heading', { name: 'Mon compte' })).toBeVisible();
   await expect(page.getByText(phone)).toBeVisible();
-  await expect(page.getByText('non vérifié')).not.toBeVisible();
+  await expect(page.getByText('non vérifié')).toBeHidden();
 });
