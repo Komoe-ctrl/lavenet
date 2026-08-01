@@ -1,5 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Meta, Title } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CatalogService } from '../data-access/catalog.service';
@@ -35,12 +37,36 @@ function configureWith(catalogService: Pick<CatalogService, 'loadCatalog'>) {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
+      provideRouter([]),
       { provide: CatalogService, useValue: catalogService },
     ],
   });
 }
 
 describe('TarifsPage', () => {
+  it('shows the header and footer', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(TarifsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('LaveNet');
+    expect(text).toContain('projet de démonstration');
+  });
+
+  it('sets the page title and Open Graph tags', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(TarifsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const title = TestBed.inject(Title);
+    const meta = TestBed.inject(Meta);
+    expect(title.getTitle()).toBe('Nos tarifs — LaveNet');
+    expect(meta.getTag('property="og:url"')?.content).toMatch(/\/tarifs$/);
+  });
+
   it('shows a loading state while the catalog is being fetched', async () => {
     // A never-resolving loader never makes the resource stable, so this
     // can't await fixture.whenStable() -- just enough of a tick for the

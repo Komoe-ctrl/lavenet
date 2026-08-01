@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Meta, Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -40,6 +41,35 @@ function configureWith(catalogService: Pick<CatalogService, 'loadCatalog'>) {
 }
 
 describe('HomePage', () => {
+  it('shows the header, hero CTA and footer', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('LaveNet');
+    expect(text).toContain('Le pressing en ligne pour Abidjan');
+    expect(text).toContain('Commander');
+    expect(text).toContain('projet de démonstration');
+    expect(text).toContain('Dan Lefebvre (Unsplash)');
+    const cta: HTMLAnchorElement = fixture.nativeElement.querySelector('.cta');
+    expect(cta.getAttribute('href')).toBe('/tarifs');
+  });
+
+  it('sets the page title and Open Graph tags', async () => {
+    configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const title = TestBed.inject(Title);
+    const meta = TestBed.inject(Meta);
+    expect(title.getTitle()).toBe('LaveNet — Pressing en ligne à Abidjan');
+    expect(meta.getTag('property="og:image"')?.content).toContain('/images/og-image.webp');
+    expect(meta.getTag('property="og:url"')?.content).toMatch(/\/$/);
+  });
+
   it('shows a loading state while services are being fetched', async () => {
     // A never-resolving loader never makes the resource stable, so this
     // can't await fixture.whenStable() -- just enough of a tick for the

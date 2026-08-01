@@ -7,4 +7,5 @@ export const environment = {
   // already include the global prefix (see apps/api/src/swagger.config.ts)
   // — this is the API's bare origin, used as ApiConfiguration.rootUrl.
   apiBaseUrl: 'http://localhost:3000',
+  siteUrl: 'http://localhost:4200',
 };

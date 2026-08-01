@@ -6,9 +6,13 @@ import {
   linkedSignal,
   resource,
 } from '@angular/core';
+import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { SiteFooter } from '../../../shared/layout/site-footer';
+import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { setPageMeta } from '../../../shared/seo/set-page-meta';
 import { CatalogService } from '../../catalog/data-access/catalog.service';
 
 interface CategoryTeaser {
@@ -23,13 +27,22 @@ interface CategoryTeaser {
 // asleep and this page still renders instantly (docs/ADR/0003).
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, MoneyPipe],
+  imports: [RouterLink, MoneyPipe, SiteHeader, SiteFooter],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomePage {
   private readonly catalogService = inject(CatalogService);
+
+  constructor() {
+    setPageMeta(inject(Title), inject(Meta), {
+      title: 'LaveNet — Pressing en ligne à Abidjan',
+      description:
+        'Lavage, repassage, collecte et livraison à Abidjan, sans vous déplacer. Consultez nos tarifs et commandez en ligne.',
+      path: '/',
+    });
+  }
 
   protected readonly catalog = resource({
     loader: () => this.catalogService.loadCatalog(),

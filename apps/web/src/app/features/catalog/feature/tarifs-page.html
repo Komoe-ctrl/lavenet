@@ -1,5 +1,10 @@
+<app-site-header />
+
 <main class="tarifs-page">
-  <h1>Nos tarifs</h1>
+  <header class="page-intro">
+    <h1>Nos tarifs</h1>
+    <p class="lede">Des prix clairs, par catégorie et par type d'article.</p>
+  </header>
 
   @if (lastGoodCatalog(); as data) {
     @if (!data.categories.length) {
@@ -8,24 +13,28 @@
       @for (category of data.categories; track category.id) {
         <section class="category">
           <h2>{{ category.name }}</h2>
-          @for (service of category.services; track service.id) {
-            <article class="service">
-              <h3>{{ service.name }}</h3>
-              <p class="processing-time">Délai : {{ service.processingHours }} h</p>
-              <ul class="prices">
-                @for (price of service.prices; track price.articleTypeId ?? 'base') {
-                  <li>
-                    <span class="label">
-                      {{
-                        price.articleTypeName ?? (service.unit === 'KG' ? 'au kilo' : 'à la pièce')
-                      }}
-                    </span>
-                    <span class="amount">{{ price.amountXof | money }}</span>
-                  </li>
-                }
-              </ul>
-            </article>
-          }
+          <div class="service-list">
+            @for (service of category.services; track service.id) {
+              <article class="service">
+                <div class="service-header">
+                  <h3>{{ service.name }}</h3>
+                  <span class="unit-badge">{{
+                    service.unit === 'KG' ? 'au kilo' : 'à la pièce'
+                  }}</span>
+                </div>
+                <p class="processing-time">Délai : {{ service.processingHours }} h</p>
+                <ul class="prices">
+                  @for (price of service.prices; track price.articleTypeId ?? 'base') {
+                    <li>
+                      <span class="label">{{ price.articleTypeName ?? 'Tarif de base' }}</span>
+                      <span class="leader" aria-hidden="true"></span>
+                      <span class="amount">{{ price.amountXof | money }}</span>
+                    </li>
+                  }
+                </ul>
+              </article>
+            }
+          </div>
         </section>
       }
     }
@@ -37,3 +46,5 @@
     </p>
   }
 </main>
+
+<app-site-footer />

@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, linkedSignal, resource } from '@angular/core';
+import { Meta, Title } from '@angular/platform-browser';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { SiteFooter } from '../../../shared/layout/site-footer';
+import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { setPageMeta } from '../../../shared/seo/set-page-meta';
 import { CatalogService } from '../data-access/catalog.service';
 
 // Public, prerendered (apps/web/src/app/app.routes.server.ts): the catalog
@@ -8,13 +12,22 @@ import { CatalogService } from '../data-access/catalog.service';
 // browser -- see docs/DETTE.md for the freshness tradeoff this implies.
 @Component({
   selector: 'app-tarifs-page',
-  imports: [MoneyPipe],
+  imports: [MoneyPipe, SiteHeader, SiteFooter],
   templateUrl: './tarifs-page.html',
   styleUrl: './tarifs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TarifsPage {
   private readonly catalogService = inject(CatalogService);
+
+  constructor() {
+    setPageMeta(inject(Title), inject(Meta), {
+      title: 'Nos tarifs — LaveNet',
+      description:
+        'Grille tarifaire du pressing en ligne LaveNet à Abidjan : lavage, repassage, par catégorie et type d’article.',
+      path: '/tarifs',
+    });
+  }
 
   protected readonly catalog = resource({
     loader: () => this.catalogService.loadCatalog(),
