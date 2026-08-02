@@ -122,6 +122,53 @@ describe('SessionStore', () => {
     expect(result.demoOtpCode).toBe('654321');
   });
 
+  it('requestPasswordReset returns a demo code without touching the session', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const requestPromise = store.requestPasswordReset('admin@lavenet.ci');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/password-reset/request`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ identifier: 'admin@lavenet.ci' });
+    req.flush({ demoOtpCode: '654321' });
+
+    const result = await requestPromise;
+    expect(result.demoOtpCode).toBe('654321');
+    expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('confirmPasswordReset logs the user in on success', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const confirmPromise = store.confirmPasswordReset('admin@lavenet.ci', '123456', 'NewPass123!');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/password-reset/confirm`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      identifier: 'admin@lavenet.ci',
+      code: '123456',
+      newPassword: 'NewPass123!',
+    });
+    req.flush({
+      accessToken: 'token-999',
+      user: { id: 'usr_1', email: 'admin@lavenet.ci', phone: '+2250700000001', role: 'ADMIN' },
+    });
+
+    await confirmPromise;
+    expect(store.isAuthenticated()).toBe(true);
+    expect(store.accessToken()).toBe('token-999');
+  });
+
+  it('confirmPasswordReset stays unauthenticated and rethrows on an invalid code', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const confirmPromise = store.confirmPasswordReset('admin@lavenet.ci', '000000', 'NewPass123!');
+    httpMock
+      .expectOne(`${API_ORIGIN}/api/auth/password-reset/confirm`)
+      .flush({ message: 'Code invalide.' }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(confirmPromise).rejects.toBeTruthy();
+    expect(store.isAuthenticated()).toBe(false);
+  });
+
   it('restores an authenticated session from the refresh cookie', async () => {
     const store = TestBed.inject(SessionStore);
 
