@@ -69,3 +69,35 @@ export const refreshResponseSchema = z.object({
   accessToken: z.string(),
 });
 export type RefreshResponse = z.infer<typeof refreshResponseSchema>;
+
+// F-AUTH-04: reuses identifierSchema (email or phone) -- the request never
+// reveals whether the identifier is registered (same non-enumeration rule
+// as login), so it accepts anything shaped like one.
+export const passwordResetRequestSchema = z.object({
+  identifier: identifierSchema,
+});
+export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;
+
+// Always 200 with this shape, whether or not the identifier is registered
+// -- demoOtpCode is only ever populated when it was (and DEMO_MODE=true),
+// never fabricated for a non-existent account.
+export const passwordResetRequestResponseSchema = z.object({
+  demoOtpCode: z.string().optional(),
+});
+export type PasswordResetRequestResponse = z.infer<typeof passwordResetRequestResponseSchema>;
+
+export const passwordResetConfirmSchema = z.object({
+  identifier: identifierSchema,
+  code: z.string().regex(OTP_CODE_PATTERN, 'Le code doit contenir 6 chiffres.'),
+  newPassword: z.string().min(8),
+});
+export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;
+
+// Logs the user in immediately on success, same shape as loginResponseSchema
+// -- they just proved control of the account via the OTP, no reason to make
+// them log in again with the password they just set.
+export const passwordResetConfirmResponseSchema = z.object({
+  accessToken: z.string(),
+  user: authUserSchema,
+});
+export type PasswordResetConfirmResponse = z.infer<typeof passwordResetConfirmResponseSchema>;

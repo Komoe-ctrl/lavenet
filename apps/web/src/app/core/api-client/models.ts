@@ -6,6 +6,10 @@ export type { CatalogResponseDtoOutput } from './models/catalog-response-dto-out
 export type { LoginDto } from './models/login-dto';
 export type { LoginResponseDtoOutput } from './models/login-response-dto-output';
 export type { OtpResponseDtoOutput } from './models/otp-response-dto-output';
+export type { PasswordResetConfirmDto } from './models/password-reset-confirm-dto';
+export type { PasswordResetConfirmResponseDtoOutput } from './models/password-reset-confirm-response-dto-output';
+export type { PasswordResetRequestDto } from './models/password-reset-request-dto';
+export type { PasswordResetRequestResponseDtoOutput } from './models/password-reset-request-response-dto-output';
 export type { RefreshResponseDtoOutput } from './models/refresh-response-dto-output';
 export type { RegisterDto } from './models/register-dto';
 export type { RegisterResponseDtoOutput } from './models/register-response-dto-output';

@@ -9,6 +9,10 @@ export type { AuthControllerVerifyOtp$Params as AuthControllerVerifyOtp$Params }
 export { authControllerVerifyOtp as authControllerVerifyOtp } from './fn/auth/auth-controller-verify-otp';
 export type { AuthControllerResendOtp$Params as AuthControllerResendOtp$Params } from './fn/auth/auth-controller-resend-otp';
 export { authControllerResendOtp as authControllerResendOtp } from './fn/auth/auth-controller-resend-otp';
+export type { AuthControllerRequestPasswordReset$Params as AuthControllerRequestPasswordReset$Params } from './fn/auth/auth-controller-request-password-reset';
+export { authControllerRequestPasswordReset as authControllerRequestPasswordReset } from './fn/auth/auth-controller-request-password-reset';
+export type { AuthControllerConfirmPasswordReset$Params as AuthControllerConfirmPasswordReset$Params } from './fn/auth/auth-controller-confirm-password-reset';
+export { authControllerConfirmPasswordReset as authControllerConfirmPasswordReset } from './fn/auth/auth-controller-confirm-password-reset';
 export type { AuthControllerLogin$Params as AuthControllerLogin$Params } from './fn/auth/auth-controller-login';
 export { authControllerLogin as authControllerLogin } from './fn/auth/auth-controller-login';
 export type { AuthControllerRefresh$Params as AuthControllerRefresh$Params } from './fn/auth/auth-controller-refresh';

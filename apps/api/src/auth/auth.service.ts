@@ -12,6 +12,7 @@ import { OtpPurpose } from '@prisma/client';
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type { AuthUser } from '@lavenet/shared-schemas';
 import { env } from '../config/env';
+import { EMAIL_PROVIDER, EmailProvider } from '../notifications/email/email-provider.interface';
 import { SMS_PROVIDER, SmsProvider } from '../notifications/sms/sms-provider.interface';
 import { AuthRepository } from './auth.repository';
 
@@ -50,6 +51,7 @@ export class AuthService {
     private readonly repository: AuthRepository,
     private readonly jwt: JwtService,
     @Inject(SMS_PROVIDER) private readonly smsProvider: SmsProvider,
+    @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
   ) {}
 
   async register(
@@ -73,7 +75,11 @@ export class AuthService {
 
     const accessToken = this.signAccessToken(user.id, user.role);
     const refreshToken = await this.issueRefreshToken(user.id, userAgent);
-    const demoOtpCode = await this.issueOtp(user.id, user.phone, OtpPurpose.PHONE_VERIFICATION);
+    const demoOtpCode = await this.issuePhoneOtp(
+      user.id,
+      user.phone,
+      OtpPurpose.PHONE_VERIFICATION,
+    );
 
     return { accessToken, refreshToken, user: this.toAuthUser(user), demoOtpCode };
   }
@@ -124,7 +130,11 @@ export class AuthService {
       );
     }
 
-    const demoOtpCode = await this.issueOtp(user.id, user.phone, OtpPurpose.PHONE_VERIFICATION);
+    const demoOtpCode = await this.issuePhoneOtp(
+      user.id,
+      user.phone,
+      OtpPurpose.PHONE_VERIFICATION,
+    );
     return { demoOtpCode };
   }
 
@@ -144,6 +154,56 @@ export class AuthService {
     const accessToken = this.signAccessToken(user.id, user.role);
     const refreshToken = await this.issueRefreshToken(user.id, userAgent);
 
+    return { accessToken, refreshToken, user: this.toAuthUser(user) };
+  }
+
+  // Always resolves, whether or not the identifier is registered -- never
+  // reveals account existence (same rule as login). demoOtpCode is only
+  // ever populated when the account exists and DEMO_MODE=true.
+  async requestPasswordReset(identifier: string): Promise<{ demoOtpCode?: string }> {
+    const user = await this.repository.findUserByIdentifier(identifier);
+    if (!user || user.deletedAt) {
+      return {};
+    }
+    const demoOtpCode = await this.issuePasswordResetOtp(user);
+    return { demoOtpCode };
+  }
+
+  async confirmPasswordReset(
+    identifier: string,
+    code: string,
+    newPassword: string,
+    userAgent?: string,
+  ) {
+    const user = await this.repository.findUserByIdentifier(identifier);
+    // Same generic message whether the identifier doesn't exist or the code
+    // is wrong -- don't let this endpoint be used to enumerate accounts.
+    if (!user || user.deletedAt) {
+      throw new BadRequestException('Code invalide.');
+    }
+
+    const stored = await this.repository.findLatestOtp(user.id, OtpPurpose.PASSWORD_RESET);
+    if (!stored || stored.consumedAt || stored.expiresAt < new Date()) {
+      throw new BadRequestException('Code expiré ou introuvable, demandez-en un nouveau.');
+    }
+    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+      throw new BadRequestException('Trop de tentatives, demandez un nouveau code.');
+    }
+    if (hashToken(code) !== stored.codeHash) {
+      await this.repository.incrementOtpAttempts(stored.id);
+      throw new BadRequestException('Code invalide.');
+    }
+
+    await this.repository.consumeOtp(stored.id);
+    const passwordHash = await hash(newPassword);
+    await this.repository.updatePasswordHash(user.id, passwordHash);
+    // No "current" session to preserve here -- the caller isn't
+    // authenticated, so every existing refresh token on the account is
+    // revoked, then a fresh one issued below for the session this creates.
+    await this.repository.revokeAllRefreshTokensForUser(user.id);
+
+    const accessToken = this.signAccessToken(user.id, user.role);
+    const refreshToken = await this.issueRefreshToken(user.id, userAgent);
     return { accessToken, refreshToken, user: this.toAuthUser(user) };
   }
 
@@ -210,14 +270,7 @@ export class AuthService {
     return rawToken;
   }
 
-  // Returns the raw code only in DEMO_MODE (see registerResponseSchema) --
-  // never present otherwise, so it can never leak into a response or a log
-  // outside the explicitly-opted-into demo deployment (CLAUDE.md §11).
-  private async issueOtp(
-    userId: string,
-    phone: string,
-    purpose: OtpPurpose,
-  ): Promise<string | undefined> {
+  private async createOtp(userId: string, purpose: OtpPurpose): Promise<string> {
     const code = generateOtpCode();
     await this.repository.createOtp({
       userId,
@@ -225,7 +278,39 @@ export class AuthService {
       codeHash: hashToken(code),
       expiresAt: new Date(Date.now() + OTP_TTL_MS),
     });
+    return code;
+  }
+
+  // Returns the raw code only in DEMO_MODE (see registerResponseSchema) --
+  // never present otherwise, so it can never leak into a response or a log
+  // outside the explicitly-opted-into demo deployment (CLAUDE.md §11).
+  private async issuePhoneOtp(
+    userId: string,
+    phone: string,
+    purpose: OtpPurpose,
+  ): Promise<string | undefined> {
+    const code = await this.createOtp(userId, purpose);
     await this.smsProvider.send(phone, `Votre code LaveNet : ${code} (valable 10 minutes).`);
+    return env.DEMO_MODE ? code : undefined;
+  }
+
+  // Password reset sends the code by whichever channel the account has:
+  // email if the (optional) address is set, phone otherwise -- phone is
+  // always present (F-AUTH-01), so this never has no channel to use.
+  private async issuePasswordResetOtp(user: UserRecord): Promise<string | undefined> {
+    const code = await this.createOtp(user.id, OtpPurpose.PASSWORD_RESET);
+    if (user.email) {
+      await this.emailProvider.send(
+        user.email,
+        'Réinitialisation de votre mot de passe LaveNet',
+        `Votre code de réinitialisation : ${code} (valable 10 minutes).`,
+      );
+    } else {
+      await this.smsProvider.send(
+        user.phone,
+        `Votre code de réinitialisation LaveNet : ${code} (valable 10 minutes).`,
+      );
+    }
     return env.DEMO_MODE ? code : undefined;
   }
 

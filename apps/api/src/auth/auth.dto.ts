@@ -4,6 +4,10 @@ import {
   loginResponseSchema,
   loginSchema,
   otpResponseSchema,
+  passwordResetConfirmResponseSchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestResponseSchema,
+  passwordResetRequestSchema,
   refreshResponseSchema,
   registerResponseSchema,
   registerSchema,
@@ -20,3 +24,11 @@ export class RegisterResponseDto extends createZodDto(registerResponseSchema) {}
 export class OtpResponseDto extends createZodDto(otpResponseSchema) {}
 export class VerifyOtpResponseDto extends createZodDto(verifyOtpResponseSchema) {}
 export class RefreshResponseDto extends createZodDto(refreshResponseSchema) {}
+export class PasswordResetRequestDto extends createZodDto(passwordResetRequestSchema) {}
+export class PasswordResetRequestResponseDto extends createZodDto(
+  passwordResetRequestResponseSchema,
+) {}
+export class PasswordResetConfirmDto extends createZodDto(passwordResetConfirmSchema) {}
+export class PasswordResetConfirmResponseDto extends createZodDto(
+  passwordResetConfirmResponseSchema,
+) {}
