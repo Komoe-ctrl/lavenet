@@ -4,11 +4,13 @@ import { Api } from '../api-client/api';
 import { AuthUserDtoOutput } from '../api-client/models/auth-user-dto-output';
 import { RegisterDto } from '../api-client/models/register-dto';
 import {
+  authControllerConfirmPasswordReset,
   authControllerLogin,
   authControllerLogout,
   authControllerMe,
   authControllerRefresh,
   authControllerRegister,
+  authControllerRequestPasswordReset,
   authControllerResendOtp,
   authControllerVerifyOtp,
 } from '../api-client/functions';
@@ -87,6 +89,38 @@ export const SessionStore = signalStore(
       async resendOtp(): Promise<{ demoOtpCode?: string }> {
         const response = await api.invoke(authControllerResendOtp);
         return { demoOtpCode: response.demoOtpCode };
+      },
+
+      // Always resolves -- the API never reveals whether identifier is
+      // registered (F-AUTH-04). demoOtpCode is only ever populated when it
+      // was and the API runs with DEMO_MODE=true.
+      async requestPasswordReset(identifier: string): Promise<{ demoOtpCode?: string }> {
+        const response = await api.invoke(authControllerRequestPasswordReset, {
+          body: { identifier },
+        });
+        return { demoOtpCode: response.demoOtpCode };
+      },
+
+      // Logs the user in immediately on success, same as login/register --
+      // they just proved control of the account via the OTP.
+      async confirmPasswordReset(
+        identifier: string,
+        code: string,
+        newPassword: string,
+      ): Promise<void> {
+        try {
+          const response = await api.invoke(authControllerConfirmPasswordReset, {
+            body: { identifier, code, newPassword },
+          });
+          patchState(store, {
+            user: response.user,
+            accessToken: response.accessToken,
+            status: 'authenticated',
+          });
+        } catch (err) {
+          patchState(store, { user: null, accessToken: null, status: 'unauthenticated' });
+          throw err;
+        }
       },
 
       async logout(): Promise<void> {

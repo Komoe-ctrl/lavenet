@@ -22,6 +22,16 @@ export const appRoutes: Route[] = [
       import('./features/auth/feature/otp-verify-page').then((m) => m.OtpVerifyPage),
   },
   {
+    path: 'mot-de-passe-oublie',
+    loadComponent: () =>
+      import('./features/auth/feature/forgot-password-page').then((m) => m.ForgotPasswordPage),
+  },
+  {
+    path: 'reinitialiser-mot-de-passe',
+    loadComponent: () =>
+      import('./features/auth/feature/reset-password-page').then((m) => m.ResetPasswordPage),
+  },
+  {
     path: 'tarifs',
     loadComponent: () => import('./features/catalog/feature/tarifs-page').then((m) => m.TarifsPage),
   },

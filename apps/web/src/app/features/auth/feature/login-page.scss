@@ -98,6 +98,17 @@
   }
 }
 
+.forgot-password-link {
+  margin-top: var(--space-2);
+  text-align: center;
+  font-size: var(--font-size-small);
+
+  a {
+    color: var(--color-primary-dark);
+    font-weight: 600;
+  }
+}
+
 .register-link {
   margin-top: var(--space-3);
   text-align: center;
