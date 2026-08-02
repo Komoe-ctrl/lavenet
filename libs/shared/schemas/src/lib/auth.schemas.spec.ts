@@ -1,4 +1,11 @@
-import { authUserSchema, loginSchema, registerSchema, verifyOtpSchema } from './auth.schemas';
+import {
+  authUserSchema,
+  loginSchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
+  registerSchema,
+  verifyOtpSchema,
+} from './auth.schemas';
 
 describe('loginSchema', () => {
   it('accepts an email identifier', () => {
@@ -73,6 +80,37 @@ describe('verifyOtpSchema', () => {
     expect(verifyOtpSchema.safeParse({ code: '12345' }).success).toBe(false);
     expect(verifyOtpSchema.safeParse({ code: '1234567' }).success).toBe(false);
     expect(verifyOtpSchema.safeParse({ code: 'abcdef' }).success).toBe(false);
+  });
+});
+
+describe('passwordResetRequestSchema', () => {
+  it('accepts an email or a phone identifier, same as login', () => {
+    expect(passwordResetRequestSchema.safeParse({ identifier: 'a@b.com' }).success).toBe(true);
+    expect(passwordResetRequestSchema.safeParse({ identifier: '+2250700000001' }).success).toBe(
+      true,
+    );
+  });
+
+  it('rejects an identifier that is neither', () => {
+    expect(passwordResetRequestSchema.safeParse({ identifier: 'nope' }).success).toBe(false);
+  });
+});
+
+describe('passwordResetConfirmSchema', () => {
+  const VALID = { identifier: 'a@b.com', code: '123456', newPassword: 'Demo1234!' };
+
+  it('accepts a full valid payload', () => {
+    expect(passwordResetConfirmSchema.safeParse(VALID).success).toBe(true);
+  });
+
+  it('rejects a code that is not exactly 6 digits', () => {
+    expect(passwordResetConfirmSchema.safeParse({ ...VALID, code: '123' }).success).toBe(false);
+  });
+
+  it('rejects a new password shorter than 8 characters', () => {
+    expect(passwordResetConfirmSchema.safeParse({ ...VALID, newPassword: 'short' }).success).toBe(
+      false,
+    );
   });
 });
 

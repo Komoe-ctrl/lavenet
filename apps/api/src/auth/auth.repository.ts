@@ -104,4 +104,18 @@ export class AuthRepository {
   consumeOtp(id: string) {
     return this.prisma.otpCode.update({ where: { id }, data: { consumedAt: new Date() } });
   }
+
+  updatePasswordHash(userId: string, passwordHash: string) {
+    return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
+  // Password reset (unauthenticated) revokes every session on the account:
+  // there's no "current" session to preserve, the whole point is that
+  // whoever had one shouldn't keep it after a password reset.
+  revokeAllRefreshTokensForUser(userId: string) {
+    return this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
 }

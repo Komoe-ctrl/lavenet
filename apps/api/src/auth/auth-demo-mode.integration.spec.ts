@@ -84,4 +84,13 @@ describe('Auth OTP responses with DEMO_MODE=false (integration)', () => {
     await prisma.refreshToken.deleteMany({ where: { user: { phone: `${input.phone}1` } } });
     await prisma.user.deleteMany({ where: { phone: `${input.phone}1` } });
   });
+
+  it('omits demoOtpCode from the password-reset request response', async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/${API_GLOBAL_PREFIX}/auth/password-reset/request`)
+      .send({ identifier: input.email });
+    expect(res.status).toBe(200);
+    expect(res.body.demoOtpCode).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toMatch(/"demoOtpCode"/);
+  });
 });

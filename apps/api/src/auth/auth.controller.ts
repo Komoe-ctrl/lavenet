@@ -19,6 +19,10 @@ import {
   LoginDto,
   LoginResponseDto,
   OtpResponseDto,
+  PasswordResetConfirmDto,
+  PasswordResetConfirmResponseDto,
+  PasswordResetRequestDto,
+  PasswordResetRequestResponseDto,
   RefreshResponseDto,
   RegisterDto,
   RegisterResponseDto,
@@ -69,6 +73,34 @@ export class AuthController {
   @ZodResponse({ type: OtpResponseDto })
   resendOtp(@CurrentUser() userId: string) {
     return this.authService.resendOtp(userId);
+  }
+
+  @Post('password-reset/request')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ZodResponse({ type: PasswordResetRequestResponseDto })
+  requestPasswordReset(@Body() dto: PasswordResetRequestDto) {
+    return this.authService.requestPasswordReset(dto.identifier);
+  }
+
+  // Not throttled, like otp/verify: the per-OTP attempt cap (5, enforced
+  // in AuthService) already bounds brute-forcing any single active code.
+  @Post('password-reset/confirm')
+  @HttpCode(200)
+  @ZodResponse({ type: PasswordResetConfirmResponseDto })
+  async confirmPasswordReset(
+    @Body() dto: PasswordResetConfirmDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { accessToken, refreshToken, user } = await this.authService.confirmPasswordReset(
+      dto.identifier,
+      dto.code,
+      dto.newPassword,
+      req.headers['user-agent'],
+    );
+    this.setRefreshCookie(res, refreshToken);
+    return { accessToken, user };
   }
 
   @Post('login')
