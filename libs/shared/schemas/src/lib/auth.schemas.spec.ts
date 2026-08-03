@@ -4,6 +4,7 @@ import {
   changePasswordSchema,
   changePhoneSchema,
   loginSchema,
+  normalizeCiPhone,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerSchema,
@@ -28,12 +29,25 @@ describe('loginSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects an identifier that is neither a valid email nor a valid phone', () => {
+  it('accepts a local-format phone identifier and normalizes it to +225 (F-AUTH-05 bug report)', () => {
+    const result = loginSchema.safeParse({ identifier: '0700070007', password: 'Demo1234!' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.identifier).toBe('+2250700070007');
+    }
+  });
+
+  it('rejects an identifier that is neither a valid email nor a valid phone, in French', () => {
     const result = loginSchema.safeParse({
       identifier: 'not-an-identifier',
       password: 'Demo1234!',
     });
     expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'Identifiant invalide. Saisissez un email ou un numéro de téléphone.',
+      );
+    }
   });
 
   it('rejects a password shorter than 8 characters', () => {
@@ -66,12 +80,45 @@ describe('registerSchema', () => {
     expect(registerSchema.safeParse(withoutPhone).success).toBe(false);
   });
 
-  it('rejects a phone that is not E.164', () => {
-    expect(registerSchema.safeParse({ ...VALID, phone: '0700000009' }).success).toBe(false);
+  it('accepts a local-format phone (0700070007) and normalizes it to +225', () => {
+    const result = registerSchema.safeParse({ ...VALID, phone: '0700070007' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.phone).toBe('+2250700070007');
+    }
+  });
+
+  it('rejects a phone that is neither a local nor an international format', () => {
+    const result = registerSchema.safeParse({ ...VALID, phone: '12345' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'Numéro invalide. Format attendu : 07 00 07 00 07',
+      );
+    }
   });
 
   it('rejects a blank full name', () => {
     expect(registerSchema.safeParse({ ...VALID, fullName: '  ' }).success).toBe(false);
+  });
+});
+
+describe('normalizeCiPhone', () => {
+  const CANONICAL = '+2250700070007';
+
+  it.each([
+    ['0700070007', CANONICAL],
+    ['07 00 07 00 07', CANONICAL],
+    ['+2250700070007', CANONICAL],
+    ['002250700070007', CANONICAL],
+  ])('normalizes %s to the same canonical value', (input, expected) => {
+    expect(normalizeCiPhone(input)).toBe(expected);
+  });
+
+  it('rejects a number that is really invalid', () => {
+    expect(normalizeCiPhone('12345')).toBeNull();
+    expect(normalizeCiPhone('not-a-phone')).toBeNull();
+    expect(normalizeCiPhone('070007000')).toBeNull(); // 9 digits, one short
   });
 });
 
@@ -144,14 +191,38 @@ describe('changePasswordSchema', () => {
 });
 
 describe('changePhoneSchema', () => {
-  it('requires the current password and a valid E.164 phone', () => {
+  it('requires the current password and accepts either phone format', () => {
     expect(
       changePhoneSchema.safeParse({ currentPassword: 'Demo1234!', newPhone: '+2250700000009' })
         .success,
     ).toBe(true);
     expect(
       changePhoneSchema.safeParse({ currentPassword: 'Demo1234!', newPhone: '0700000009' }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it('normalizes a local-format newPhone to +225', () => {
+    const result = changePhoneSchema.safeParse({
+      currentPassword: 'Demo1234!',
+      newPhone: '0700070007',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.newPhone).toBe('+2250700070007');
+    }
+  });
+
+  it('rejects a newPhone that is really invalid, with the French message', () => {
+    const result = changePhoneSchema.safeParse({
+      currentPassword: 'Demo1234!',
+      newPhone: 'abc',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'Numéro invalide. Format attendu : 07 00 07 00 07',
+      );
+    }
   });
 });
 

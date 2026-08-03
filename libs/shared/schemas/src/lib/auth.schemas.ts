@@ -1,23 +1,90 @@
 import { z } from 'zod';
 import { USER_ROLES } from '@lavenet/shared-domain';
 
-// Login accepts either identifier: email or a phone number in E.164 format
-// (+225XXXXXXXXXX for Côte d'Ivoire). Registration always requires a phone
-// (see registerSchema) per "un téléphone = un compte" (cahier des charges
-// §5.1) -- email is an optional second identifier, not a replacement.
-const identifierSchema = z.union([z.email(), z.e164()]);
+const PASSWORD_TOO_SHORT = 'Le mot de passe doit contenir au moins 8 caractères.';
+const EMAIL_INVALID = 'Email invalide.';
+
+// Shown under every phone field, before any error (F-AUTH-05 bug report) --
+// and reused as the rejection message below, so the hint and the error
+// never say two different things.
+export const CI_PHONE_FORMAT_HINT = 'Format attendu : 07 00 07 00 07';
+const CI_PHONE_ERROR = `Numéro invalide. ${CI_PHONE_FORMAT_HINT}`;
+
+// Côte d'Ivoire numbers are 10 digits, always starting with the trunk '0'
+// when dialed locally (post-2021 renumbering) -- that's the form "tout le
+// monde utilise" (bug report), not the +225 form. Accepts that local form
+// (with or without spaces/dots/dashes between groups), the +225 form, and
+// the 00225 form; normalizes all of them to the single canonical form the
+// database stores, +225 followed by the same 10 local digits (leading 0
+// kept -- this app's convention, matching every seeded/existing record,
+// not the international convention of dropping the trunk digit).
+// +225/00225 inputs are otherwise accepted permissively (any 10 digits
+// after the country code, not just those starting with 0) to keep taking
+// values that were already valid before this stricter local-format check
+// existed.
+export function normalizeCiPhone(raw: string): string | null {
+  const cleaned = raw.replace(/[\s.-]/g, '');
+  if (/^0\d{9}$/.test(cleaned)) {
+    return `+225${cleaned}`;
+  }
+  if (/^\+225\d{10}$/.test(cleaned)) {
+    return cleaned;
+  }
+  if (/^00225\d{10}$/.test(cleaned)) {
+    return `+225${cleaned.slice(5)}`;
+  }
+  return null;
+}
+
+const ciPhoneSchema = z.string().transform((value, ctx) => {
+  const normalized = normalizeCiPhone(value);
+  if (!normalized) {
+    ctx.addIssue({ code: 'custom', message: CI_PHONE_ERROR });
+    return z.NEVER;
+  }
+  return normalized;
+});
+
+const emailFormat = z.email();
+
+// Login accepts either identifier: email or a phone number (any format
+// normalizeCiPhone understands -- see above). Registration always requires
+// a phone (see registerSchema) per "un téléphone = un compte" (cahier des
+// charges §5.1) -- email is an optional second identifier, not a
+// replacement.
+//
+// Not a z.union of the two: zod v4's union error selection doesn't honor a
+// union-level `error` override once one branch has its own `.transform` --
+// it just surfaces that branch's own issue (e.g. "Email invalide.") even
+// when the input was a mistyped phone number, not an attempted email.
+// Trying each shape directly keeps the message under our control.
+const identifierSchema = z.string().transform((value, ctx) => {
+  const email = emailFormat.safeParse(value);
+  if (email.success) {
+    return email.data;
+  }
+  const phone = normalizeCiPhone(value);
+  if (phone) {
+    return phone;
+  }
+  ctx.addIssue({
+    code: 'custom',
+    message: 'Identifiant invalide. Saisissez un email ou un numéro de téléphone.',
+  });
+  return z.NEVER;
+});
 
 export const loginSchema = z.object({
   identifier: identifierSchema,
-  password: z.string().min(8),
+  password: z.string().min(8, PASSWORD_TOO_SHORT),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(2),
-  phone: z.e164(),
-  email: z.email().optional(),
-  password: z.string().min(8),
+  fullName: z.string().trim().min(2, 'Le nom complet doit contenir au moins 2 caractères.'),
+  phone: ciPhoneSchema,
+  email: z.email(EMAIL_INVALID).optional(),
+  password: z.string().min(8, PASSWORD_TOO_SHORT),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -94,7 +161,7 @@ export type PasswordResetRequestResponse = z.infer<typeof passwordResetRequestRe
 export const passwordResetConfirmSchema = z.object({
   identifier: identifierSchema,
   code: z.string().regex(OTP_CODE_PATTERN, 'Le code doit contenir 6 chiffres.'),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(8, PASSWORD_TOO_SHORT),
 });
 export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;
 
@@ -112,7 +179,11 @@ export type PasswordResetConfirmResponse = z.infer<typeof passwordResetConfirmRe
 // changing either needs the current password (F-AUTH-05, "un téléphone =
 // un compte" also makes the phone the login identifier).
 export const updateProfileSchema = z.object({
-  fullName: z.string().trim().min(2).optional(),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, 'Le nom complet doit contenir au moins 2 caractères.')
+    .optional(),
   notifyEmail: z.boolean().optional(),
   notifySms: z.boolean().optional(),
 });
@@ -127,8 +198,8 @@ export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>;
 // lock the real owner out of their own account by changing the password
 // they'd need to recover it.
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(8),
-  newPassword: z.string().min(8),
+  currentPassword: z.string().min(8, PASSWORD_TOO_SHORT),
+  newPassword: z.string().min(8, PASSWORD_TOO_SHORT),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
@@ -140,8 +211,8 @@ export type ChangePasswordResponse = z.infer<typeof changePasswordResponseSchema
 // Same currentPassword requirement as changePasswordSchema, same reasoning
 // -- the phone is the login identifier, changing it is just as sensitive.
 export const changePhoneSchema = z.object({
-  currentPassword: z.string().min(8),
-  newPhone: z.e164(),
+  currentPassword: z.string().min(8, PASSWORD_TOO_SHORT),
+  newPhone: ciPhoneSchema,
 });
 export type ChangePhoneInput = z.infer<typeof changePhoneSchema>;
 
@@ -155,8 +226,8 @@ export const changePhoneResponseSchema = z.object({
 export type ChangePhoneResponse = z.infer<typeof changePhoneResponseSchema>;
 
 export const changeEmailSchema = z.object({
-  currentPassword: z.string().min(8),
-  newEmail: z.email(),
+  currentPassword: z.string().min(8, PASSWORD_TOO_SHORT),
+  newEmail: z.email(EMAIL_INVALID),
 });
 export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 
