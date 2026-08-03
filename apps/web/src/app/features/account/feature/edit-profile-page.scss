@@ -1,0 +1,71 @@
+@use '../../../shared/styles/auth-form';
+
+.edit-profile-page {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-6);
+
+  h1 {
+    font-size: var(--font-size-h2);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+
+  .lede {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    margin-bottom: var(--space-4);
+  }
+}
+
+.state {
+  color: var(--color-text-muted);
+}
+
+.edit-card {
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+
+  h2 {
+    font-size: var(--font-size-h3);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+}
+
+.section-current {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--space-2);
+}
+
+.checkbox-field {
+  margin-bottom: var(--space-2);
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+  }
+
+  input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.back-link {
+  text-align: center;
+  font-size: var(--font-size-small);
+
+  a {
+    color: var(--color-primary-dark);
+    font-weight: 600;
+  }
+}
