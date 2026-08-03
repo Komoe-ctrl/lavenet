@@ -3,7 +3,11 @@ import { patchState, signalStore, withComputed, withMethods, withState } from '@
 import { Api } from '../api-client/api';
 import { AuthUserDtoOutput } from '../api-client/models/auth-user-dto-output';
 import { RegisterDto } from '../api-client/models/register-dto';
+import { UpdateProfileDto } from '../api-client/models/update-profile-dto';
 import {
+  authControllerChangeEmail,
+  authControllerChangePassword,
+  authControllerChangePhone,
   authControllerConfirmPasswordReset,
   authControllerLogin,
   authControllerLogout,
@@ -12,6 +16,7 @@ import {
   authControllerRegister,
   authControllerRequestPasswordReset,
   authControllerResendOtp,
+  authControllerUpdateProfile,
   authControllerVerifyOtp,
 } from '../api-client/functions';
 
@@ -121,6 +126,43 @@ export const SessionStore = signalStore(
           patchState(store, { user: null, accessToken: null, status: 'unauthenticated' });
           throw err;
         }
+      },
+
+      async updateProfile(input: UpdateProfileDto): Promise<void> {
+        const response = await api.invoke(authControllerUpdateProfile, { body: input });
+        patchState(store, { user: response.user });
+      },
+
+      // Session revocation on success (F-AUTH-05) is server-side and
+      // doesn't touch this session -- the interceptor's silent refresh
+      // keeps working with the current access token until it naturally
+      // expires, same as any other route.
+      async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        const response = await api.invoke(authControllerChangePassword, {
+          body: { currentPassword, newPassword },
+        });
+        patchState(store, { user: response.user });
+      },
+
+      // Drops back to phoneVerified: false on success, same as right after
+      // registration -- the caller is expected to send the user to
+      // /otp-verify with the returned demoOtpCode, same flow as register().
+      async changePhone(
+        currentPassword: string,
+        newPhone: string,
+      ): Promise<{ demoOtpCode?: string }> {
+        const response = await api.invoke(authControllerChangePhone, {
+          body: { currentPassword, newPhone },
+        });
+        patchState(store, { user: response.user });
+        return { demoOtpCode: response.demoOtpCode };
+      },
+
+      async changeEmail(currentPassword: string, newEmail: string): Promise<void> {
+        const response = await api.invoke(authControllerChangeEmail, {
+          body: { currentPassword, newEmail },
+        });
+        patchState(store, { user: response.user });
       },
 
       async logout(): Promise<void> {

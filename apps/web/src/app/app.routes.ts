@@ -42,6 +42,12 @@ export const appRoutes: Route[] = [
       import('./features/account/feature/account-page').then((m) => m.AccountPage),
   },
   {
+    path: 'compte/modifier',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/account/feature/edit-profile-page').then((m) => m.EditProfilePage),
+  },
+  {
     path: '**',
     loadComponent: () =>
       import('./features/not-found/feature/not-found-page').then((m) => m.NotFoundPage),

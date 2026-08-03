@@ -169,6 +169,111 @@ describe('SessionStore', () => {
     expect(store.isAuthenticated()).toBe(false);
   });
 
+  it('updateProfile updates the user in place', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const updatePromise = store.updateProfile({ fullName: 'New Name', notifySms: false });
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/profile`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ fullName: 'New Name', notifySms: false });
+    req.flush({
+      user: {
+        id: 'usr_1',
+        fullName: 'New Name',
+        email: 'admin@lavenet.ci',
+        phone: '+2250700000001',
+        phoneVerified: true,
+        notifyEmail: true,
+        notifySms: false,
+        role: 'ADMIN',
+      },
+    });
+    await updatePromise;
+
+    expect(store.user()?.fullName).toBe('New Name');
+    expect(store.user()?.notifySms).toBe(false);
+  });
+
+  it('changePassword updates the user without touching authentication status', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const changePromise = store.changePassword('OldPass123!', 'NewPass123!');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/profile/password`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      currentPassword: 'OldPass123!',
+      newPassword: 'NewPass123!',
+    });
+    req.flush({
+      user: {
+        id: 'usr_1',
+        fullName: 'Client Démo',
+        email: 'admin@lavenet.ci',
+        phone: '+2250700000001',
+        phoneVerified: true,
+        notifyEmail: true,
+        notifySms: true,
+        role: 'ADMIN',
+      },
+    });
+
+    await expect(changePromise).resolves.toBeUndefined();
+  });
+
+  it('changePhone updates the user (now unverified) and returns the demo code', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const changePromise = store.changePhone('Pass1234!', '+2250700000009');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/profile/phone`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      currentPassword: 'Pass1234!',
+      newPhone: '+2250700000009',
+    });
+    req.flush({
+      user: {
+        id: 'usr_1',
+        fullName: 'Client Démo',
+        email: 'admin@lavenet.ci',
+        phone: '+2250700000009',
+        phoneVerified: false,
+        notifyEmail: true,
+        notifySms: true,
+        role: 'ADMIN',
+      },
+      demoOtpCode: '654321',
+    });
+
+    const result = await changePromise;
+    expect(result.demoOtpCode).toBe('654321');
+    expect(store.user()?.phone).toBe('+2250700000009');
+    expect(store.user()?.phoneVerified).toBe(false);
+  });
+
+  it('changeEmail updates the user', async () => {
+    const store = TestBed.inject(SessionStore);
+
+    const changePromise = store.changeEmail('Pass1234!', 'new@lavenet.ci');
+    const req = httpMock.expectOne(`${API_ORIGIN}/api/auth/profile/email`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ currentPassword: 'Pass1234!', newEmail: 'new@lavenet.ci' });
+    req.flush({
+      user: {
+        id: 'usr_1',
+        fullName: 'Client Démo',
+        email: 'new@lavenet.ci',
+        phone: '+2250700000001',
+        phoneVerified: true,
+        notifyEmail: true,
+        notifySms: true,
+        role: 'ADMIN',
+      },
+    });
+    await changePromise;
+
+    expect(store.user()?.email).toBe('new@lavenet.ci');
+  });
+
   it('restores an authenticated session from the refresh cookie', async () => {
     const store = TestBed.inject(SessionStore);
 

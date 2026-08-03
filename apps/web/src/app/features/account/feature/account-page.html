@@ -26,7 +26,10 @@
           <a routerLink="/otp-verify">Vérifier maintenant</a>
         </p>
       }
-      <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
+      <div class="profile-actions">
+        <a routerLink="/compte/modifier" class="edit-link">Modifier le profil</a>
+        <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
+      </div>
     </section>
 
     <section class="roadmap">

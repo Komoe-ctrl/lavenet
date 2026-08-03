@@ -1,0 +1,195 @@
+<app-site-header />
+
+<main class="edit-profile-page">
+  @if (user(); as u) {
+    <h1>Modifier le profil</h1>
+    <p class="lede">Chaque section ci-dessous s'enregistre indépendamment.</p>
+
+    <section class="edit-card">
+      <h2>Informations</h2>
+      <form (submit)="submitInfo($event)" novalidate>
+        <div class="field">
+          <label for="edit-full-name">Nom complet</label>
+          <input
+            id="edit-full-name"
+            name="fullName"
+            type="text"
+            autocomplete="name"
+            required
+            minlength="2"
+            [value]="fullName()"
+            (input)="fullName.set($any($event.target).value)"
+          />
+        </div>
+
+        <div class="checkbox-field">
+          <label>
+            <input
+              type="checkbox"
+              [checked]="notifyEmail()"
+              (change)="notifyEmail.set($any($event.target).checked)"
+            />
+            Notifications par email
+          </label>
+        </div>
+        <div class="checkbox-field">
+          <label>
+            <input
+              type="checkbox"
+              [checked]="notifySms()"
+              (change)="notifySms.set($any($event.target).checked)"
+            />
+            Notifications par SMS
+          </label>
+        </div>
+
+        @if (infoError()) {
+          <p class="field-error" role="alert">{{ infoError() }}</p>
+        }
+        @if (infoSuccess()) {
+          <p class="field-note" role="status">Informations mises à jour.</p>
+        }
+
+        <button type="submit" class="submit" [disabled]="infoSubmitting()">
+          {{ infoSubmitting() ? 'Enregistrement…' : 'Enregistrer' }}
+        </button>
+      </form>
+    </section>
+
+    <section class="edit-card">
+      <h2>Téléphone</h2>
+      <p class="section-current">Actuel : {{ u.phone }}</p>
+      <form (submit)="submitPhone($event)" novalidate>
+        <div class="field">
+          <label for="edit-phone-current-password">Mot de passe actuel</label>
+          <input
+            id="edit-phone-current-password"
+            name="currentPassword"
+            type="password"
+            autocomplete="current-password"
+            required
+            minlength="8"
+            [value]="phoneCurrentPassword()"
+            (input)="phoneCurrentPassword.set($any($event.target).value)"
+          />
+        </div>
+        <div class="field">
+          <label for="edit-new-phone">Nouveau numéro</label>
+          <input
+            id="edit-new-phone"
+            name="newPhone"
+            type="tel"
+            autocomplete="tel"
+            placeholder="+2250700000000"
+            required
+            [value]="newPhone()"
+            (input)="newPhone.set($any($event.target).value)"
+          />
+        </div>
+
+        @if (phoneError()) {
+          <p class="field-error" role="alert">{{ phoneError() }}</p>
+        }
+        <p class="field-note">Le nouveau numéro devra être vérifié par SMS.</p>
+
+        <button type="submit" class="submit" [disabled]="phoneSubmitting()">
+          {{ phoneSubmitting() ? 'Modification…' : 'Modifier le numéro' }}
+        </button>
+      </form>
+    </section>
+
+    <section class="edit-card">
+      <h2>Email</h2>
+      <p class="section-current">Actuel : {{ u.email ?? '—' }}</p>
+      <form (submit)="submitEmail($event)" novalidate>
+        <div class="field">
+          <label for="edit-email-current-password">Mot de passe actuel</label>
+          <input
+            id="edit-email-current-password"
+            name="currentPassword"
+            type="password"
+            autocomplete="current-password"
+            required
+            minlength="8"
+            [value]="emailCurrentPassword()"
+            (input)="emailCurrentPassword.set($any($event.target).value)"
+          />
+        </div>
+        <div class="field">
+          <label for="edit-new-email">Nouvel email</label>
+          <input
+            id="edit-new-email"
+            name="newEmail"
+            type="email"
+            autocomplete="email"
+            required
+            [value]="newEmail()"
+            (input)="newEmail.set($any($event.target).value)"
+          />
+        </div>
+
+        @if (emailError()) {
+          <p class="field-error" role="alert">{{ emailError() }}</p>
+        }
+        @if (emailSuccess()) {
+          <p class="field-note" role="status">Email mis à jour.</p>
+        }
+
+        <button type="submit" class="submit" [disabled]="emailSubmitting()">
+          {{ emailSubmitting() ? 'Modification…' : "Modifier l'email" }}
+        </button>
+      </form>
+    </section>
+
+    <section class="edit-card">
+      <h2>Mot de passe</h2>
+      <form (submit)="submitPassword($event)" novalidate>
+        <div class="field">
+          <label for="edit-current-password">Mot de passe actuel</label>
+          <input
+            id="edit-current-password"
+            name="currentPassword"
+            type="password"
+            autocomplete="current-password"
+            required
+            minlength="8"
+            [value]="passwordCurrentPassword()"
+            (input)="passwordCurrentPassword.set($any($event.target).value)"
+          />
+        </div>
+        <div class="field">
+          <label for="edit-new-password">Nouveau mot de passe</label>
+          <input
+            id="edit-new-password"
+            name="newPassword"
+            type="password"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            [value]="newPassword()"
+            (input)="newPassword.set($any($event.target).value)"
+          />
+        </div>
+
+        @if (passwordError()) {
+          <p class="field-error" role="alert">{{ passwordError() }}</p>
+        }
+        @if (passwordSuccess()) {
+          <p class="field-note" role="status">
+            Mot de passe mis à jour. Vos autres sessions ont été déconnectées.
+          </p>
+        }
+
+        <button type="submit" class="submit" [disabled]="passwordSubmitting()">
+          {{ passwordSubmitting() ? 'Modification…' : 'Modifier le mot de passe' }}
+        </button>
+      </form>
+    </section>
+
+    <p class="back-link"><a routerLink="/compte">Retour au compte</a></p>
+  } @else {
+    <p class="state">Chargement du profil…</p>
+  }
+</main>
+
+<app-site-footer />

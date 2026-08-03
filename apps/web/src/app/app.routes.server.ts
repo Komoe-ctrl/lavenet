@@ -9,6 +9,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    path: 'compte/modifier',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: 'otp-verify',
     renderMode: RenderMode.Client,
   },

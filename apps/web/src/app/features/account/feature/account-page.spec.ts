@@ -12,6 +12,8 @@ const SAMPLE_USER: AuthUserDtoOutput = {
   email: 'client@lavenet.ci',
   phone: '+2250700000002',
   phoneVerified: true,
+  notifyEmail: true,
+  notifySms: true,
   role: 'CLIENT',
 };
 
