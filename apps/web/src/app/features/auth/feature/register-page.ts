@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
+import { CI_PHONE_FORMAT_HINT } from '@lavenet/shared-schemas';
 import { SessionStore } from '../../../core/auth/session.store';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
@@ -25,6 +26,8 @@ function extractErrorMessage(err: unknown): string {
 export class RegisterPage {
   private readonly session = inject(SessionStore);
   private readonly router = inject(Router);
+
+  protected readonly phoneFormatHint = CI_PHONE_FORMAT_HINT;
 
   protected readonly fullName = signal('');
   protected readonly phone = signal('');

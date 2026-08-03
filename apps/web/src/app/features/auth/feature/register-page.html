@@ -29,11 +29,12 @@
         name="phone"
         type="tel"
         autocomplete="tel"
-        placeholder="+2250700000000"
+        placeholder="07 00 07 00 07"
         required
         [value]="phone()"
         (input)="phone.set($any($event.target).value)"
       />
+      <p class="field-note">{{ phoneFormatHint }}</p>
     </div>
 
     <div class="field">
