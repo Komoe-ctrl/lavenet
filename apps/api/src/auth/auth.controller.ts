@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,6 +17,12 @@ import { env } from '../config/env';
 import { AuthService } from './auth.service';
 import {
   AuthUserDto,
+  ChangeEmailDto,
+  ChangeEmailResponseDto,
+  ChangePasswordDto,
+  ChangePasswordResponseDto,
+  ChangePhoneDto,
+  ChangePhoneResponseDto,
   LoginDto,
   LoginResponseDto,
   OtpResponseDto,
@@ -26,6 +33,8 @@ import {
   RefreshResponseDto,
   RegisterDto,
   RegisterResponseDto,
+  UpdateProfileDto,
+  UpdateProfileResponseDto,
   VerifyOtpDto,
   VerifyOtpResponseDto,
 } from './auth.dto';
@@ -147,6 +156,49 @@ export class AuthController {
   @ZodResponse({ type: AuthUserDto })
   me(@CurrentUser() userId: string) {
     return this.authService.me(userId);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: UpdateProfileResponseDto })
+  async updateProfile(@CurrentUser() userId: string, @Body() dto: UpdateProfileDto) {
+    const user = await this.authService.updateProfile(userId, dto);
+    return { user };
+  }
+
+  @Post('profile/password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: ChangePasswordResponseDto })
+  async changePassword(
+    @CurrentUser() userId: string,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    const user = await this.authService.changePassword(
+      userId,
+      dto.currentPassword,
+      dto.newPassword,
+      req.cookies?.[REFRESH_COOKIE_NAME],
+    );
+    return { user };
+  }
+
+  @Post('profile/phone')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: ChangePhoneResponseDto })
+  changePhone(@CurrentUser() userId: string, @Body() dto: ChangePhoneDto) {
+    return this.authService.changePhone(userId, dto.currentPassword, dto.newPhone);
+  }
+
+  @Post('profile/email')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ZodResponse({ type: ChangeEmailResponseDto })
+  async changeEmail(@CurrentUser() userId: string, @Body() dto: ChangeEmailDto) {
+    const user = await this.authService.changeEmail(userId, dto.currentPassword, dto.newEmail);
+    return { user };
   }
 
   private setRefreshCookie(res: Response, token: string): void {

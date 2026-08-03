@@ -1,9 +1,13 @@
 import {
   authUserSchema,
+  changeEmailSchema,
+  changePasswordSchema,
+  changePhoneSchema,
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
   registerSchema,
+  updateProfileSchema,
   verifyOtpSchema,
 } from './auth.schemas';
 
@@ -114,6 +118,55 @@ describe('passwordResetConfirmSchema', () => {
   });
 });
 
+describe('updateProfileSchema', () => {
+  it('accepts an empty payload -- every field is optional', () => {
+    expect(updateProfileSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('accepts a partial payload', () => {
+    expect(updateProfileSchema.safeParse({ notifySms: false }).success).toBe(true);
+  });
+
+  it('rejects a blank full name', () => {
+    expect(updateProfileSchema.safeParse({ fullName: '  ' }).success).toBe(false);
+  });
+});
+
+describe('changePasswordSchema', () => {
+  it('requires both the current and the new password', () => {
+    expect(
+      changePasswordSchema.safeParse({ currentPassword: 'Demo1234!', newPassword: 'New12345!' })
+        .success,
+    ).toBe(true);
+    expect(changePasswordSchema.safeParse({ newPassword: 'New12345!' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ currentPassword: 'Demo1234!' }).success).toBe(false);
+  });
+});
+
+describe('changePhoneSchema', () => {
+  it('requires the current password and a valid E.164 phone', () => {
+    expect(
+      changePhoneSchema.safeParse({ currentPassword: 'Demo1234!', newPhone: '+2250700000009' })
+        .success,
+    ).toBe(true);
+    expect(
+      changePhoneSchema.safeParse({ currentPassword: 'Demo1234!', newPhone: '0700000009' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('changeEmailSchema', () => {
+  it('requires the current password and a valid email', () => {
+    expect(
+      changeEmailSchema.safeParse({ currentPassword: 'Demo1234!', newEmail: 'a@b.com' }).success,
+    ).toBe(true);
+    expect(
+      changeEmailSchema.safeParse({ currentPassword: 'Demo1234!', newEmail: 'not-an-email' })
+        .success,
+    ).toBe(false);
+  });
+});
+
 describe('authUserSchema', () => {
   it('accepts a user with a null email and null full name', () => {
     const result = authUserSchema.safeParse({
@@ -122,6 +175,8 @@ describe('authUserSchema', () => {
       email: null,
       phone: '+2250700000001',
       phoneVerified: true,
+      notifyEmail: true,
+      notifySms: true,
       role: 'CLIENT',
     });
     expect(result.success).toBe(true);

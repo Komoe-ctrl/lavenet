@@ -5,6 +5,8 @@ export interface AuthUserDtoOutput {
   email: string | null;
   fullName: string | null;
   id: string;
+  notifyEmail: boolean;
+  notifySms: boolean;
   phone: string;
   phoneVerified: boolean;
   role: 'CLIENT' | 'STAFF' | 'COURIER' | 'ADMIN';
