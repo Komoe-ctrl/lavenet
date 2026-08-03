@@ -40,6 +40,8 @@ interface UserRecord {
   email: string | null;
   phone: string;
   phoneVerifiedAt: Date | null;
+  notifyEmail: boolean;
+  notifySms: boolean;
   role: string;
   passwordHash: string;
   deletedAt: Date | null;
@@ -207,6 +209,80 @@ export class AuthService {
     return { accessToken, refreshToken, user: this.toAuthUser(user) };
   }
 
+  async updateProfile(
+    userId: string,
+    input: { fullName?: string; notifyEmail?: boolean; notifySms?: boolean },
+  ): Promise<AuthUser> {
+    const user = await this.repository.updateProfile(userId, input);
+    return this.toAuthUser(user);
+  }
+
+  // currentRefreshToken is the raw cookie value of the session making this
+  // request (if any) -- kept alive while every other session on the
+  // account is revoked (F-AUTH-05: unlike a password reset, there IS a
+  // "current" session here, and forcing it to log out right after the user
+  // deliberately changed their own password would be a bad experience).
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentRefreshToken?: string,
+  ): Promise<AuthUser> {
+    const user = await this.repository.findUserById(userId);
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException();
+    }
+    await this.assertCurrentPassword(user, currentPassword);
+
+    const passwordHash = await hash(newPassword);
+    await this.repository.updatePasswordHash(userId, passwordHash);
+    await this.repository.revokeOtherRefreshTokens(
+      userId,
+      currentRefreshToken ? hashToken(currentRefreshToken) : undefined,
+    );
+    return this.toAuthUser({ ...user, passwordHash });
+  }
+
+  async changePhone(
+    userId: string,
+    currentPassword: string,
+    newPhone: string,
+  ): Promise<{ user: AuthUser; demoOtpCode?: string }> {
+    const user = await this.repository.findUserById(userId);
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException();
+    }
+    await this.assertCurrentPassword(user, currentPassword);
+
+    // Uniqueness must be checked before phoneVerifiedAt is ever touched --
+    // otherwise a conflicting attempt leaves the account with an unverified
+    // phone for no reason (the number never actually changed).
+    const conflict = await this.repository.findUserByPhone(newPhone);
+    if (conflict && conflict.id !== userId) {
+      throw new BadRequestException('Ce numéro de téléphone est déjà utilisé.');
+    }
+
+    const updated = await this.repository.updatePhone(userId, newPhone);
+    const demoOtpCode = await this.issuePhoneOtp(userId, newPhone, OtpPurpose.PHONE_VERIFICATION);
+    return { user: this.toAuthUser(updated), demoOtpCode };
+  }
+
+  async changeEmail(userId: string, currentPassword: string, newEmail: string): Promise<AuthUser> {
+    const user = await this.repository.findUserById(userId);
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException();
+    }
+    await this.assertCurrentPassword(user, currentPassword);
+
+    const conflict = await this.repository.findUserByEmail(newEmail);
+    if (conflict && conflict.id !== userId) {
+      throw new BadRequestException('Cet email est déjà utilisé.');
+    }
+
+    const updated = await this.repository.updateEmail(userId, newEmail);
+    return this.toAuthUser(updated);
+  }
+
   async refresh(rawToken: string | undefined, userAgent?: string) {
     if (!rawToken) {
       throw new UnauthorizedException('Session expirée.');
@@ -314,6 +390,13 @@ export class AuthService {
     return env.DEMO_MODE ? code : undefined;
   }
 
+  private async assertCurrentPassword(user: UserRecord, currentPassword: string): Promise<void> {
+    const valid = await verify(user.passwordHash, currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect.');
+    }
+  }
+
   private toAuthUser(user: UserRecord): AuthUser {
     return {
       id: user.id,
@@ -321,6 +404,8 @@ export class AuthService {
       email: user.email,
       phone: user.phone,
       phoneVerified: user.phoneVerifiedAt !== null,
+      notifyEmail: user.notifyEmail,
+      notifySms: user.notifySms,
       role: user.role as AuthUser['role'],
     };
   }

@@ -23,6 +23,12 @@ interface CreateOtpData {
   expiresAt: Date;
 }
 
+interface UpdateProfileData {
+  fullName?: string;
+  notifyEmail?: boolean;
+  notifySms?: boolean;
+}
+
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -117,5 +123,38 @@ export class AuthRepository {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  // Changing a password while authenticated (unlike a reset) has a session
+  // making the request -- keepTokenHash lets that one survive while every
+  // other one on the account is revoked. Undefined (no refresh cookie on
+  // the request, an edge case) falls back to revoking everything.
+  revokeOtherRefreshTokens(userId: string, keepTokenHash: string | undefined) {
+    return this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(keepTokenHash ? { tokenHash: { not: keepTokenHash } } : {}),
+      },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  updateProfile(userId: string, data: UpdateProfileData) {
+    return this.prisma.user.update({ where: { id: userId }, data });
+  }
+
+  // Changing the phone always drops phoneVerifiedAt back to null -- callers
+  // must check uniqueness first (AuthService.changePhone), this method
+  // itself has no way to refuse a taken number.
+  updatePhone(userId: string, phone: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { phone, phoneVerifiedAt: null },
+    });
+  }
+
+  updateEmail(userId: string, email: string) {
+    return this.prisma.user.update({ where: { id: userId }, data: { email } });
   }
 }

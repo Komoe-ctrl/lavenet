@@ -33,6 +33,11 @@ export const authUserSchema = z.object({
   email: z.email().nullable(),
   phone: z.string(),
   phoneVerified: z.boolean(),
+  // F-AUTH-05's edit form needs the current values to pre-fill its
+  // checkboxes -- without these, it would have no way to know what it's
+  // about to overwrite the first time it submits.
+  notifyEmail: z.boolean(),
+  notifySms: z.boolean(),
   role: z.enum(USER_ROLES),
 });
 export type AuthUser = z.infer<typeof authUserSchema>;
@@ -101,3 +106,61 @@ export const passwordResetConfirmResponseSchema = z.object({
   user: authUserSchema,
 });
 export type PasswordResetConfirmResponse = z.infer<typeof passwordResetConfirmResponseSchema>;
+
+// F-AUTH-05. Every field optional -- a PATCH updates only what's provided,
+// the phone and email have their own dedicated endpoints below because
+// changing either needs the current password (F-AUTH-05, "un téléphone =
+// un compte" also makes the phone the login identifier).
+export const updateProfileSchema = z.object({
+  fullName: z.string().trim().min(2).optional(),
+  notifyEmail: z.boolean().optional(),
+  notifySms: z.boolean().optional(),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export const updateProfileResponseSchema = z.object({
+  user: authUserSchema,
+});
+export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>;
+
+// currentPassword required: a hijacked open session must not be able to
+// lock the real owner out of their own account by changing the password
+// they'd need to recover it.
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const changePasswordResponseSchema = z.object({
+  user: authUserSchema,
+});
+export type ChangePasswordResponse = z.infer<typeof changePasswordResponseSchema>;
+
+// Same currentPassword requirement as changePasswordSchema, same reasoning
+// -- the phone is the login identifier, changing it is just as sensitive.
+export const changePhoneSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPhone: z.e164(),
+});
+export type ChangePhoneInput = z.infer<typeof changePhoneSchema>;
+
+// Changing the phone drops phoneVerifiedAt back to null and re-sends an
+// OTP -- same shape as registerResponseSchema's demo-only raw code for the
+// same reason (present only when DEMO_MODE=true).
+export const changePhoneResponseSchema = z.object({
+  user: authUserSchema,
+  demoOtpCode: z.string().optional(),
+});
+export type ChangePhoneResponse = z.infer<typeof changePhoneResponseSchema>;
+
+export const changeEmailSchema = z.object({
+  currentPassword: z.string().min(8),
+  newEmail: z.email(),
+});
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
+
+export const changeEmailResponseSchema = z.object({
+  user: authUserSchema,
+});
+export type ChangeEmailResponse = z.infer<typeof changeEmailResponseSchema>;

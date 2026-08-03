@@ -1,6 +1,12 @@
 import { createZodDto } from 'nestjs-zod';
 import {
   authUserSchema,
+  changeEmailResponseSchema,
+  changeEmailSchema,
+  changePasswordResponseSchema,
+  changePasswordSchema,
+  changePhoneResponseSchema,
+  changePhoneSchema,
   loginResponseSchema,
   loginSchema,
   otpResponseSchema,
@@ -11,6 +17,8 @@ import {
   refreshResponseSchema,
   registerResponseSchema,
   registerSchema,
+  updateProfileResponseSchema,
+  updateProfileSchema,
   verifyOtpResponseSchema,
   verifyOtpSchema,
 } from '@lavenet/shared-schemas';
@@ -32,3 +40,11 @@ export class PasswordResetConfirmDto extends createZodDto(passwordResetConfirmSc
 export class PasswordResetConfirmResponseDto extends createZodDto(
   passwordResetConfirmResponseSchema,
 ) {}
+export class UpdateProfileDto extends createZodDto(updateProfileSchema) {}
+export class UpdateProfileResponseDto extends createZodDto(updateProfileResponseSchema) {}
+export class ChangePasswordDto extends createZodDto(changePasswordSchema) {}
+export class ChangePasswordResponseDto extends createZodDto(changePasswordResponseSchema) {}
+export class ChangePhoneDto extends createZodDto(changePhoneSchema) {}
+export class ChangePhoneResponseDto extends createZodDto(changePhoneResponseSchema) {}
+export class ChangeEmailDto extends createZodDto(changeEmailSchema) {}
+export class ChangeEmailResponseDto extends createZodDto(changeEmailResponseSchema) {}

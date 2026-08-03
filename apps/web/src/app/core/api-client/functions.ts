@@ -21,5 +21,13 @@ export type { AuthControllerLogout$Params as AuthControllerLogout$Params } from 
 export { authControllerLogout as authControllerLogout } from './fn/auth/auth-controller-logout';
 export type { AuthControllerMe$Params as AuthControllerMe$Params } from './fn/auth/auth-controller-me';
 export { authControllerMe as authControllerMe } from './fn/auth/auth-controller-me';
+export type { AuthControllerUpdateProfile$Params as AuthControllerUpdateProfile$Params } from './fn/auth/auth-controller-update-profile';
+export { authControllerUpdateProfile as authControllerUpdateProfile } from './fn/auth/auth-controller-update-profile';
+export type { AuthControllerChangePassword$Params as AuthControllerChangePassword$Params } from './fn/auth/auth-controller-change-password';
+export { authControllerChangePassword as authControllerChangePassword } from './fn/auth/auth-controller-change-password';
+export type { AuthControllerChangePhone$Params as AuthControllerChangePhone$Params } from './fn/auth/auth-controller-change-phone';
+export { authControllerChangePhone as authControllerChangePhone } from './fn/auth/auth-controller-change-phone';
+export type { AuthControllerChangeEmail$Params as AuthControllerChangeEmail$Params } from './fn/auth/auth-controller-change-email';
+export { authControllerChangeEmail as authControllerChangeEmail } from './fn/auth/auth-controller-change-email';
 export type { CatalogControllerGetCatalog$Params as CatalogControllerGetCatalog$Params } from './fn/catalog/catalog-controller-get-catalog';
 export { catalogControllerGetCatalog as catalogControllerGetCatalog } from './fn/catalog/catalog-controller-get-catalog';

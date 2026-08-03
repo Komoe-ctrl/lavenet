@@ -9,6 +9,8 @@ export interface LoginResponseDtoOutput {
 'email': string | null;
 'phone': string;
 'phoneVerified': boolean;
+'notifyEmail': boolean;
+'notifySms': boolean;
 'role': 'CLIENT' | 'STAFF' | 'COURIER' | 'ADMIN';
 };
 }
