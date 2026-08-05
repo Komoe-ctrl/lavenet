@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COMMUNES } from '@lavenet/shared-domain';
 
 // Single source of truth for every piece of business/contact information
 // shown on the public pages (brand, contact channels, delivery coverage,
@@ -52,16 +53,10 @@ const rawSiteConfig: SiteConfig = {
     address: null,
   },
   coverage: {
-    communes: [
-      'Cocody',
-      'Plateau',
-      'Marcory',
-      'Treichville',
-      'Yopougon',
-      'Adjamé',
-      'Koumassi',
-      'Port-Bouët',
-    ],
+    // COMMUNES (libs/shared/domain) is the single source of truth -- also
+    // used by the address book's commune field (F-AUTH-06), validated
+    // server-side, not just picked from a dropdown here.
+    communes: [...COMMUNES],
     hoursNote: "Les horaires précis seront communiqués avant l'ouverture de la commande en ligne.",
   },
   delivery: {

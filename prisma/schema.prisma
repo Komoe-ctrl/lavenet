@@ -37,6 +37,7 @@ model User {
 
   refreshTokens RefreshToken[]
   otpCodes      OtpCode[]
+  addresses     Address[]
 
   @@index([role])
   @@map("users")
@@ -79,6 +80,30 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// Soft delete only (deletedAt), never a block-on-referenced-order rule --
+// see docs/ADR/0005-address-deletion-policy.md. `details` (repère /
+// indication) is required, not optional: most Abidjan addresses have no
+// street number, it's the field that actually gets a courier to the door.
+model Address {
+  id        String    @id @default(cuid())
+  userId    String
+  label     String
+  commune   String
+  quartier  String
+  details   String
+  geoLat    Float?
+  geoLng    Float?
+  isDefault Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
 }
 
 enum ServiceUnit {
