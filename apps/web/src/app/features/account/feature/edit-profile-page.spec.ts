@@ -74,6 +74,8 @@ describe('EditProfilePage', () => {
     expect(text).toContain('Modifier le profil');
     expect(fixture.nativeElement.querySelector('#edit-full-name').value).toBe('Client Démo');
     expect(fixture.nativeElement.querySelectorAll('.checkbox-field input')[1].checked).toBe(false);
+    // Format shown before any error is ever possible (F-AUTH-05 bug report).
+    expect(text).toContain('Format attendu : 07 00 07 00 07');
   });
 
   it('saves the info section', async () => {

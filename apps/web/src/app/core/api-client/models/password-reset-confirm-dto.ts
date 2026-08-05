@@ -3,6 +3,6 @@
 
 export interface PasswordResetConfirmDto {
   code: string;
-  identifier: (string | string);
+  identifier: string;
   newPassword: string;
 }

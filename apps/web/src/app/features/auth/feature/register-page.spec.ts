@@ -54,6 +54,8 @@ describe('RegisterPage', () => {
     expect(text).toContain('LaveNet');
     expect(text).toContain('Créer un compte');
     expect(fixture.nativeElement.querySelector('#register-phone')).not.toBeNull();
+    // Format shown before any error is ever possible (F-AUTH-05 bug report).
+    expect(text).toContain('Format attendu : 07 00 07 00 07');
   });
 
   it('registers and navigates to /otp-verify carrying the demo OTP code', async () => {

@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { FrenchZodValidationPipe } from './french-zod-validation.pipe';
 import { AuthModule } from '../auth/auth.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -20,7 +20,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [AppController],
   providers: [
     AppService,
-    { provide: APP_PIPE, useClass: ZodValidationPipe },
+    { provide: APP_PIPE, useClass: FrenchZodValidationPipe },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

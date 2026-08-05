@@ -34,6 +34,10 @@ describe('Auth OTP responses with DEMO_MODE=false (integration)', () => {
     email: `demo-off-${runId}@lavenet.test`,
     password: 'Integration1234!',
   };
+  // A distinct 10-digit phone for the second registration below -- not
+  // input.phone with a digit appended, which would be 11 digits and
+  // rejected outright by the phone format check (F-AUTH-05 bug report).
+  const secondPhone = `+22510${phoneDigits}`;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -63,13 +67,13 @@ describe('Auth OTP responses with DEMO_MODE=false (integration)', () => {
   it('omits demoOtpCode from the resend response', async () => {
     const registerRes = await request(app.getHttpServer())
       .post(`/${API_GLOBAL_PREFIX}/auth/register`)
-      .send({ ...input, phone: `${input.phone}1`, email: `second-${input.email}` });
+      .send({ ...input, phone: secondPhone, email: `second-${input.email}` });
     const token = registerRes.body.accessToken as string;
 
     // Age the just-created OTP past the resend cooldown (see
     // auth-registration.integration.spec.ts for why this beats a real sleep).
     await prisma.otpCode.updateMany({
-      where: { user: { phone: `${input.phone}1` } },
+      where: { user: { phone: secondPhone } },
       data: { createdAt: new Date(Date.now() - 61_000) },
     });
 
@@ -80,9 +84,9 @@ describe('Auth OTP responses with DEMO_MODE=false (integration)', () => {
     expect(resend.body.demoOtpCode).toBeUndefined();
     expect(JSON.stringify(resend.body)).not.toMatch(/"demoOtpCode"/);
 
-    await prisma.otpCode.deleteMany({ where: { user: { phone: `${input.phone}1` } } });
-    await prisma.refreshToken.deleteMany({ where: { user: { phone: `${input.phone}1` } } });
-    await prisma.user.deleteMany({ where: { phone: `${input.phone}1` } });
+    await prisma.otpCode.deleteMany({ where: { user: { phone: secondPhone } } });
+    await prisma.refreshToken.deleteMany({ where: { user: { phone: secondPhone } } });
+    await prisma.user.deleteMany({ where: { phone: secondPhone } });
   });
 
   it('omits demoOtpCode from the password-reset request response', async () => {
