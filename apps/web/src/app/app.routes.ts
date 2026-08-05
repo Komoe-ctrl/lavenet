@@ -48,6 +48,12 @@ export const appRoutes: Route[] = [
       import('./features/account/feature/edit-profile-page').then((m) => m.EditProfilePage),
   },
   {
+    path: 'compte/adresses',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/account/feature/addresses-page').then((m) => m.AddressesPage),
+  },
+  {
     path: '**',
     loadComponent: () =>
       import('./features/not-found/feature/not-found-page').then((m) => m.NotFoundPage),

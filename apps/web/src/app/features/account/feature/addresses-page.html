@@ -1,0 +1,174 @@
+<app-site-header />
+
+<main class="addresses-page">
+  <h1>Carnet d'adresses</h1>
+  <p class="lede">Vos adresses de collecte et de livraison. Une seule est définie par défaut.</p>
+
+  @if (addresses.isLoading()) {
+    <p class="state">Chargement de vos adresses…</p>
+  } @else if (addresses.error()) {
+    <p class="state state-error" role="alert">Impossible de charger vos adresses.</p>
+  } @else if (addresses.hasValue()) {
+    @let list = addresses.value();
+    @if (list.length === 0) {
+      <p class="state">Aucune adresse enregistrée pour le moment.</p>
+    } @else {
+      <ul class="address-list">
+        @for (address of list; track address.id) {
+          <li class="address-card">
+            <div class="address-card__header">
+              <h2>{{ address.label }}</h2>
+              @if (address.isDefault) {
+                <span class="badge">Par défaut</span>
+              }
+            </div>
+            <p class="address-card__location">{{ address.commune }}, {{ address.quartier }}</p>
+            <p class="address-card__details">{{ address.details }}</p>
+
+            @if (confirmingDeleteId() === address.id) {
+              <div class="confirm-delete">
+                <p>Supprimer cette adresse ?</p>
+                @if (deleteError()) {
+                  <p class="field-error" role="alert">{{ deleteError() }}</p>
+                }
+                <div class="address-card__actions">
+                  <button
+                    type="button"
+                    class="delete"
+                    [disabled]="deleteSubmitting()"
+                    (click)="confirmDelete(address.id)"
+                  >
+                    {{ deleteSubmitting() ? 'Suppression…' : 'Confirmer la suppression' }}
+                  </button>
+                  <button type="button" (click)="cancelDelete()">Annuler</button>
+                </div>
+              </div>
+            } @else {
+              <div class="address-card__actions">
+                @if (!address.isDefault) {
+                  <button
+                    type="button"
+                    [disabled]="defaultSubmittingId() === address.id"
+                    (click)="setDefault(address.id)"
+                  >
+                    {{
+                      defaultSubmittingId() === address.id ? 'Définition…' : 'Définir par défaut'
+                    }}
+                  </button>
+                }
+                <button type="button" (click)="startEdit(address)">Modifier</button>
+                <button type="button" class="delete" (click)="askDeleteConfirmation(address.id)">
+                  Supprimer
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      @if (defaultError()) {
+        <p class="field-error" role="alert">{{ defaultError() }}</p>
+      }
+    }
+  }
+
+  <section class="edit-card">
+    <h2>{{ editingId() ? "Modifier l'adresse" : 'Ajouter une adresse' }}</h2>
+    <form (submit)="submitForm($event)" novalidate>
+      <div class="field">
+        <label for="address-label">Libellé</label>
+        <input
+          id="address-label"
+          name="label"
+          type="text"
+          autocomplete="off"
+          placeholder="Maison, Bureau…"
+          required
+          minlength="2"
+          [value]="label()"
+          (input)="label.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="field">
+        <label for="address-commune">Commune</label>
+        <select
+          id="address-commune"
+          name="commune"
+          required
+          [value]="commune()"
+          (change)="commune.set($any($event.target).value)"
+        >
+          <option value="" disabled>Choisissez une commune</option>
+          @for (c of communes; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="address-quartier">Quartier</label>
+        <input
+          id="address-quartier"
+          name="quartier"
+          type="text"
+          autocomplete="off"
+          required
+          minlength="2"
+          [value]="quartier()"
+          (input)="quartier.set($any($event.target).value)"
+        />
+      </div>
+
+      <div class="field">
+        <label for="address-details">Repère (indication pour vous trouver)</label>
+        <textarea
+          id="address-details"
+          name="details"
+          rows="2"
+          placeholder="Immeuble bleu, 2e portail après la pharmacie…"
+          required
+          minlength="3"
+          [value]="details()"
+          (input)="details.set($any($event.target).value)"
+        ></textarea>
+        <p class="field-note">
+          Essentiel à Abidjan : beaucoup d'adresses n'ont pas de numéro de rue.
+        </p>
+      </div>
+
+      <div class="checkbox-field">
+        <label>
+          <input
+            type="checkbox"
+            [checked]="isDefault()"
+            (change)="isDefault.set($any($event.target).checked)"
+          />
+          Adresse par défaut
+        </label>
+      </div>
+
+      @if (formError()) {
+        <p class="field-error" role="alert">{{ formError() }}</p>
+      }
+
+      <div class="form-actions">
+        <button type="submit" class="submit" [disabled]="formSubmitting()">
+          {{
+            formSubmitting()
+              ? 'Enregistrement…'
+              : editingId()
+                ? 'Enregistrer'
+                : 'Ajouter cette adresse'
+          }}
+        </button>
+        @if (editingId()) {
+          <button type="button" class="secondary-action" (click)="cancelEdit()">Annuler</button>
+        }
+      </div>
+    </form>
+  </section>
+
+  <p class="back-link"><a routerLink="/compte">Retour au compte</a></p>
+</main>
+
+<app-site-footer />
