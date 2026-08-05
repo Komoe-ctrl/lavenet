@@ -9,6 +9,9 @@ export type { ChangePasswordDto } from './models/change-password-dto';
 export type { ChangePasswordResponseDtoOutput } from './models/change-password-response-dto-output';
 export type { ChangePhoneDto } from './models/change-phone-dto';
 export type { ChangePhoneResponseDtoOutput } from './models/change-phone-response-dto-output';
+export type { CreateAddressDto } from './models/create-address-dto';
+export type { CreateAddressResponseDtoOutput } from './models/create-address-response-dto-output';
+export type { ListAddressesResponseDtoOutput } from './models/list-addresses-response-dto-output';
 export type { LoginDto } from './models/login-dto';
 export type { LoginResponseDtoOutput } from './models/login-response-dto-output';
 export type { OtpResponseDtoOutput } from './models/otp-response-dto-output';
@@ -19,6 +22,8 @@ export type { PasswordResetRequestResponseDtoOutput } from './models/password-re
 export type { RefreshResponseDtoOutput } from './models/refresh-response-dto-output';
 export type { RegisterDto } from './models/register-dto';
 export type { RegisterResponseDtoOutput } from './models/register-response-dto-output';
+export type { UpdateAddressDto } from './models/update-address-dto';
+export type { UpdateAddressResponseDtoOutput } from './models/update-address-response-dto-output';
 export type { UpdateProfileDto } from './models/update-profile-dto';
 export type { UpdateProfileResponseDtoOutput } from './models/update-profile-response-dto-output';
 export type { VerifyOtpDto } from './models/verify-otp-dto';
