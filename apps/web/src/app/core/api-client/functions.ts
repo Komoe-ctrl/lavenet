@@ -31,3 +31,11 @@ export type { AuthControllerChangeEmail$Params as AuthControllerChangeEmail$Para
 export { authControllerChangeEmail as authControllerChangeEmail } from './fn/auth/auth-controller-change-email';
 export type { CatalogControllerGetCatalog$Params as CatalogControllerGetCatalog$Params } from './fn/catalog/catalog-controller-get-catalog';
 export { catalogControllerGetCatalog as catalogControllerGetCatalog } from './fn/catalog/catalog-controller-get-catalog';
+export type { AddressesControllerList$Params as AddressesControllerList$Params } from './fn/addresses/addresses-controller-list';
+export { addressesControllerList as addressesControllerList } from './fn/addresses/addresses-controller-list';
+export type { AddressesControllerCreate$Params as AddressesControllerCreate$Params } from './fn/addresses/addresses-controller-create';
+export { addressesControllerCreate as addressesControllerCreate } from './fn/addresses/addresses-controller-create';
+export type { AddressesControllerRemove$Params as AddressesControllerRemove$Params } from './fn/addresses/addresses-controller-remove';
+export { addressesControllerRemove as addressesControllerRemove } from './fn/addresses/addresses-controller-remove';
+export type { AddressesControllerUpdate$Params as AddressesControllerUpdate$Params } from './fn/addresses/addresses-controller-update';
+export { addressesControllerUpdate as addressesControllerUpdate } from './fn/addresses/addresses-controller-update';
