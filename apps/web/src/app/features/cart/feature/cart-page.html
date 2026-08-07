@@ -1,0 +1,90 @@
+<app-site-header />
+
+<main class="cart-page">
+  <h1>Mon panier</h1>
+
+  @if (cart.isLoading()) {
+    <p class="state">Chargement de votre panier…</p>
+  } @else if (cart.error()) {
+    <p class="state state-error" role="alert">Impossible de charger votre panier.</p>
+  } @else if (cart.hasValue()) {
+    @let data = cart.value().cart;
+    @if (data.items.length === 0) {
+      <p class="state">Votre panier est vide.</p>
+      <p class="back-link"><a routerLink="/tarifs">Voir les tarifs</a></p>
+    } @else {
+      <ul class="cart-list">
+        @for (item of data.items; track item.id) {
+          <li class="cart-item">
+            <div class="cart-item__info">
+              <h2>{{ item.serviceName }}</h2>
+              @if (item.articleTypeName) {
+                <p class="cart-item__article">{{ item.articleTypeName }}</p>
+              }
+              @if (item.instructions) {
+                <p class="cart-item__instructions">« {{ item.instructions }} »</p>
+              }
+              @if (item.unitPriceXof === null) {
+                <p class="cart-item__unavailable" role="alert">
+                  Ce service n'est plus disponible pour le moment.
+                </p>
+              }
+            </div>
+
+            <div class="cart-item__controls">
+              <label class="cart-item__quantity">
+                <span class="sr-only">Quantité</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  [value]="item.quantity"
+                  [disabled]="updatingItemId() === item.id"
+                  (change)="updateQuantity(item.id, +$any($event.target).value)"
+                />
+              </label>
+              <span class="cart-item__total">
+                {{ item.lineTotalXof !== null ? (item.lineTotalXof | money) : '—' }}
+              </span>
+              <button
+                type="button"
+                class="cart-item__remove"
+                [disabled]="removingItemId() === item.id"
+                (click)="removeItem(item.id)"
+              >
+                {{ removingItemId() === item.id ? 'Suppression…' : 'Supprimer' }}
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (actionError()) {
+        <p class="field-error" role="alert">{{ actionError() }}</p>
+      }
+
+      <section class="cart-summary">
+        @if (data.hasUnavailablePricing) {
+          <p class="cart-summary__warning" role="alert">
+            Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
+          </p>
+        } @else {
+          <p class="cart-summary__total">
+            Sous-total <strong>{{ data.subtotalXof! | money }}</strong>
+          </p>
+        }
+        <p class="cart-summary__note">Le paiement arrive bientôt.</p>
+        <button
+          type="button"
+          class="cart-summary__clear"
+          [disabled]="clearing()"
+          (click)="clearCart()"
+        >
+          {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
+        </button>
+      </section>
+    }
+  }
+</main>
+
+<app-site-footer />

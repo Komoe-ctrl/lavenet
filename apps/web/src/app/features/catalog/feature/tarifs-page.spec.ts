@@ -1,8 +1,12 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Meta, Title } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { describe, expect, it, vi } from 'vitest';
+import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
+import { CartService } from '../../cart/data-access/cart.service';
 import { SessionStore } from '../../../core/auth/session.store';
 import { siteConfig } from '../../../shared/config/site-config';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -13,6 +17,10 @@ import { TarifsPage } from './tarifs-page';
 // thousands with a narrow no-break space (U+202F), not a regular one, and a
 // hand-typed literal silently normalizes to the wrong character.
 const EXPECTED_PRICE = new MoneyPipe().transform(1200);
+
+const EMPTY_CART: CartResponseDtoOutput = {
+  cart: { id: 'ord_1', items: [], subtotalXof: 0, hasUnavailablePricing: false },
+};
 
 const SAMPLE_CATALOG: CatalogResponseDtoOutput = {
   categories: [
@@ -35,15 +43,39 @@ const SAMPLE_CATALOG: CatalogResponseDtoOutput = {
   ],
 };
 
-function configureWith(catalogService: Pick<CatalogService, 'loadCatalog'>) {
+type SessionOverrides = Partial<{
+  isAuthenticated: () => boolean;
+  user: () => null;
+  status: () => 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
+  restore: () => Promise<void>;
+}>;
+
+function configureWith(
+  catalogService: Pick<CatalogService, 'loadCatalog'>,
+  overrides: { session?: SessionOverrides; cart?: Partial<Pick<CartService, 'addItem'>> } = {},
+) {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
-      provideRouter([]),
+      provideRouter([{ path: 'login', children: [] }]),
       { provide: CatalogService, useValue: catalogService },
-      // SiteHeader reads this; on /tarifs it's always 'idle' in real usage
-      // (no guard ever ran restore()) -- unauthenticated is the honest default.
-      { provide: SessionStore, useValue: { isAuthenticated: () => false, user: () => null } },
+      {
+        provide: SessionStore,
+        useValue: {
+          // SiteHeader reads this too; on /tarifs it's always 'idle' in
+          // real usage (no guard ever ran restore()) -- unauthenticated is
+          // the honest default.
+          isAuthenticated: () => false,
+          user: () => null,
+          status: () => 'idle',
+          restore: vi.fn(() => Promise.resolve()),
+          ...overrides.session,
+        },
+      },
+      {
+        provide: CartService,
+        useValue: { addItem: vi.fn(() => Promise.resolve(EMPTY_CART)), ...overrides.cart },
+      },
     ],
   });
 }
@@ -185,5 +217,103 @@ describe('TarifsPage', () => {
     expect(text).toContain('Lavage au kilo');
     expect(text).toContain(EXPECTED_PRICE);
     expect(text).not.toContain('Impossible de charger les tarifs');
+  });
+
+  describe('add to cart', () => {
+    function renderWithCatalog(overrides?: Parameters<typeof configureWith>[1]) {
+      configureWith({ loadCatalog: () => Promise.resolve(SAMPLE_CATALOG) }, overrides);
+      const fixture = TestBed.createComponent(TarifsPage);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('sends to /login instead of adding, when the visitor turns out unauthenticated', async () => {
+      const addItem = vi.fn();
+      const restore = vi.fn(() => Promise.resolve());
+      const fixture = renderWithCatalog({
+        session: { isAuthenticated: () => false, status: () => 'idle', restore },
+        cart: { addItem },
+      });
+      await fixture.whenStable();
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate');
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector('.add-to-cart button');
+      button.click();
+      await fixture.whenStable();
+
+      // /tarifs never restores on its own -- only a deliberate click does.
+      expect(restore).toHaveBeenCalled();
+      expect(addItem).not.toHaveBeenCalled();
+      expect(navigateSpy).toHaveBeenCalledWith(['/login']);
+    });
+
+    it('adds the item without calling restore when the session is already known authenticated', async () => {
+      const addItem = vi.fn(() => Promise.resolve(EMPTY_CART));
+      const restore = vi.fn(() => Promise.resolve());
+      const fixture = renderWithCatalog({
+        session: { isAuthenticated: () => true, status: () => 'authenticated', restore },
+        cart: { addItem },
+      });
+      await fixture.whenStable();
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector('.add-to-cart button');
+      button.click();
+      await fixture.whenStable();
+
+      expect(restore).not.toHaveBeenCalled();
+      expect(addItem).toHaveBeenCalledWith({
+        serviceId: 'svc_1',
+        articleTypeId: undefined,
+        quantity: 1,
+      });
+      expect(fixture.nativeElement.textContent).toContain('Ajouté');
+    });
+
+    it('sends the quantity typed in the field, not always 1', async () => {
+      const addItem = vi.fn(() => Promise.resolve(EMPTY_CART));
+      const fixture = renderWithCatalog({
+        session: { isAuthenticated: () => true, status: () => 'authenticated' },
+        cart: { addItem },
+      });
+      await fixture.whenStable();
+
+      const input: HTMLInputElement = fixture.nativeElement.querySelector('.add-to-cart input');
+      input.value = '3';
+      input.dispatchEvent(new Event('input'));
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector('.add-to-cart button');
+      button.click();
+      await fixture.whenStable();
+
+      expect(addItem).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceId: 'svc_1', quantity: 3 }),
+      );
+    });
+
+    it('shows an inline error and never navigates away when adding fails', async () => {
+      const addItem = vi.fn(() =>
+        Promise.reject(
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: "Aucun tarif actif pour cette combinaison service / type d'article.",
+            },
+          }),
+        ),
+      );
+      const fixture = renderWithCatalog({
+        session: { isAuthenticated: () => true, status: () => 'authenticated' },
+        cart: { addItem },
+      });
+      await fixture.whenStable();
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector('.add-to-cart button');
+      button.click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain(
+        "Aucun tarif actif pour cette combinaison service / type d'article.",
+      );
+    });
   });
 });

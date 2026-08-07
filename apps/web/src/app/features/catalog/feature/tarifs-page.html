@@ -34,9 +34,30 @@
                 <ul class="prices">
                   @for (price of service.prices; track price.articleTypeId ?? 'base') {
                     <li>
-                      <span class="label">{{ price.articleTypeName ?? 'Prix' }}</span>
-                      <span class="leader" aria-hidden="true"></span>
-                      <span class="amount">{{ price.amountXof | money }}</span>
+                      <div class="price-row">
+                        <span class="label">{{ price.articleTypeName ?? 'Prix' }}</span>
+                        <span class="leader" aria-hidden="true"></span>
+                        <span class="amount">{{ price.amountXof | money }}</span>
+                      </div>
+                      <div class="add-to-cart">
+                        <label>
+                          <span class="sr-only">Quantité</span>
+                          <input #qty type="number" min="1" max="99" value="1" />
+                        </label>
+                        <button
+                          type="button"
+                          [disabled]="addingKey() === rowKey(service.id, price.articleTypeId)"
+                          (click)="addToCart(service.id, price.articleTypeId, +qty.value)"
+                        >
+                          {{
+                            addingKey() === rowKey(service.id, price.articleTypeId)
+                              ? 'Ajout…'
+                              : addSuccessKey() === rowKey(service.id, price.articleTypeId)
+                                ? 'Ajouté ✓'
+                                : 'Ajouter au panier'
+                          }}
+                        </button>
+                      </div>
                     </li>
                   }
                 </ul>
@@ -44,6 +65,9 @@
             }
           </div>
         </section>
+      }
+      @if (addError()) {
+        <p class="field-error" role="alert">{{ addError() }}</p>
       }
     }
   } @else if (catalog.isLoading()) {
