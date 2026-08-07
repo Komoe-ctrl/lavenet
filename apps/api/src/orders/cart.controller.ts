@@ -12,7 +12,7 @@ import {
 import { ZodResponse } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AddCartItemDto, CartResponseDto, UpdateCartItemDto } from './cart.dto';
+import { AddCartItemDto, CartResponseDto, SetPickupModeDto, UpdateCartItemDto } from './cart.dto';
 import { CartService } from './cart.service';
 
 // Every route scoped to the current token's user, no :userId in any URL.
@@ -60,5 +60,14 @@ export class CartController {
   @ZodResponse({ type: CartResponseDto })
   clearCart(@CurrentUser() userId: string) {
     return this.cartService.clearCart(userId);
+  }
+
+  // F-CMD-03. Body shape enforced by the shared discriminated union
+  // (HOME vs AGENCY) before it ever reaches the service.
+  @Patch('pickup')
+  @HttpCode(200)
+  @ZodResponse({ type: CartResponseDto })
+  setPickupMode(@CurrentUser() userId: string, @Body() dto: SetPickupModeDto) {
+    return this.cartService.setPickupMode(userId, dto);
   }
 }

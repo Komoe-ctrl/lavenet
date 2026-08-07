@@ -14,6 +14,10 @@ interface UpdateItemData {
   instructions?: string;
 }
 
+type PickupModeData =
+  | { pickupType: 'HOME'; agencyId: null; agencyDropoffDate: null }
+  | { pickupType: 'AGENCY'; agencyId: string; agencyDropoffDate: Date };
+
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -86,5 +90,9 @@ export class OrdersRepository {
 
   clearItems(orderId: string) {
     return this.prisma.orderItem.deleteMany({ where: { orderId } });
+  }
+
+  setPickupMode(orderId: string, data: PickupModeData) {
+    return this.prisma.order.update({ where: { id: orderId }, data });
   }
 }
