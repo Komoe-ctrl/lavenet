@@ -85,6 +85,9 @@ describe('cartSchema', () => {
       items: [],
       subtotalXof: 0,
       hasUnavailablePricing: false,
+      pickupType: null,
+      agencyId: null,
+      agencyDropoffDate: null,
     });
     expect(result.success).toBe(true);
   });
@@ -109,6 +112,35 @@ describe('cartSchema', () => {
       ],
       subtotalXof: null,
       hasUnavailablePricing: true,
+      pickupType: null,
+      agencyId: null,
+      agencyDropoffDate: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a cart with HOME pickup chosen', () => {
+    const result = cartSchema.safeParse({
+      id: 'ord_1',
+      items: [],
+      subtotalXof: 0,
+      hasUnavailablePricing: false,
+      pickupType: 'HOME',
+      agencyId: null,
+      agencyDropoffDate: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a cart with AGENCY pickup chosen', () => {
+    const result = cartSchema.safeParse({
+      id: 'ord_1',
+      items: [],
+      subtotalXof: 0,
+      hasUnavailablePricing: false,
+      pickupType: 'AGENCY',
+      agencyId: 'agy_1',
+      agencyDropoffDate: '2026-08-10',
     });
     expect(result.success).toBe(true);
   });
