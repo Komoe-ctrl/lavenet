@@ -51,12 +51,27 @@ export const cartItemSchema = z.object({
 export type CartItem = z.infer<typeof cartItemSchema>;
 
 // id is null when the user has no DRAFT order yet -- an empty cart never
-// creates a row just to be looked at.
+// creates a row just to be looked at. pickupType/agencyId/agencyDropoffDate
+// (F-CMD-03) are all null until the client picks a mode via PATCH
+// /cart/pickup -- there is no default. agencyId is the raw id, not a
+// nested agency object: the web already has the full agency list (fetched
+// once from GET /agencies to render the picker) and resolves display info
+// from there, so the cart response doesn't duplicate it.
 export const cartSchema = z.object({
   id: z.string().nullable(),
   items: z.array(cartItemSchema),
   subtotalXof: z.number().int().nonnegative().nullable(),
   hasUnavailablePricing: z.boolean(),
+  // z.union of literals, not z.enum -- a nullable z.enum's generated
+  // OpenAPI schema puts a literal `null` inside the `enum` array (zod v4 +
+  // nestjs-zod's OpenAPI-3.0 downgrade), which the Angular client
+  // generator (ng-openapi-gen) mis-renders as the *string* `'null'`
+  // instead of the `null` keyword. This shape avoids that: run
+  // `pnpm api:client` and check pickupType's generated type stays
+  // `'HOME' | 'AGENCY' | null` (real null) if this ever needs to change.
+  pickupType: z.union([z.literal('HOME'), z.literal('AGENCY')]).nullable(),
+  agencyId: z.string().nullable(),
+  agencyDropoffDate: z.iso.date().nullable(),
 });
 export type Cart = z.infer<typeof cartSchema>;
 

@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from '@node-rs/argon2';
 import { seedCatalog } from './catalog-data';
+import { seedAgency } from './agency-data';
 
 // `prisma migrate dev` loads .env via prisma.config.ts before spawning this
 // script, but running it directly (pnpm db:seed / db:seed:prod) doesn't —
@@ -85,6 +86,9 @@ async function main() {
     `Seeded catalog: ${catalogResult.categories} catégories, ${catalogResult.services} services, ` +
       `${catalogResult.articleTypes} types d'article, ${catalogResult.priceRulesCreated} tarifs.`,
   );
+
+  await seedAgency(prisma);
+  console.log('Seeded agency.');
 
   await prisma.$disconnect();
 }
