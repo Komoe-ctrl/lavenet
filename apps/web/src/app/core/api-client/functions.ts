@@ -39,6 +39,8 @@ export type { AddressesControllerRemove$Params as AddressesControllerRemove$Para
 export { addressesControllerRemove as addressesControllerRemove } from './fn/addresses/addresses-controller-remove';
 export type { AddressesControllerUpdate$Params as AddressesControllerUpdate$Params } from './fn/addresses/addresses-controller-update';
 export { addressesControllerUpdate as addressesControllerUpdate } from './fn/addresses/addresses-controller-update';
+export type { AgenciesControllerListAgencies$Params as AgenciesControllerListAgencies$Params } from './fn/agencies/agencies-controller-list-agencies';
+export { agenciesControllerListAgencies as agenciesControllerListAgencies } from './fn/agencies/agencies-controller-list-agencies';
 export type { CartControllerGetCart$Params as CartControllerGetCart$Params } from './fn/cart/cart-controller-get-cart';
 export { cartControllerGetCart as cartControllerGetCart } from './fn/cart/cart-controller-get-cart';
 export type { CartControllerClearCart$Params as CartControllerClearCart$Params } from './fn/cart/cart-controller-clear-cart';
@@ -49,3 +51,5 @@ export type { CartControllerRemoveItem$Params as CartControllerRemoveItem$Params
 export { cartControllerRemoveItem as cartControllerRemoveItem } from './fn/cart/cart-controller-remove-item';
 export type { CartControllerUpdateItem$Params as CartControllerUpdateItem$Params } from './fn/cart/cart-controller-update-item';
 export { cartControllerUpdateItem as cartControllerUpdateItem } from './fn/cart/cart-controller-update-item';
+export type { CartControllerSetPickupMode$Params as CartControllerSetPickupMode$Params } from './fn/cart/cart-controller-set-pickup-mode';
+export { cartControllerSetPickupMode as cartControllerSetPickupMode } from './fn/cart/cart-controller-set-pickup-mode';
