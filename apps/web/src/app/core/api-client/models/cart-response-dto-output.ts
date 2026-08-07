@@ -19,5 +19,8 @@ export interface CartResponseDtoOutput {
 }>;
 'subtotalXof': number | null;
 'hasUnavailablePricing': boolean;
+'pickupType': (('HOME' | 'AGENCY')) | null;
+'agencyId': string | null;
+'agencyDropoffDate': string | null;
 };
 }
