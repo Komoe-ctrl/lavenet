@@ -72,6 +72,12 @@ export const cartSchema = z.object({
   pickupType: z.union([z.literal('HOME'), z.literal('AGENCY')]).nullable(),
   agencyId: z.string().nullable(),
   agencyDropoffDate: z.iso.date().nullable(),
+  // F-CMD-04. pickupSlotId is only ever non-null for HOME pickup;
+  // deliverySlotId is independent of pickup mode. Both null until chosen
+  // via PATCH /cart/slots -- same "raw id, resolve display info from the
+  // already-fetched GET /slots list" reasoning as agencyId above.
+  pickupSlotId: z.string().nullable(),
+  deliverySlotId: z.string().nullable(),
 });
 export type Cart = z.infer<typeof cartSchema>;
 

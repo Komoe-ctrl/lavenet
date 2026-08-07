@@ -11,6 +11,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from '@node-rs/argon2';
 import { seedCatalog } from './catalog-data';
 import { seedAgency } from './agency-data';
+import { seedTimeSlots } from './timeslot-data';
 
 // `prisma migrate dev` loads .env via prisma.config.ts before spawning this
 // script, but running it directly (pnpm db:seed / db:seed:prod) doesn't —
@@ -89,6 +90,9 @@ async function main() {
 
   await seedAgency(prisma);
   console.log('Seeded agency.');
+
+  const slotsResult = await seedTimeSlots(prisma);
+  console.log(`Seeded ${slotsResult.created} time slot(s).`);
 
   await prisma.$disconnect();
 }
