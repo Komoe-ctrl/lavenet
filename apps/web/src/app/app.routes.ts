@@ -54,6 +54,11 @@ export const appRoutes: Route[] = [
       import('./features/account/feature/addresses-page').then((m) => m.AddressesPage),
   },
   {
+    path: 'panier',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/cart/feature/cart-page').then((m) => m.CartPage),
+  },
+  {
     path: '**',
     loadComponent: () =>
       import('./features/not-found/feature/not-found-page').then((m) => m.NotFoundPage),

@@ -1,8 +1,11 @@
 <header class="site-header">
   <a routerLink="/" class="brand">{{ config.brandName }}</a>
-  @if (isAuthenticated()) {
-    <a routerLink="/compte" class="account-link">{{ user()?.email ?? 'Mon compte' }}</a>
-  } @else {
-    <a routerLink="/login" class="login-link">Se connecter</a>
-  }
+  <nav class="nav-links">
+    @if (isAuthenticated()) {
+      <a routerLink="/panier" class="cart-link">Mon panier</a>
+      <a routerLink="/compte" class="account-link">{{ user()?.email ?? 'Mon compte' }}</a>
+    } @else {
+      <a routerLink="/login" class="login-link">Se connecter</a>
+    }
+  </nav>
 </header>

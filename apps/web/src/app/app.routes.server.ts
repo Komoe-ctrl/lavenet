@@ -17,6 +17,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    path: 'panier',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: 'otp-verify',
     renderMode: RenderMode.Client,
   },
