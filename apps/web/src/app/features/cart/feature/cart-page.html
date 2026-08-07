@@ -83,6 +83,75 @@
           {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
         </button>
       </section>
+
+      <section class="pickup-mode">
+        <h2>Mode de retrait</h2>
+        <label class="pickup-mode__option">
+          <input
+            type="radio"
+            name="pickupType"
+            [checked]="pickupTypeChoice() === 'HOME'"
+            (change)="choosePickupType('HOME')"
+          />
+          Enlèvement à domicile
+        </label>
+        <label class="pickup-mode__option">
+          <input
+            type="radio"
+            name="pickupType"
+            [checked]="pickupTypeChoice() === 'AGENCY'"
+            (change)="choosePickupType('AGENCY')"
+          />
+          Dépôt en agence
+        </label>
+
+        @if (pickupTypeChoice() === 'AGENCY') {
+          @if (agencies.isLoading()) {
+            <p class="state">Chargement des agences…</p>
+          } @else if (agencies.error()) {
+            <p class="state state-error" role="alert">Impossible de charger les agences.</p>
+          } @else if (agencies.hasValue()) {
+            <label class="pickup-mode__field">
+              Agence
+              <select (change)="chooseAgency($any($event.target).value)">
+                <option value="" [selected]="selectedAgencyId() === null">
+                  Choisir une agence
+                </option>
+                @for (agency of agencies.value().agencies; track agency.id) {
+                  <option [value]="agency.id" [selected]="selectedAgencyId() === agency.id">
+                    {{ agency.name }} -- {{ agency.address }}
+                  </option>
+                }
+              </select>
+            </label>
+            @if (selectedAgency(); as agency) {
+              <p class="pickup-mode__hours">Horaires : {{ agency.openingHours }}</p>
+            }
+            <label class="pickup-mode__field">
+              Date de dépôt prévue
+              <input
+                type="date"
+                [min]="minDropoffDate"
+                [value]="selectedDropoffDate()"
+                (change)="chooseDropoffDate($any($event.target).value)"
+              />
+            </label>
+          }
+        }
+
+        @if (pickupError()) {
+          <p class="field-error" role="alert">{{ pickupError() }}</p>
+        }
+
+        <button
+          type="button"
+          class="pickup-mode__save"
+          [disabled]="savingPickup() || !canSavePickup()"
+          (click)="savePickupMode()"
+        >
+          {{ savingPickup() ? 'Enregistrement…' : 'Valider le mode de retrait' }}
+        </button>
+      </section>
     }
   }
 </main>

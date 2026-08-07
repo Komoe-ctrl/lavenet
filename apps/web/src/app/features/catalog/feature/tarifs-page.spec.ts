@@ -19,7 +19,15 @@ import { TarifsPage } from './tarifs-page';
 const EXPECTED_PRICE = new MoneyPipe().transform(1200);
 
 const EMPTY_CART: CartResponseDtoOutput = {
-  cart: { id: 'ord_1', items: [], subtotalXof: 0, hasUnavailablePricing: false },
+  cart: {
+    id: 'ord_1',
+    items: [],
+    subtotalXof: 0,
+    hasUnavailablePricing: false,
+    pickupType: null,
+    agencyId: null,
+    agencyDropoffDate: null,
+  },
 };
 
 const SAMPLE_CATALOG: CatalogResponseDtoOutput = {

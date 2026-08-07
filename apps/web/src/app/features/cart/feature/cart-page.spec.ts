@@ -3,10 +3,24 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
+import { AgenciesResponseDtoOutput } from '../../../core/api-client/models/agencies-response-dto-output';
 import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
 import { SessionStore } from '../../../core/auth/session.store';
+import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
 import { CartPage } from './cart-page';
+
+const EMPTY_CART: CartResponseDtoOutput = {
+  cart: {
+    id: null,
+    items: [],
+    subtotalXof: 0,
+    hasUnavailablePricing: false,
+    pickupType: null,
+    agencyId: null,
+    agencyDropoffDate: null,
+  },
+};
 
 const CART_WITH_ITEMS: CartResponseDtoOutput = {
   cart: {
@@ -41,7 +55,21 @@ const CART_WITH_ITEMS: CartResponseDtoOutput = {
     ],
     subtotalXof: 2900,
     hasUnavailablePricing: false,
+    pickupType: null,
+    agencyId: null,
+    agencyDropoffDate: null,
   },
+};
+
+const AGENCIES: AgenciesResponseDtoOutput = {
+  agencies: [
+    {
+      id: 'agy_1',
+      name: 'LaveNet Cocody',
+      address: 'Cocody, Angré, Abidjan',
+      openingHours: 'Lundi - Samedi, 8h - 18h',
+    },
+  ],
 };
 
 type FakeCartService = {
@@ -49,11 +77,19 @@ type FakeCartService = {
   updateItem: (id: string, body: unknown) => Promise<CartResponseDtoOutput>;
   removeItem: (id: string) => Promise<CartResponseDtoOutput>;
   clearCart: () => Promise<CartResponseDtoOutput>;
+  setPickupMode: (body: unknown) => Promise<CartResponseDtoOutput>;
+};
+
+type FakeAgenciesService = {
+  listAgencies: () => Promise<AgenciesResponseDtoOutput>;
 };
 
 // SiteHeader (rendered by CartPage) reads isAuthenticated()/user() -- a
 // user viewing their cart is always logged in already (route is guarded).
-function configureWith(service: Partial<FakeCartService>) {
+function configureWith(
+  service: Partial<FakeCartService>,
+  agenciesService: Partial<FakeAgenciesService> = {},
+) {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
@@ -61,13 +97,19 @@ function configureWith(service: Partial<FakeCartService>) {
       {
         provide: CartService,
         useValue: {
-          getCart: vi.fn().mockResolvedValue({
-            cart: { id: null, items: [], subtotalXof: 0, hasUnavailablePricing: false },
-          }),
+          getCart: vi.fn().mockResolvedValue(EMPTY_CART),
           updateItem: vi.fn(),
           removeItem: vi.fn(),
           clearCart: vi.fn(),
+          setPickupMode: vi.fn(),
           ...service,
+        },
+      },
+      {
+        provide: AgenciesService,
+        useValue: {
+          listAgencies: vi.fn().mockResolvedValue(AGENCIES),
+          ...agenciesService,
         },
       },
       { provide: SessionStore, useValue: { isAuthenticated: () => true, user: () => null } },
@@ -90,12 +132,7 @@ describe('CartPage', () => {
   });
 
   it('shows an empty state with a link back to /tarifs', async () => {
-    configureWith({
-      getCart: () =>
-        Promise.resolve({
-          cart: { id: null, items: [], subtotalXof: 0, hasUnavailablePricing: false },
-        }),
-    });
+    configureWith({ getCart: () => Promise.resolve(EMPTY_CART) });
     const fixture = TestBed.createComponent(CartPage);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -152,25 +189,22 @@ describe('CartPage', () => {
   });
 
   it('removes an item', async () => {
-    const removeItem = vi.fn().mockResolvedValue({
+    const afterRemoval: CartResponseDtoOutput = {
       cart: {
         id: 'ord_1',
         items: [CART_WITH_ITEMS.cart.items[1]],
         subtotalXof: 500,
         hasUnavailablePricing: false,
+        pickupType: null,
+        agencyId: null,
+        agencyDropoffDate: null,
       },
-    });
+    };
+    const removeItem = vi.fn().mockResolvedValue(afterRemoval);
     const getCart = vi
       .fn()
       .mockResolvedValueOnce(CART_WITH_ITEMS)
-      .mockResolvedValueOnce({
-        cart: {
-          id: 'ord_1',
-          items: [CART_WITH_ITEMS.cart.items[1]],
-          subtotalXof: 500,
-          hasUnavailablePricing: false,
-        },
-      });
+      .mockResolvedValueOnce(afterRemoval);
     configureWith({ getCart, removeItem });
     const fixture = TestBed.createComponent(CartPage);
     fixture.detectChanges();
@@ -186,15 +220,22 @@ describe('CartPage', () => {
   });
 
   it('clears the whole cart', async () => {
-    const clearCart = vi.fn().mockResolvedValue({
-      cart: { id: 'ord_1', items: [], subtotalXof: 0, hasUnavailablePricing: false },
-    });
+    const afterClearing: CartResponseDtoOutput = {
+      cart: {
+        id: 'ord_1',
+        items: [],
+        subtotalXof: 0,
+        hasUnavailablePricing: false,
+        pickupType: null,
+        agencyId: null,
+        agencyDropoffDate: null,
+      },
+    };
+    const clearCart = vi.fn().mockResolvedValue(afterClearing);
     const getCart = vi
       .fn()
       .mockResolvedValueOnce(CART_WITH_ITEMS)
-      .mockResolvedValueOnce({
-        cart: { id: 'ord_1', items: [], subtotalXof: 0, hasUnavailablePricing: false },
-      });
+      .mockResolvedValueOnce(afterClearing);
     configureWith({ getCart, clearCart });
     const fixture = TestBed.createComponent(CartPage);
     fixture.detectChanges();
@@ -218,6 +259,9 @@ describe('CartPage', () => {
             items: [{ ...CART_WITH_ITEMS.cart.items[0], unitPriceXof: null, lineTotalXof: null }],
             subtotalXof: null,
             hasUnavailablePricing: true,
+            pickupType: null,
+            agencyId: null,
+            agencyDropoffDate: null,
           },
         }),
     });
@@ -250,5 +294,177 @@ describe('CartPage', () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('Article du panier introuvable.');
+  });
+
+  describe('pickup mode (F-CMD-03)', () => {
+    it('saves HOME pickup with no agency fields', async () => {
+      const setPickupMode = vi.fn().mockResolvedValue(CART_WITH_ITEMS);
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS), setPickupMode });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [homeRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      homeRadio.click();
+      homeRadio.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.pickup-mode__save');
+      expect(saveButton.disabled).toBe(false);
+      saveButton.click();
+      await fixture.whenStable();
+
+      expect(setPickupMode).toHaveBeenCalledWith({ pickupType: 'HOME' });
+    });
+
+    it('reveals the agency picker, date field and opening hours only after choosing AGENCY', async () => {
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.pickup-mode__field select')).toBeNull();
+
+      const [, agencyRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      agencyRadio.click();
+      agencyRadio.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field select',
+      );
+      expect(select).not.toBeNull();
+      expect(fixture.nativeElement.textContent).toContain('LaveNet Cocody');
+
+      select.value = 'agy_1';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('Lundi - Samedi, 8h - 18h');
+    });
+
+    it('keeps the save button disabled for AGENCY until an agency and a date are both chosen', async () => {
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [, agencyRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      agencyRadio.click();
+      agencyRadio.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.pickup-mode__save');
+      expect(saveButton.disabled).toBe(true);
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field select',
+      );
+      select.value = 'agy_1';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(saveButton.disabled).toBe(true);
+
+      const dateInput: HTMLInputElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field input[type="date"]',
+      );
+      dateInput.value = '2026-08-10';
+      dateInput.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(saveButton.disabled).toBe(false);
+    });
+
+    it('saves AGENCY pickup with the chosen agency and date', async () => {
+      const setPickupMode = vi.fn().mockResolvedValue(CART_WITH_ITEMS);
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS), setPickupMode });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [, agencyRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      agencyRadio.click();
+      agencyRadio.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field select',
+      );
+      select.value = 'agy_1';
+      select.dispatchEvent(new Event('change'));
+      const dateInput: HTMLInputElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field input[type="date"]',
+      );
+      dateInput.value = '2026-08-10';
+      dateInput.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('.pickup-mode__save').click();
+      await fixture.whenStable();
+
+      expect(setPickupMode).toHaveBeenCalledWith({
+        pickupType: 'AGENCY',
+        agencyId: 'agy_1',
+        agencyDropoffDate: '2026-08-10',
+      });
+    });
+
+    it('pre-selects the pickup mode already saved on the cart', async () => {
+      configureWith({
+        getCart: () =>
+          Promise.resolve({
+            cart: {
+              ...CART_WITH_ITEMS.cart,
+              pickupType: 'AGENCY',
+              agencyId: 'agy_1',
+              agencyDropoffDate: '2026-08-10',
+            },
+          }),
+      });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [, agencyRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      expect(agencyRadio.checked).toBe(true);
+      const dateInput: HTMLInputElement = fixture.nativeElement.querySelector(
+        '.pickup-mode__field input[type="date"]',
+      );
+      expect(dateInput.value).toBe('2026-08-10');
+    });
+
+    it('shows an inline error when saving the pickup mode fails', async () => {
+      const setPickupMode = vi.fn(() =>
+        Promise.reject(
+          new HttpErrorResponse({ status: 400, error: { message: 'Agence introuvable.' } }),
+        ),
+      );
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS), setPickupMode });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [homeRadio]: HTMLInputElement[] = fixture.nativeElement.querySelectorAll(
+        '.pickup-mode__option input',
+      );
+      homeRadio.click();
+      homeRadio.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.nativeElement.querySelector('.pickup-mode__save').click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('Agence introuvable.');
+    });
   });
 });
