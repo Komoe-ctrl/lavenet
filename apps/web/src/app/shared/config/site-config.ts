@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { COMMUNES } from '@lavenet/shared-domain';
+import {
+  COMMUNES,
+  DELIVERY_FEE_XOF,
+  FREE_DELIVERY_THRESHOLD_XOF,
+  MIN_ORDER_XOF,
+  formatXof,
+} from '@lavenet/shared-domain';
 
 // Single source of truth for every piece of business/contact information
 // shown on the public pages (brand, contact channels, delivery coverage,
@@ -59,10 +65,13 @@ const rawSiteConfig: SiteConfig = {
     communes: [...COMMUNES],
     hoursNote: "Les horaires précis seront communiqués avant l'ouverture de la commande en ligne.",
   },
+  // DELIVERY_FEE_XOF / FREE_DELIVERY_THRESHOLD_XOF / MIN_ORDER_XOF
+  // (libs/shared/domain/business-config.ts) are the single source of truth
+  // -- the API uses the same constants for the real checkout calculation
+  // (docs/ADR/0006). Never redeclared here.
   delivery: {
-    feeNote: "Les frais de livraison seront communiqués avant l'ouverture de la commande en ligne.",
-    minimumOrderNote:
-      "Le minimum de commande sera communiqué avant l'ouverture de la commande en ligne.",
+    feeNote: `Livraison à domicile : ${formatXof(DELIVERY_FEE_XOF)}, gratuite dès ${formatXof(FREE_DELIVERY_THRESHOLD_XOF)} d'achat.`,
+    minimumOrderNote: `Commande minimum pour la livraison à domicile : ${formatXof(MIN_ORDER_XOF)}. En dessous, le dépôt en agence reste disponible.`,
   },
   social: [],
 };
