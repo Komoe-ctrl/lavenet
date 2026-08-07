@@ -69,13 +69,13 @@ model OtpCode {
 }
 
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  userAgent  String?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -241,12 +241,59 @@ model Agency {
   @@map("agencies")
 }
 
+// F-CMD-04. Generic pool: the same TimeSlot can be picked for a pickup or
+// a delivery (glossary, CAHIER-DES-CHARGES.md §5.9: "réservable pour un
+// retrait ou une livraison") -- no `kind` column. `date` duplicates
+// `startsAt`'s calendar date so the picker UI can group/query by day
+// without extracting it from a timestamp. `bookedCount` is denormalized
+// for cheap availability reads; the only thing that may ever change it is
+// a real SlotBooking insert/delete (increment 4) -- never written to
+// directly, never the source of truth for capacity (SlotBooking's unique
+// constraint is, per CLAUDE.md §4 rule 4). Back-office slot creation
+// (F-LIV-01/F-ADM-05) is a separate, later lot -- rows here come from
+// prisma/timeslot-data.ts's demo seed for now.
+model TimeSlot {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int
+  bookedCount Int      @default(0)
+
+  pickupOrders   Order[]       @relation("PickupSlot")
+  deliveryOrders Order[]       @relation("DeliverySlot")
+  bookings       SlotBooking[]
+
+  @@unique([date, startsAt])
+  @@map("time_slots")
+}
+
+// Not used until increment 4 (checkout): the table exists from this
+// migration on so the checkout transaction only ever has to insert rows,
+// never migrate the schema under it. CLAUDE.md §4 rule 4: the unique
+// constraint on (slotId, seatIndex) is the actual capacity guarantee -- a
+// reservation attempt is an insert, and a unique-violation means the slot
+// is full. Nothing in increment 3 writes here yet.
+model SlotBooking {
+  id        String   @id @default(cuid())
+  slotId    String
+  seatIndex Int
+  orderId   String
+  createdAt DateTime @default(now())
+
+  slot TimeSlot @relation(fields: [slotId], references: [id])
+
+  @@unique([slotId, seatIndex])
+  @@index([orderId])
+  @@map("slot_bookings")
+}
+
 // A cart *is* an Order in DRAFT status -- no separate Cart/CartItem table.
 // "Add to cart" finds-or-creates a DRAFT order and appends an OrderItem;
 // "validate" (checkout, increment 4) is the DRAFT -> PENDING_PICKUP
 // transition, in the same transaction that freezes prices, snapshots the
 // delivery address and books slots. Everything else this model will need
-// (totals, reference, slots, delivery address snapshot) is added by later
+// (totals, reference, delivery address snapshot) is added by later
 // increments' own migrations, not upfront.
 model Order {
   id     String      @id @default(cuid())
@@ -262,15 +309,28 @@ model Order {
   agencyId          String?
   agencyDropoffDate DateTime?   @db.Date
 
+  // F-CMD-04 (increment 3). pickupSlotId is only ever set for HOME pickup
+  // (AGENCY uses agencyDropoffDate above, no slot); deliverySlotId is
+  // always a TimeSlot, regardless of pickup mode -- the finished laundry
+  // is always couriered back to the client's address. Storing a
+  // *preference* here, not a reservation: no SlotBooking row exists for
+  // either until checkout (increment 4) actually books the seat.
+  pickupSlotId   String?
+  deliverySlotId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agency Agency?      @relation(fields: [agencyId], references: [id])
-  items  OrderItem[]
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agency       Agency?     @relation(fields: [agencyId], references: [id])
+  pickupSlot   TimeSlot?   @relation("PickupSlot", fields: [pickupSlotId], references: [id])
+  deliverySlot TimeSlot?   @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
+  items        OrderItem[]
 
   @@index([userId, status])
   @@index([agencyId])
+  @@index([pickupSlotId])
+  @@index([deliverySlotId])
   @@map("orders")
 }
 
