@@ -5,10 +5,12 @@ import {
   cartControllerClearCart,
   cartControllerGetCart,
   cartControllerRemoveItem,
+  cartControllerSetPickupMode,
   cartControllerUpdateItem,
 } from '../../../core/api-client/functions';
 import { AddCartItemDto } from '../../../core/api-client/models/add-cart-item-dto';
 import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
+import { SetPickupModeDto } from '../../../core/api-client/models/set-pickup-mode-dto';
 import { UpdateCartItemDto } from '../../../core/api-client/models/update-cart-item-dto';
 
 // Thin wrapper around the generated client, per CLAUDE.md §3: components
@@ -35,5 +37,9 @@ export class CartService {
 
   clearCart(): Promise<CartResponseDtoOutput> {
     return this.api.invoke(cartControllerClearCart);
+  }
+
+  setPickupMode(body: SetPickupModeDto): Promise<CartResponseDtoOutput> {
+    return this.api.invoke(cartControllerSetPickupMode, { body });
   }
 }
