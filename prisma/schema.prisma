@@ -38,6 +38,7 @@ model User {
   refreshTokens RefreshToken[]
   otpCodes      OtpCode[]
   addresses     Address[]
+  orders        Order[]
 
   @@index([role])
   @@map("users")
@@ -141,6 +142,7 @@ model Service {
 
   category   ServiceCategory @relation(fields: [categoryId], references: [id])
   priceRules PriceRule[]
+  orderItems OrderItem[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -159,6 +161,7 @@ model ArticleType {
   updatedAt DateTime @updatedAt
 
   priceRules PriceRule[]
+  orderItems OrderItem[]
 
   @@map("article_types")
 }
@@ -188,4 +191,69 @@ model PriceRule {
   // case; this index covers the per-article-type case at the DB level too.
   @@unique([serviceId, articleTypeId, effectiveFrom])
   @@map("price_rules")
+}
+
+// Full state machine per CLAUDE.md §4/docs/CAHIER-DES-CHARGES.md §5.4 --
+// declared now so `Order.status` is typed correctly from the start, even
+// though this lot's increment 1 (cart) only ever writes DRAFT, and only
+// PENDING_PICKUP/CANCELLED become reachable once checkout (increment 4)
+// lands. Transition enforcement (F-STA) is a separate, later lot.
+enum OrderStatus {
+  DRAFT
+  PENDING_PICKUP
+  PICKED_UP
+  PROCESSING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  ON_HOLD
+}
+
+// A cart *is* an Order in DRAFT status -- no separate Cart/CartItem table.
+// "Add to cart" finds-or-creates a DRAFT order and appends an OrderItem;
+// "validate" (checkout, increment 4) is the DRAFT -> PENDING_PICKUP
+// transition, in the same transaction that freezes prices, snapshots the
+// delivery address and books slots. Everything else this model will need
+// (totals, reference, slots, delivery address snapshot, pickup type) is
+// added by later increments' own migrations, not upfront.
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  status    OrderStatus @default(DRAFT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@index([userId, status])
+  @@map("orders")
+}
+
+// unitPriceXof is nullable and stays null for the entire time the parent
+// order is DRAFT -- the cart shows a live price, resolved fresh on every
+// read via resolveActivePriceRule (libs/shared/domain), never cached here.
+// It gets its one and only write at checkout, when the price is genuinely
+// frozen (CLAUDE.md §4 rule 2). articleTypeId is nullable for the same
+// reason it is on PriceRule: KG services are priced without one.
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  serviceId     String
+  articleTypeId String?
+  quantity      Int
+  // F-CMD-01: 250 characters max, enforced by the shared zod schema, not
+  // repeated here as a DB-level check.
+  instructions  String?
+  unitPriceXof  Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service     Service      @relation(fields: [serviceId], references: [id])
+  articleType ArticleType? @relation(fields: [articleTypeId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
 }
