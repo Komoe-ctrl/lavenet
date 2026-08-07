@@ -31,6 +31,7 @@ describe('Cart (integration)', () => {
   const kgServiceId = `svc-kg-cart-test-${runId}`;
   const pieceServiceId = `svc-piece-cart-test-${runId}`;
   const inactiveServiceId = `svc-inactive-cart-test-${runId}`;
+  const agencyId = `agy-cart-test-${runId}`;
 
   function signToken(userId: string): string {
     return jwt.sign(
@@ -128,12 +129,22 @@ describe('Cart (integration)', () => {
         },
       },
     });
+    await prisma.agency.create({
+      data: {
+        id: agencyId,
+        slug: `agence-cart-test-${runId}`,
+        name: 'Agence (test)',
+        address: 'Cocody (test)',
+        openingHours: 'Lundi - Samedi, 8h - 18h',
+      },
+    });
   }, 30_000);
 
   afterAll(async () => {
     const userIds = [userA.id, userB.id];
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: userIds } } } });
     await prisma.order.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.agency.delete({ where: { id: agencyId } });
     await prisma.priceRule.deleteMany({
       where: { serviceId: { in: [kgServiceId, pieceServiceId, inactiveServiceId] } },
     });
@@ -170,6 +181,9 @@ describe('Cart (integration)', () => {
       items: [],
       subtotalXof: 0,
       hasUnavailablePricing: false,
+      pickupType: null,
+      agencyId: null,
+      agencyDropoffDate: null,
     });
   });
 
@@ -442,6 +456,9 @@ describe('Cart (integration)', () => {
       items: [],
       subtotalXof: 0,
       hasUnavailablePricing: false,
+      pickupType: null,
+      agencyId: null,
+      agencyDropoffDate: null,
     });
   });
 
@@ -459,5 +476,146 @@ describe('Cart (integration)', () => {
       .set('Authorization', `Bearer ${tokenB}`);
     expect(res.status).toBe(200);
     expect(res.body.cart.items).toEqual([]);
+  });
+
+  describe('pickup mode (F-CMD-03)', () => {
+    function isoDateDaysFromNow(days: number): string {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    }
+
+    it('rejects every pickup route with no token', async () => {
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .send({ pickupType: 'HOME' })
+        .expect(401);
+    });
+
+    it('rejects setting a pickup mode with no cart yet', async () => {
+      // tokenB's cart was cleared (not deleted) by an earlier test in this
+      // file, so exercise the true "never had a cart" case with a fresh
+      // throwaway user instead.
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Panier',
+          email: `cart-fresh-${runId}@lavenet.test`,
+          phone: `+22533${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ pickupType: 'HOME' });
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Panier introuvable.');
+
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('sets HOME pickup on an existing cart', async () => {
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ serviceId: kgServiceId, quantity: 1 });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'HOME' });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.pickupType).toBe('HOME');
+      expect(res.body.cart.agencyId).toBeNull();
+      expect(res.body.cart.agencyDropoffDate).toBeNull();
+    });
+
+    it('sets AGENCY pickup with a valid agency and a future drop-off date', async () => {
+      const dropoffDate = isoDateDaysFromNow(3);
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'AGENCY', agencyId, agencyDropoffDate: dropoffDate });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.pickupType).toBe('AGENCY');
+      expect(res.body.cart.agencyId).toBe(agencyId);
+      expect(res.body.cart.agencyDropoffDate).toBe(dropoffDate);
+    });
+
+    it('accepts a drop-off date of today', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'AGENCY', agencyId, agencyDropoffDate: isoDateDaysFromNow(0) });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.agencyDropoffDate).toBe(isoDateDaysFromNow(0));
+    });
+
+    it('rejects a drop-off date in the past', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'AGENCY', agencyId, agencyDropoffDate: isoDateDaysFromNow(-1) });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('La date de dépôt en agence ne peut pas être dans le passé.');
+    });
+
+    it('rejects an unknown agency', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({
+          pickupType: 'AGENCY',
+          agencyId: 'does-not-exist',
+          agencyDropoffDate: isoDateDaysFromNow(1),
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Agence introuvable.');
+    });
+
+    it('rejects AGENCY without an agencyId, with a French message', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'AGENCY', agencyDropoffDate: isoDateDaysFromNow(1) });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects an unknown pickupType', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'OFFICE' });
+      expect(res.status).toBe(400);
+    });
+
+    it("keeps each user's pickup mode isolated from the other's cart (IDOR)", async () => {
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ serviceId: kgServiceId, quantity: 1 });
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+
+      // userA's cart, set to AGENCY in an earlier test, is untouched by
+      // userB's HOME selection above -- no shared state, no cross-user id
+      // ever accepted from the request body (userId always comes from the
+      // token, never a param).
+      const aCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`);
+      expect(aCart.body.cart.pickupType).toBe('AGENCY');
+
+      const bCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenB}`);
+      expect(bCart.body.cart.pickupType).toBe('HOME');
+    });
   });
 });

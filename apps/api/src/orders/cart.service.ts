@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { resolveActivePriceRule } from '@lavenet/shared-domain';
+import { isPastDropoffDate, resolveActivePriceRule } from '@lavenet/shared-domain';
 import type {
   AddCartItemInput,
   Cart,
   CartItem,
+  SetPickupModeInput,
   UpdateCartItemInput,
 } from '@lavenet/shared-schemas';
+import { AgenciesRepository } from '../agencies/agencies.repository';
 import { OrdersRepository } from './orders.repository';
 
 interface PriceRuleRecord {
@@ -38,11 +40,17 @@ interface OrderItemRecord {
 interface OrderWithItemsRecord {
   id: string;
   items: OrderItemRecord[];
+  pickupType: 'HOME' | 'AGENCY' | null;
+  agencyId: string | null;
+  agencyDropoffDate: Date | null;
 }
 
 @Injectable()
 export class CartService {
-  constructor(private readonly repo: OrdersRepository) {}
+  constructor(
+    private readonly repo: OrdersRepository,
+    private readonly agenciesRepo: AgenciesRepository,
+  ) {}
 
   async getCart(userId: string): Promise<{ cart: Cart }> {
     const order = (await this.repo.findDraftOrderWithItems(userId)) as OrderWithItemsRecord | null;
@@ -99,6 +107,45 @@ export class CartService {
     return this.getCart(userId);
   }
 
+  // F-CMD-03. Requires an existing DRAFT order -- same as every other cart
+  // mutation, there's nothing to attach a pickup mode to before the first
+  // item is added. AGENCY validates the agency exists and the drop-off
+  // date isn't in the past; HOME always clears both fields, even if the
+  // client's own DTO couldn't have carried them (defense in depth against
+  // stale state from a prior AGENCY selection).
+  async setPickupMode(userId: string, input: SetPickupModeInput): Promise<{ cart: Cart }> {
+    const order = (await this.repo.findDraftOrderWithItems(userId)) as OrderWithItemsRecord | null;
+    if (!order) {
+      throw new NotFoundException('Panier introuvable.');
+    }
+
+    if (input.pickupType === 'HOME') {
+      await this.repo.setPickupMode(order.id, {
+        pickupType: 'HOME',
+        agencyId: null,
+        agencyDropoffDate: null,
+      });
+      return this.getCart(userId);
+    }
+
+    const agency = await this.agenciesRepo.findById(input.agencyId);
+    if (!agency) {
+      throw new BadRequestException('Agence introuvable.');
+    }
+
+    const agencyDropoffDate = new Date(`${input.agencyDropoffDate}T00:00:00.000Z`);
+    if (isPastDropoffDate(agencyDropoffDate)) {
+      throw new BadRequestException('La date de dépôt en agence ne peut pas être dans le passé.');
+    }
+
+    await this.repo.setPickupMode(order.id, {
+      pickupType: 'AGENCY',
+      agencyId: agency.id,
+      agencyDropoffDate,
+    });
+    return this.getCart(userId);
+  }
+
   // Same NotFoundException whether the item doesn't exist, belongs to
   // another user, or belongs to an order that's no longer DRAFT (already
   // checked out or cancelled) -- an attacker probing ids can't tell any of
@@ -113,7 +160,15 @@ export class CartService {
 
   private toCart(order: OrderWithItemsRecord | null): Cart {
     if (!order) {
-      return { id: null, items: [], subtotalXof: 0, hasUnavailablePricing: false };
+      return {
+        id: null,
+        items: [],
+        subtotalXof: 0,
+        hasUnavailablePricing: false,
+        pickupType: null,
+        agencyId: null,
+        agencyDropoffDate: null,
+      };
     }
 
     let hasUnavailablePricing = false;
@@ -157,8 +212,15 @@ export class CartService {
       items,
       subtotalXof: hasUnavailablePricing ? null : subtotalXof,
       hasUnavailablePricing,
+      pickupType: order.pickupType,
+      agencyId: order.agencyId,
+      agencyDropoffDate: order.agencyDropoffDate ? formatIsoDate(order.agencyDropoffDate) : null,
     };
   }
+}
+
+function formatIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 function resolvePriceForArticleType(
