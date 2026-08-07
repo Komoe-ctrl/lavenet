@@ -7,6 +7,7 @@ import { FrenchZodValidationPipe } from './french-zod-validation.pipe';
 import { AddressesModule } from '../addresses/addresses.module';
 import { AuthModule } from '../auth/auth.module';
 import { CatalogModule } from '../catalog/catalog.module';
+import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -15,6 +16,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     AuthModule,
     CatalogModule,
     AddressesModule,
+    OrdersModule,
     // Default rate limit for the whole API; the login route overrides it
     // with a stricter one (see AuthController) per CLAUDE.md §5.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
