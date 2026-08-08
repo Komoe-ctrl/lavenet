@@ -65,3 +65,5 @@ export type { OrdersControllerList$Params as OrdersControllerList$Params } from 
 export { ordersControllerList as ordersControllerList } from './fn/orders/orders-controller-list';
 export type { OrdersControllerDetail$Params as OrdersControllerDetail$Params } from './fn/orders/orders-controller-detail';
 export { ordersControllerDetail as ordersControllerDetail } from './fn/orders/orders-controller-detail';
+export type { OrdersControllerCancel$Params as OrdersControllerCancel$Params } from './fn/orders/orders-controller-cancel';
+export { ordersControllerCancel as ordersControllerCancel } from './fn/orders/orders-controller-cancel';
