@@ -112,38 +112,20 @@
         <p class="field-error" role="alert">{{ actionError() }}</p>
       }
 
-      <section class="cart-summary">
-        @if (data.hasUnavailablePricing) {
-          <p class="cart-summary__warning" role="alert">
-            Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
-          </p>
-        } @else if (totalsPreview(); as totals) {
-          <p>
-            Sous-total <strong>{{ totals.subtotalXof | money }}</strong>
-          </p>
-          <p>
-            Remise <strong>{{ totals.discountXof | money }}</strong>
-          </p>
-          <p>
-            Frais de livraison
-            <strong>{{
-              totals.deliveryFeeXof === 0 ? 'Offerts' : (totals.deliveryFeeXof | money)
-            }}</strong>
-          </p>
-          <p class="cart-summary__total">
-            Total TTC <strong>{{ totals.totalXof | money }}</strong>
-          </p>
-        }
-        <p class="cart-summary__note">Le paiement arrive bientôt.</p>
-        <button
-          type="button"
-          class="cart-summary__clear"
-          [disabled]="clearing()"
-          (click)="clearCart()"
-        >
-          {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
-        </button>
-      </section>
+      @if (data.hasUnavailablePricing) {
+        <p class="cart-summary__warning" role="alert">
+          Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
+        </p>
+      }
+
+      <button
+        type="button"
+        class="cart-summary__clear"
+        [disabled]="clearing()"
+        (click)="clearCart()"
+      >
+        {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
+      </button>
 
       <section class="pickup-mode">
         <h2>Mode de retrait</h2>
@@ -316,6 +298,27 @@
           >
             {{ savingAddress() ? 'Enregistrement…' : "Valider l'adresse" }}
           </button>
+        </section>
+
+        <section class="cart-summary">
+          @if (totalsPreview(); as totals) {
+            <p>
+              Sous-total <strong>{{ totals.subtotalXof | money }}</strong>
+            </p>
+            <p>
+              Remise <strong>{{ totals.discountXof | money }}</strong>
+            </p>
+            <p>
+              Frais de livraison
+              <strong>{{
+                totals.deliveryFeeXof === 0 ? 'Offerts' : (totals.deliveryFeeXof | money)
+              }}</strong>
+            </p>
+            <p class="cart-summary__total">
+              Total TTC <strong>{{ totals.totalXof | money }}</strong>
+            </p>
+          }
+          <p class="cart-summary__note">Le paiement arrive bientôt.</p>
         </section>
 
         <section class="checkout-section">
