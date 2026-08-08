@@ -29,6 +29,7 @@
       <div class="profile-actions">
         <a routerLink="/compte/modifier" class="edit-link">Modifier le profil</a>
         <a routerLink="/compte/adresses" class="edit-link">Carnet d'adresses</a>
+        <a routerLink="/commandes" class="edit-link">Mes commandes</a>
         <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
       </div>
     </section>
@@ -36,22 +37,19 @@
     <section class="roadmap">
       <h2>Bientôt disponible</h2>
       <p class="roadmap__intro">
-        Ce compte est fonctionnel (connexion, session, déconnexion) et le
-        <a routerLink="/panier">panier</a> permet déjà de choisir des articles, mais la validation
-        de commande n'est pas encore développée sur cette démonstration :
+        Ce compte est fonctionnel de bout en bout jusqu'au suivi de commande : le
+        <a routerLink="/panier">panier</a>, le choix d'un créneau, la validation et l'
+        <a routerLink="/commandes">historique</a> fonctionnent déjà sur cette démonstration. Reste à
+        venir :
       </p>
       <ul class="roadmap__list">
         <li>
-          <span class="roadmap__label">Créneaux</span>
-          <span>Choisir un mode de retrait et un créneau de retrait/livraison.</span>
-        </li>
-        <li>
-          <span class="roadmap__label">Suivi</span>
-          <span>Suivre l'avancement : collecte, traitement, livraison.</span>
-        </li>
-        <li>
           <span class="roadmap__label">Paiement</span>
           <span>Régler une commande en ligne.</span>
+        </li>
+        <li>
+          <span class="roadmap__label">Notifications</span>
+          <span>Être prévenu à chaque changement de statut.</span>
         </li>
       </ul>
     </section>
