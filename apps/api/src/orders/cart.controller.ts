@@ -12,7 +12,13 @@ import {
 import { ZodResponse } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AddCartItemDto, CartResponseDto, SetPickupModeDto, UpdateCartItemDto } from './cart.dto';
+import {
+  AddCartItemDto,
+  CartResponseDto,
+  SetPickupModeDto,
+  SetSlotsDto,
+  UpdateCartItemDto,
+} from './cart.dto';
 import { CartService } from './cart.service';
 
 // Every route scoped to the current token's user, no :userId in any URL.
@@ -69,5 +75,15 @@ export class CartController {
   @ZodResponse({ type: CartResponseDto })
   setPickupMode(@CurrentUser() userId: string, @Body() dto: SetPickupModeDto) {
     return this.cartService.setPickupMode(userId, dto);
+  }
+
+  // F-CMD-04. Business validation (pickup mode required first, HOME vs
+  // AGENCY consistency, the min-delivery rule) lives in the service --
+  // this DTO only enforces shape.
+  @Patch('slots')
+  @HttpCode(200)
+  @ZodResponse({ type: CartResponseDto })
+  setSlots(@CurrentUser() userId: string, @Body() dto: SetSlotsDto) {
+    return this.cartService.setSlots(userId, dto);
   }
 }

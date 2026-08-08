@@ -1,13 +1,19 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { isPastDropoffDate, resolveActivePriceRule } from '@lavenet/shared-domain';
+import {
+  isPastDropoffDate,
+  resolveActivePriceRule,
+  resolveMinDeliverySlot,
+} from '@lavenet/shared-domain';
 import type {
   AddCartItemInput,
   Cart,
   CartItem,
   SetPickupModeInput,
+  SetSlotsInput,
   UpdateCartItemInput,
 } from '@lavenet/shared-schemas';
 import { AgenciesRepository } from '../agencies/agencies.repository';
+import { SlotsRepository } from '../slots/slots.repository';
 import { OrdersRepository } from './orders.repository';
 
 interface PriceRuleRecord {
@@ -24,6 +30,7 @@ interface ServiceRecord {
   unit: string;
   isActive: boolean;
   deletedAt: Date | null;
+  processingHours: number;
   priceRules: PriceRuleRecord[];
 }
 
@@ -43,6 +50,8 @@ interface OrderWithItemsRecord {
   pickupType: 'HOME' | 'AGENCY' | null;
   agencyId: string | null;
   agencyDropoffDate: Date | null;
+  pickupSlotId: string | null;
+  deliverySlotId: string | null;
 }
 
 @Injectable()
@@ -50,6 +59,7 @@ export class CartService {
   constructor(
     private readonly repo: OrdersRepository,
     private readonly agenciesRepo: AgenciesRepository,
+    private readonly slotsRepo: SlotsRepository,
   ) {}
 
   async getCart(userId: string): Promise<{ cart: Cart }> {
@@ -146,6 +156,85 @@ export class CartService {
     return this.getCart(userId);
   }
 
+  // F-CMD-04. Requires an existing DRAFT order with at least one item (no
+  // "slowest service" to compute a minimum against otherwise) and a
+  // pickup mode already chosen (setPickupMode, above) -- pickupSlotId is
+  // required for HOME and forbidden for AGENCY, matching whatever the
+  // order's own pickupType already says, not the request body. The
+  // delivery slot must start no earlier than resolveMinDeliverySlot
+  // (shared-domain): retrait/dépôt anchor + the slowest service's
+  // processing delay -- storing a *preference* here, no SlotBooking row
+  // is created (that's checkout, increment 4).
+  async setSlots(userId: string, input: SetSlotsInput): Promise<{ cart: Cart }> {
+    const order = (await this.repo.findDraftOrderWithItems(userId)) as OrderWithItemsRecord | null;
+    if (!order) {
+      throw new NotFoundException('Panier introuvable.');
+    }
+    if (order.items.length === 0) {
+      throw new BadRequestException('Le panier est vide.');
+    }
+    if (order.pickupType === null) {
+      throw new BadRequestException("Choisissez d'abord un mode de retrait.");
+    }
+
+    let pickupSlotId: string | null = null;
+    if (order.pickupType === 'HOME') {
+      if (!input.pickupSlotId) {
+        throw new BadRequestException('Créneau de retrait requis.');
+      }
+      const pickupSlot = await this.slotsRepo.findById(input.pickupSlotId);
+      if (!pickupSlot) {
+        throw new BadRequestException('Créneau de retrait introuvable.');
+      }
+      pickupSlotId = pickupSlot.id;
+
+      const deliverySlot = await this.slotsRepo.findById(input.deliverySlotId);
+      if (!deliverySlot) {
+        throw new BadRequestException('Créneau de livraison introuvable.');
+      }
+      this.assertDeliveryNotBeforeMinimum(
+        { type: 'HOME', slotEndsAt: pickupSlot.endsAt },
+        order.items,
+        deliverySlot.startsAt,
+      );
+
+      await this.repo.setSlots(order.id, { pickupSlotId, deliverySlotId: deliverySlot.id });
+      return this.getCart(userId);
+    }
+
+    if (input.pickupSlotId) {
+      throw new BadRequestException("Un dépôt en agence n'utilise pas de créneau de retrait.");
+    }
+    const deliverySlot = await this.slotsRepo.findById(input.deliverySlotId);
+    if (!deliverySlot) {
+      throw new BadRequestException('Créneau de livraison introuvable.');
+    }
+    // order.pickupType === 'AGENCY' guarantees agencyDropoffDate is set
+    // (setPickupMode never persists one without the other).
+    this.assertDeliveryNotBeforeMinimum(
+      { type: 'AGENCY', dropoffDate: order.agencyDropoffDate as Date },
+      order.items,
+      deliverySlot.startsAt,
+    );
+
+    await this.repo.setSlots(order.id, { pickupSlotId: null, deliverySlotId: deliverySlot.id });
+    return this.getCart(userId);
+  }
+
+  private assertDeliveryNotBeforeMinimum(
+    anchor: Parameters<typeof resolveMinDeliverySlot>[0],
+    items: OrderItemRecord[],
+    deliverySlotStartsAt: Date,
+  ): void {
+    const slowestProcessingHours = Math.max(...items.map((item) => item.service.processingHours));
+    const minDeliverySlot = resolveMinDeliverySlot(anchor, slowestProcessingHours);
+    if (deliverySlotStartsAt < minDeliverySlot) {
+      throw new BadRequestException(
+        'Le créneau de livraison choisi est trop proche du retrait pour le temps de traitement requis.',
+      );
+    }
+  }
+
   // Same NotFoundException whether the item doesn't exist, belongs to
   // another user, or belongs to an order that's no longer DRAFT (already
   // checked out or cancelled) -- an attacker probing ids can't tell any of
@@ -168,6 +257,8 @@ export class CartService {
         pickupType: null,
         agencyId: null,
         agencyDropoffDate: null,
+        pickupSlotId: null,
+        deliverySlotId: null,
       };
     }
 
@@ -215,6 +306,8 @@ export class CartService {
       pickupType: order.pickupType,
       agencyId: order.agencyId,
       agencyDropoffDate: order.agencyDropoffDate ? formatIsoDate(order.agencyDropoffDate) : null,
+      pickupSlotId: order.pickupSlotId,
+      deliverySlotId: order.deliverySlotId,
     };
   }
 }

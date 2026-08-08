@@ -3,12 +3,14 @@ import {
   addCartItemSchema,
   cartResponseSchema,
   setPickupModeSchema,
+  setSlotsSchema,
   updateCartItemSchema,
 } from '@lavenet/shared-schemas';
 
 export class AddCartItemDto extends createZodDto(addCartItemSchema) {}
 export class UpdateCartItemDto extends createZodDto(updateCartItemSchema) {}
 export class CartResponseDto extends createZodDto(cartResponseSchema) {}
+export class SetSlotsDto extends createZodDto(setSlotsSchema) {}
 
 // Not `class ... extends createZodDto(...)`, unlike the DTOs above: a
 // discriminated union's parsed type is a union, and TS refuses to extend a
