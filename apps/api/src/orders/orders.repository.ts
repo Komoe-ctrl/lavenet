@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { formatOrderReference } from '@lavenet/shared-domain';
 import type { PlacedOrderStatus } from '@lavenet/shared-schemas';
 import { PrismaService } from '../prisma/prisma.service';
@@ -73,6 +73,9 @@ export type OrderDetailRecord = Prisma.OrderGetPayload<{ include: typeof orderDe
 
 export type CheckoutResult =
   { ok: true; order: CheckoutOrderRecord } | { ok: false; reason: CheckoutSlotFullReason };
+
+export type CancelResult =
+  { ok: true; order: OrderDetailRecord } | { ok: false; reason: 'ALREADY_TRANSITIONED' };
 
 // Thrown only inside commitCheckout's own transaction, to force a rollback
 // of a partial booking (e.g. pickup slot seat taken, then delivery slot
@@ -297,6 +300,53 @@ export class OrdersRepository {
       }
       throw err;
     }
+  }
+
+  // F-CMD-08. Status update guarded by a WHERE on the status the caller
+  // observed (updateMany, not update -- Prisma's update() throws on zero
+  // matches, updateMany() just reports count: 0): acts as an optimistic
+  // lock against a second, near-simultaneous cancel request for the same
+  // order. Releasing every booked seat (pickup for HOME, always delivery)
+  // in the same transaction is what keeps a cancelled order from leaving
+  // a slot permanently blocked -- the increment/decrement on
+  // TimeSlot.bookedCount is a single atomic SQL expression either way, so
+  // this races safely against a concurrent checkout's bookSeat on the
+  // same slot (row-level locking in Postgres serializes the two, whichever
+  // commits first wins -- both outcomes are valid, see the concurrency
+  // test in orders-history.integration.spec.ts).
+  async cancelOrder(
+    orderId: string,
+    fromStatus: OrderStatus,
+    userId: string,
+  ): Promise<CancelResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: { id: orderId, status: fromStatus },
+        data: { status: 'CANCELLED' },
+      });
+      if (updated.count === 0) {
+        return { ok: false, reason: 'ALREADY_TRANSITIONED' } as const;
+      }
+
+      await tx.orderStatusHistory.create({
+        data: { orderId, fromStatus, toStatus: 'CANCELLED', actorId: userId },
+      });
+
+      const bookings = await tx.slotBooking.findMany({ where: { orderId } });
+      for (const booking of bookings) {
+        await tx.slotBooking.delete({ where: { id: booking.id } });
+        await tx.timeSlot.update({
+          where: { id: booking.slotId },
+          data: { bookedCount: { decrement: 1 } },
+        });
+      }
+
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: orderDetailInclude,
+      });
+      return { ok: true, order } as const;
+    });
   }
 
   // Insert-then-verify, not read-then-insert-if-capacity: the unique

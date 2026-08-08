@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { canTransition } from '@lavenet/shared-domain';
 import type {
   OrderDetail,
   OrderListItem,
@@ -40,6 +46,30 @@ export class OrdersService {
       throw new NotFoundException('Commande introuvable.');
     }
     return { order: toOrderDetail(order) };
+  }
+
+  // F-CMD-08. Client-initiated cancellation, allowed exactly as long as
+  // the state machine allows it (ADR 0008: no separate grace-period
+  // window). Releasing any booked slot seats happens inside
+  // repo.cancelOrder's own transaction -- a cancelled order must never
+  // leave a seat permanently blocked for everyone else.
+  async cancel(userId: string, orderId: string): Promise<{ order: OrderDetail }> {
+    const existing = await this.repo.findOrderDetail(orderId);
+    if (!existing || existing.userId !== userId || existing.status === 'DRAFT') {
+      throw new NotFoundException('Commande introuvable.');
+    }
+    if (!canTransition(existing.status, 'CANCELLED')) {
+      throw new BadRequestException('Cette commande ne peut plus être annulée.');
+    }
+
+    const result = await this.repo.cancelOrder(orderId, existing.status, userId);
+    if (!result.ok) {
+      // The status changed between our read and the write (e.g. a second,
+      // near-simultaneous cancel request) -- report it honestly instead of
+      // silently pretending this call was the one that cancelled it.
+      throw new ConflictException('Le statut de la commande a changé entre-temps -- réessayez.');
+    }
+    return { order: toOrderDetail(result.order) };
   }
 }
 

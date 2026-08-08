@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ZodResponse } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,5 +24,13 @@ export class OrdersController {
   @ZodResponse({ type: OrderDetailResponseDto })
   detail(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.ordersService.detail(userId, id);
+  }
+
+  // F-CMD-08.
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @ZodResponse({ type: OrderDetailResponseDto })
+  cancel(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.ordersService.cancel(userId, id);
   }
 }
