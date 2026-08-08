@@ -5,8 +5,11 @@ import { provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { AgenciesResponseDtoOutput } from '../../../core/api-client/models/agencies-response-dto-output';
 import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
+import { CheckoutResponseDtoOutput } from '../../../core/api-client/models/checkout-response-dto-output';
+import { ListAddressesResponseDtoOutput } from '../../../core/api-client/models/list-addresses-response-dto-output';
 import { SlotsResponseDtoOutput } from '../../../core/api-client/models/slots-response-dto-output';
 import { SessionStore } from '../../../core/auth/session.store';
+import { AddressesService } from '../data-access/addresses.service';
 import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
 import { SlotsService } from '../data-access/slots.service';
@@ -23,6 +26,7 @@ const EMPTY_CART: CartResponseDtoOutput = {
     agencyDropoffDate: null,
     pickupSlotId: null,
     deliverySlotId: null,
+    deliveryAddressId: null,
   },
 };
 
@@ -64,6 +68,7 @@ const CART_WITH_ITEMS: CartResponseDtoOutput = {
     agencyDropoffDate: null,
     pickupSlotId: null,
     deliverySlotId: null,
+    deliveryAddressId: null,
   },
 };
 
@@ -106,6 +111,8 @@ type FakeCartService = {
   clearCart: () => Promise<CartResponseDtoOutput>;
   setPickupMode: (body: unknown) => Promise<CartResponseDtoOutput>;
   setSlots: (body: unknown) => Promise<CartResponseDtoOutput>;
+  setDeliveryAddress: (body: unknown) => Promise<CartResponseDtoOutput>;
+  checkout: () => Promise<CheckoutResponseDtoOutput>;
 };
 
 type FakeAgenciesService = {
@@ -116,12 +123,32 @@ type FakeSlotsService = {
   listSlots: () => Promise<SlotsResponseDtoOutput>;
 };
 
+type FakeAddressesService = {
+  list: () => Promise<ListAddressesResponseDtoOutput>;
+};
+
+const ADDRESSES: ListAddressesResponseDtoOutput = {
+  addresses: [
+    {
+      id: 'addr_1',
+      label: 'Maison',
+      commune: 'Cocody',
+      quartier: 'Angré',
+      details: 'Portail bleu, 2e étage',
+      geoLat: null,
+      geoLng: null,
+      isDefault: true,
+    },
+  ],
+};
+
 // SiteHeader (rendered by CartPage) reads isAuthenticated()/user() -- a
 // user viewing their cart is always logged in already (route is guarded).
 function configureWith(
   service: Partial<FakeCartService>,
   agenciesService: Partial<FakeAgenciesService> = {},
   slotsService: Partial<FakeSlotsService> = {},
+  addressesService: Partial<FakeAddressesService> = {},
 ) {
   TestBed.configureTestingModule({
     providers: [
@@ -136,6 +163,8 @@ function configureWith(
           clearCart: vi.fn(),
           setPickupMode: vi.fn(),
           setSlots: vi.fn(),
+          setDeliveryAddress: vi.fn(),
+          checkout: vi.fn(),
           ...service,
         },
       },
@@ -151,6 +180,13 @@ function configureWith(
         useValue: {
           listSlots: vi.fn().mockResolvedValue(SLOTS),
           ...slotsService,
+        },
+      },
+      {
+        provide: AddressesService,
+        useValue: {
+          list: vi.fn().mockResolvedValue(ADDRESSES),
+          ...addressesService,
         },
       },
       { provide: SessionStore, useValue: { isAuthenticated: () => true, user: () => null } },
@@ -241,6 +277,7 @@ describe('CartPage', () => {
         agencyDropoffDate: null,
         pickupSlotId: null,
         deliverySlotId: null,
+        deliveryAddressId: null,
       },
     };
     const removeItem = vi.fn().mockResolvedValue(afterRemoval);
@@ -274,6 +311,7 @@ describe('CartPage', () => {
         agencyDropoffDate: null,
         pickupSlotId: null,
         deliverySlotId: null,
+        deliveryAddressId: null,
       },
     };
     const clearCart = vi.fn().mockResolvedValue(afterClearing);
@@ -309,6 +347,7 @@ describe('CartPage', () => {
             agencyDropoffDate: null,
             pickupSlotId: null,
             deliverySlotId: null,
+            deliveryAddressId: null,
           },
         }),
     });
@@ -676,6 +715,254 @@ describe('CartPage', () => {
       await fixture.whenStable();
 
       expect(fixture.nativeElement.textContent).toContain('trop proche du retrait');
+    });
+  });
+
+  describe('delivery address (F-CMD-05)', () => {
+    function cartReadyForAddress(deliveryAddressId: string | null = null): CartResponseDtoOutput {
+      return {
+        cart: {
+          ...CART_WITH_ITEMS.cart,
+          pickupType: 'HOME',
+          pickupSlotId: 'slot_1',
+          deliverySlotId: 'slot_2',
+          deliveryAddressId,
+        },
+      };
+    }
+
+    it('hides the address section until a pickup mode is saved', async () => {
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.address-section')).toBeNull();
+    });
+
+    it("lists the user's addresses in a picker", async () => {
+      configureWith({ getCart: () => Promise.resolve(cartReadyForAddress()) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Maison');
+      expect(text).toContain('Cocody');
+    });
+
+    it('shows a link to the address book when there are no addresses', async () => {
+      configureWith(
+        { getCart: () => Promise.resolve(cartReadyForAddress()) },
+        {},
+        {},
+        { list: () => Promise.resolve({ addresses: [] }) },
+      );
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.address-section a');
+      expect(link.getAttribute('href')).toBe('/compte/adresses');
+    });
+
+    it('keeps the save button disabled until an address is chosen', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartReadyForAddress()) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.address-section__save');
+      expect(saveButton.disabled).toBe(true);
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.address-section__field select',
+      );
+      select.value = 'addr_1';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      expect(saveButton.disabled).toBe(false);
+    });
+
+    it('saves the chosen delivery address', async () => {
+      const setDeliveryAddress = vi.fn().mockResolvedValue(cartReadyForAddress('addr_1'));
+      configureWith({
+        getCart: () => Promise.resolve(cartReadyForAddress()),
+        setDeliveryAddress,
+      });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.address-section__field select',
+      );
+      select.value = 'addr_1';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.nativeElement.querySelector('.address-section__save').click();
+      await fixture.whenStable();
+
+      expect(setDeliveryAddress).toHaveBeenCalledWith({ addressId: 'addr_1' });
+    });
+
+    it('pre-selects the address already saved on the cart', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartReadyForAddress('addr_1')) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.address-section__field select',
+      );
+      expect(select.value).toBe('addr_1');
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.address-section__save');
+      expect(saveButton.disabled).toBe(false);
+    });
+
+    it('shows an inline error when saving the address fails', async () => {
+      const setDeliveryAddress = vi.fn(() =>
+        Promise.reject(
+          new HttpErrorResponse({ status: 400, error: { message: 'Adresse introuvable.' } }),
+        ),
+      );
+      configureWith({
+        getCart: () => Promise.resolve(cartReadyForAddress()),
+        setDeliveryAddress,
+      });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+        '.address-section__field select',
+      );
+      select.value = 'addr_1';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.nativeElement.querySelector('.address-section__save').click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('Adresse introuvable.');
+    });
+  });
+
+  describe('checkout (F-CMD-05/07)', () => {
+    function cartReadyForCheckout(): CartResponseDtoOutput {
+      return {
+        cart: {
+          ...CART_WITH_ITEMS.cart,
+          pickupType: 'HOME',
+          pickupSlotId: 'slot_1',
+          deliverySlotId: 'slot_2',
+          deliveryAddressId: 'addr_1',
+        },
+      };
+    }
+
+    const ORDER: CheckoutResponseDtoOutput['order'] = {
+      id: 'ord_1',
+      reference: 'LN-2026-000142',
+      status: 'PENDING_PICKUP',
+      items: [
+        {
+          id: 'item_1',
+          serviceId: 'svc_1',
+          serviceName: 'Lavage au kilo',
+          unit: 'KG',
+          articleTypeId: null,
+          articleTypeName: null,
+          quantity: 2,
+          instructions: null,
+          unitPriceXof: 1200,
+          lineTotalXof: 2400,
+        },
+      ],
+      subtotalXof: 2400,
+      discountXof: 0,
+      deliveryFeeXof: 1000,
+      vatRateBps: 0,
+      vatAmountXof: 0,
+      totalXof: 3400,
+      pickupType: 'HOME',
+      agencyId: null,
+      agencyDropoffDate: null,
+      pickupSlotId: 'slot_1',
+      deliverySlotId: 'slot_2',
+      deliveryCommune: 'Cocody',
+      deliveryQuartier: 'Angré',
+      deliveryDetails: 'Portail bleu, 2e étage',
+      deliveryGeoLat: null,
+      deliveryGeoLng: null,
+      createdAt: '2026-08-08T10:00:00.000Z',
+    };
+
+    it('disables the checkout button until an address is chosen', async () => {
+      configureWith({
+        getCart: () =>
+          Promise.resolve({ cart: { ...cartReadyForCheckout().cart, deliveryAddressId: null } }),
+      });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+        '.checkout-section__submit',
+      );
+      expect(button.disabled).toBe(true);
+    });
+
+    it('enables the checkout button once the saved cart is fully ready', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartReadyForCheckout()) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+        '.checkout-section__submit',
+      );
+      expect(button.disabled).toBe(false);
+    });
+
+    it('checks out and shows the confirmation with the reference and totals', async () => {
+      const checkout = vi.fn().mockResolvedValue({ order: ORDER });
+      configureWith({ getCart: () => Promise.resolve(cartReadyForCheckout()), checkout });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('.checkout-section__submit').click();
+      await fixture.whenStable();
+
+      expect(checkout).toHaveBeenCalled();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('LN-2026-000142');
+      expect(text).toContain('Commande validée');
+      expect(fixture.nativeElement.querySelector('.checkout-section')).toBeNull();
+    });
+
+    it('shows an inline error and stays on the cart when checkout fails', async () => {
+      const checkout = vi.fn(() =>
+        Promise.reject(
+          new HttpErrorResponse({
+            status: 400,
+            error: { message: 'Choisissez une adresse de livraison.' },
+          }),
+        ),
+      );
+      configureWith({ getCart: () => Promise.resolve(cartReadyForCheckout()), checkout });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('.checkout-section__submit').click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('Choisissez une adresse de livraison.');
+      expect(fixture.nativeElement.querySelector('.checkout-confirmation')).toBeNull();
     });
   });
 });
