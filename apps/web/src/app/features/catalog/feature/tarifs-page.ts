@@ -13,7 +13,6 @@ import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalo
 import { CartService } from '../../cart/data-access/cart.service';
 import { SessionStore } from '../../../core/auth/session.store';
 import { siteConfig } from '../../../shared/config/site-config';
-import { DevelopmentNotice } from '../../../shared/layout/development-notice';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -39,7 +38,7 @@ function rowKey(serviceId: string, articleTypeId: string | null): string {
 // browser -- see docs/DETTE.md for the freshness tradeoff this implies.
 @Component({
   selector: 'app-tarifs-page',
-  imports: [MoneyPipe, SiteHeader, SiteFooter, DevelopmentNotice],
+  imports: [MoneyPipe, SiteHeader, SiteFooter],
   templateUrl: './tarifs-page.html',
   styleUrl: './tarifs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

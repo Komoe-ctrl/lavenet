@@ -63,7 +63,11 @@ const rawSiteConfig: SiteConfig = {
     // used by the address book's commune field (F-AUTH-06), validated
     // server-side, not just picked from a dropdown here.
     communes: [...COMMUNES],
-    hoursNote: "Les horaires précis seront communiqués avant l'ouverture de la commande en ligne.",
+    // Matches the agency's own posted opening hours (prisma/agency-data.ts
+    // AGENCY.openingHours) -- kept as a separate literal, not a shared
+    // import, since apps/web can never import from prisma/ (Nx module
+    // boundaries: apps/web -> libs/shared/* only). Update both together.
+    hoursNote: 'Du lundi au samedi, de 8h00 à 18h00 (fermé le dimanche).',
   },
   // DELIVERY_FEE_XOF / FREE_DELIVERY_THRESHOLD_XOF / MIN_ORDER_XOF
   // (libs/shared/domain/business-config.ts) are the single source of truth

@@ -10,7 +10,6 @@ import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { CatalogResponseDtoOutput } from '../../../core/api-client/models/catalog-response-dto-output';
 import { siteConfig } from '../../../shared/config/site-config';
-import { DevelopmentNotice } from '../../../shared/layout/development-notice';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -29,7 +28,7 @@ interface CategoryTeaser {
 // asleep and this page still renders instantly (docs/ADR/0003).
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, MoneyPipe, SiteHeader, SiteFooter, DevelopmentNotice],
+  imports: [RouterLink, MoneyPipe, SiteHeader, SiteFooter],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
