@@ -21,6 +21,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client,
   },
   {
+    path: 'commandes',
+    renderMode: RenderMode.Client,
+  },
+  {
+    path: 'commandes/:id',
+    renderMode: RenderMode.Client,
+  },
+  {
     path: 'otp-verify',
     renderMode: RenderMode.Client,
   },
