@@ -57,3 +57,7 @@ export type { CartControllerSetPickupMode$Params as CartControllerSetPickupMode$
 export { cartControllerSetPickupMode as cartControllerSetPickupMode } from './fn/cart/cart-controller-set-pickup-mode';
 export type { CartControllerSetSlots$Params as CartControllerSetSlots$Params } from './fn/cart/cart-controller-set-slots';
 export { cartControllerSetSlots as cartControllerSetSlots } from './fn/cart/cart-controller-set-slots';
+export type { CartControllerSetDeliveryAddress$Params as CartControllerSetDeliveryAddress$Params } from './fn/cart/cart-controller-set-delivery-address';
+export { cartControllerSetDeliveryAddress as cartControllerSetDeliveryAddress } from './fn/cart/cart-controller-set-delivery-address';
+export type { CartControllerCheckout$Params as CartControllerCheckout$Params } from './fn/cart/cart-controller-checkout';
+export { cartControllerCheckout as cartControllerCheckout } from './fn/cart/cart-controller-checkout';

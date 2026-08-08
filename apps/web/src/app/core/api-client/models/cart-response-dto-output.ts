@@ -24,5 +24,6 @@ export interface CartResponseDtoOutput {
 'agencyDropoffDate': string | null;
 'pickupSlotId': string | null;
 'deliverySlotId': string | null;
+'deliveryAddressId': string | null;
 };
 }
