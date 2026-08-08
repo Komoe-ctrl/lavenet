@@ -146,29 +146,34 @@ fenêtre glissante de `WINDOW_DAYS` (21) jours **à partir du moment où il tour
 (`prisma/timeslot-data.ts`), pas une plage calendaire fixe — chaque jour qui passe fait
 sortir un jour du bout de la fenêtre sans qu'un nouveau soit ajouté à l'autre bout. Sans
 rejeu, la fenêtre s'épuise en 21 jours et le checkout redevient bloqué, silencieusement.
-**Renouvelez-la au moins une fois par semaine** (une marge confortable avant les 21 jours).
 
 _Pourquoi pas un vrai back-office de créneaux dès maintenant ?_ La création de créneaux
 en back-office (F-LIV-01/F-ADM-05) est un lot plus tardif ; jusque-là, ce script est la
 seule source de `TimeSlot`.
 
-## Renouvellement automatique (proposé, non implémenté)
+## Renouvellement automatique
 
-Plutôt que de compter sur un rejeu manuel régulier de `pnpm db:seed:slots:prod` (le
-risque exact qui a laissé la production sans `TimeSlot` la première fois), un workflow
-GitHub Actions planifié (`on: schedule`) peut exécuter ce script chaque semaine sans
-intervention :
+Un compte manuel n'est pas fiable dans la durée — `.github/workflows/reseed-slots.yml`
+rejoue `pnpm db:seed:slots:prod` **tous les jours à 06:00 UTC**, une marge large avant
+que la fenêtre glissante de 21 jours ne s'épuise même si un ou plusieurs jours d'affilée
+échouent avant que quelqu'un ne réagisse.
 
 - Gratuit (minutes GitHub Actions incluses), ne dépend pas du réveil de l'API Render
   (contrairement à un cron interne à l'app, peu fiable vu `docs/ADR/0003` — l'API peut
   dormir des jours sans visite).
-- Nécessite un secret de dépôt (`PROD_DATABASE_URL`, la même chaîne que
-  `.env.production.local`) — la seule étape qui ne peut pas être automatisée depuis ce
-  dépôt, à ajouter dans Settings → Secrets and variables → Actions.
+- Déclenchement manuel possible à tout moment (`workflow_dispatch`, onglet Actions du
+  dépôt), en plus du calendrier.
+- Un échec ouvre (ou commente, si déjà ouverte) une issue GitHub étiquetée
+  `slots-reseed-failure` avec le lien du run — visible dans l'onglet Issues, pas
+  seulement dans l'historique Actions qu'il faudrait penser à aller consulter.
+- **Nécessite un secret de dépôt** : `PROD_DATABASE_URL`, la même chaîne de connexion
+  que la ligne `DATABASE_URL` de votre `.env.production.local` local. À ajouter dans
+  Settings → Secrets and variables → Actions → New repository secret. C'est la seule
+  étape que je ne peux pas faire moi-même.
 
-Écarté pour l'instant : une régénération "paresseuse" déclenchée par l'API elle-même (ex.
-dans `GET /slots`) mélangerait une route de lecture publique avec une écriture en base,
-et resterait sujette au même problème de sommeil de l'API que le cron interne.
+Écarté : une régénération "paresseuse" déclenchée par l'API elle-même (ex. dans
+`GET /slots`) mélangerait une route de lecture publique avec une écriture en base, et
+resterait sujette au même problème de sommeil de l'API que le cron interne.
 
 ## Développement
 

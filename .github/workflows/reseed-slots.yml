@@ -1,0 +1,85 @@
+name: Reseed production time slots
+
+# Keeps the rolling TimeSlot window (prisma/timeslot-data.ts, 21 days from
+# "now") populated in production without a human rerunning
+# `pnpm db:seed:slots:prod` by hand -- see README "Renouvellement
+# automatique". Daily, not weekly: a wide safety margin against the
+# 21-day window ever actually running empty even if a run or two fails
+# before anyone notices the issue this workflow opens (see below).
+on:
+  schedule:
+    - cron: '0 6 * * *' # 06:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  reseed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      # Same file-argument convention as every other prod seed script
+      # (CLAUDE.md §10: env file passed as a CLI arg, never a shell
+      # variable) -- written here from the repo secret instead of existing
+      # on disk, since this runner is ephemeral and the file is gitignored.
+      - name: Write production env file
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: printf 'DATABASE_URL=%s\n' "$PROD_DATABASE_URL" > .env.production.local
+
+      - name: Reseed the rolling slot window
+        run: pnpm db:seed:slots:prod
+
+      # Visibility on failure: a scheduled workflow that silently stops
+      # succeeding is exactly the failure mode this workflow exists to
+      # prevent (it's how the slot window went empty in the first place).
+      # Opens one issue and comments on repeat failures rather than a new
+      # issue per day, using the built-in token -- no extra secret needed.
+      - name: Open or update an issue if the reseed failed
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'slots-reseed-failure';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: label,
+            });
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body: `Nouvel échec : ${runUrl}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Échec du renouvellement automatique des créneaux (db:seed:slots:prod)',
+                labels: [label],
+                body:
+                  'Le workflow programmé `reseed-slots.yml` a échoué. Voir le run : ' +
+                  runUrl +
+                  "\n\nLa fenêtre de créneaux glissante (21 jours) en production va se vider si ce n'est pas corrigé avant qu'elle n'expire -- rejouez `pnpm db:seed:slots:prod` manuellement en attendant.",
+              });
+            }
