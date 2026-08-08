@@ -18,6 +18,8 @@ export type { CreateAddressResponseDtoOutput } from './models/create-address-res
 export type { ListAddressesResponseDtoOutput } from './models/list-addresses-response-dto-output';
 export type { LoginDto } from './models/login-dto';
 export type { LoginResponseDtoOutput } from './models/login-response-dto-output';
+export type { OrderDetailResponseDtoOutput } from './models/order-detail-response-dto-output';
+export type { OrderListResponseDtoOutput } from './models/order-list-response-dto-output';
 export type { OtpResponseDtoOutput } from './models/otp-response-dto-output';
 export type { PasswordResetConfirmDto } from './models/password-reset-confirm-dto';
 export type { PasswordResetConfirmResponseDtoOutput } from './models/password-reset-confirm-response-dto-output';

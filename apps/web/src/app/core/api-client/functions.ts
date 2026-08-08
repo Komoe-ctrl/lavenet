@@ -61,3 +61,7 @@ export type { CartControllerSetDeliveryAddress$Params as CartControllerSetDelive
 export { cartControllerSetDeliveryAddress as cartControllerSetDeliveryAddress } from './fn/cart/cart-controller-set-delivery-address';
 export type { CartControllerCheckout$Params as CartControllerCheckout$Params } from './fn/cart/cart-controller-checkout';
 export { cartControllerCheckout as cartControllerCheckout } from './fn/cart/cart-controller-checkout';
+export type { OrdersControllerList$Params as OrdersControllerList$Params } from './fn/orders/orders-controller-list';
+export { ordersControllerList as ordersControllerList } from './fn/orders/orders-controller-list';
+export type { OrdersControllerDetail$Params as OrdersControllerDetail$Params } from './fn/orders/orders-controller-detail';
+export { ordersControllerDetail as ordersControllerDetail } from './fn/orders/orders-controller-detail';
