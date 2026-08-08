@@ -3,7 +3,56 @@
 <main class="cart-page">
   <h1>Mon panier</h1>
 
-  @if (cart.isLoading()) {
+  @if (checkoutResult(); as order) {
+    <section class="checkout-confirmation">
+      <h2>Commande validée</h2>
+      <p class="checkout-confirmation__reference">
+        Référence <strong>{{ order.reference }}</strong>
+      </p>
+
+      <ul class="cart-list">
+        @for (item of order.items; track item.id) {
+          <li class="cart-item">
+            <div class="cart-item__info">
+              <h3>{{ item.serviceName }}</h3>
+              @if (item.articleTypeName) {
+                <p class="cart-item__article">{{ item.articleTypeName }}</p>
+              }
+            </div>
+            <div class="cart-item__controls">
+              <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
+              <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+
+      <section class="cart-summary">
+        <p>
+          Sous-total <strong>{{ order.subtotalXof | money }}</strong>
+        </p>
+        <p>
+          Remise <strong>{{ order.discountXof | money }}</strong>
+        </p>
+        <p>
+          Frais de livraison
+          <strong>{{
+            order.deliveryFeeXof === 0 ? 'Offerts' : (order.deliveryFeeXof | money)
+          }}</strong>
+        </p>
+        <p class="cart-summary__total">
+          Total TTC <strong>{{ order.totalXof | money }}</strong>
+        </p>
+      </section>
+
+      <p class="checkout-confirmation__delivery">
+        Livraison : {{ order.deliveryCommune }}, {{ order.deliveryQuartier }} --
+        {{ order.deliveryDetails }}
+      </p>
+      <p class="cart-summary__note">Le paiement arrive bientôt.</p>
+      <p class="back-link"><a routerLink="/tarifs">Retour aux tarifs</a></p>
+    </section>
+  } @else if (cart.isLoading()) {
     <p class="state">Chargement de votre panier…</p>
   } @else if (cart.error()) {
     <p class="state state-error" role="alert">Impossible de charger votre panier.</p>
@@ -68,9 +117,21 @@
           <p class="cart-summary__warning" role="alert">
             Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
           </p>
-        } @else {
+        } @else if (totalsPreview(); as totals) {
+          <p>
+            Sous-total <strong>{{ totals.subtotalXof | money }}</strong>
+          </p>
+          <p>
+            Remise <strong>{{ totals.discountXof | money }}</strong>
+          </p>
+          <p>
+            Frais de livraison
+            <strong>{{
+              totals.deliveryFeeXof === 0 ? 'Offerts' : (totals.deliveryFeeXof | money)
+            }}</strong>
+          </p>
           <p class="cart-summary__total">
-            Sous-total <strong>{{ data.subtotalXof! | money }}</strong>
+            Total TTC <strong>{{ totals.totalXof | money }}</strong>
           </p>
         }
         <p class="cart-summary__note">Le paiement arrive bientôt.</p>
@@ -207,6 +268,67 @@
             (click)="saveSlots()"
           >
             {{ savingSlots() ? 'Enregistrement…' : 'Valider les créneaux' }}
+          </button>
+        </section>
+
+        <section class="pickup-mode address-section">
+          <h2>Adresse de livraison</h2>
+
+          @if (addresses.isLoading()) {
+            <p class="state">Chargement de vos adresses…</p>
+          } @else if (addresses.error()) {
+            <p class="state state-error" role="alert">Impossible de charger vos adresses.</p>
+          } @else if (addresses.hasValue()) {
+            @if (addresses.value().addresses.length === 0) {
+              <p class="state">
+                Aucune adresse enregistrée --
+                <a routerLink="/compte/adresses">ajoutez-en une</a> pour valider votre commande.
+              </p>
+            } @else {
+              <label class="pickup-mode__field address-section__field">
+                Adresse
+                <select (change)="chooseAddress($any($event.target).value)">
+                  <option value="" [selected]="selectedAddressId() === null">
+                    Choisir une adresse
+                  </option>
+                  @for (address of addresses.value().addresses; track address.id) {
+                    <option [value]="address.id" [selected]="selectedAddressId() === address.id">
+                      {{ address.label }} -- {{ address.commune }}, {{ address.quartier }}
+                    </option>
+                  }
+                </select>
+              </label>
+              @if (selectedAddress(); as address) {
+                <p class="pickup-mode__hours">{{ address.details }}</p>
+              }
+            }
+          }
+
+          @if (addressError()) {
+            <p class="field-error" role="alert">{{ addressError() }}</p>
+          }
+
+          <button
+            type="button"
+            class="pickup-mode__save address-section__save"
+            [disabled]="savingAddress() || !canSaveAddress()"
+            (click)="saveAddress()"
+          >
+            {{ savingAddress() ? 'Enregistrement…' : "Valider l'adresse" }}
+          </button>
+        </section>
+
+        <section class="checkout-section">
+          @if (checkoutError()) {
+            <p class="field-error" role="alert">{{ checkoutError() }}</p>
+          }
+          <button
+            type="button"
+            class="checkout-section__submit"
+            [disabled]="checkingOut() || !canCheckout()"
+            (click)="checkout()"
+          >
+            {{ checkingOut() ? 'Validation…' : 'Valider la commande' }}
           </button>
         </section>
       }

@@ -9,6 +9,9 @@ import {
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
+import { computeOrderTotals } from '@lavenet/shared-domain';
+import { CheckoutResponseDtoOutput } from '../../../core/api-client/models/checkout-response-dto-output';
+import { AddressesService } from '../data-access/addresses.service';
 import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
 import { SlotsService } from '../data-access/slots.service';
@@ -17,6 +20,7 @@ import { SiteHeader } from '../../../shared/layout/site-header';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 
 type PickupType = 'HOME' | 'AGENCY';
+type Order = CheckoutResponseDtoOutput['order'];
 
 const DEFAULT_ERROR = 'Une erreur est survenue. Réessayez.';
 
@@ -60,10 +64,12 @@ export class CartPage {
   private readonly cartService = inject(CartService);
   private readonly agenciesService = inject(AgenciesService);
   private readonly slotsService = inject(SlotsService);
+  private readonly addressesService = inject(AddressesService);
 
   protected readonly cart = resource({ loader: () => this.cartService.getCart() });
   protected readonly agencies = resource({ loader: () => this.agenciesService.listAgencies() });
   protected readonly slots = resource({ loader: () => this.slotsService.listSlots() });
+  protected readonly addresses = resource({ loader: () => this.addressesService.list() });
   protected readonly formatSlotLabel = formatSlotLabel;
 
   protected readonly updatingItemId = signal<string | null>(null);
@@ -89,6 +95,19 @@ export class CartPage {
   protected readonly savingSlots = signal(false);
   protected readonly slotsError = signal<string | null>(null);
 
+  // F-CMD-05. Same "seed once from the saved cart" pattern as pickup mode
+  // and slots above.
+  protected readonly selectedAddressId = signal<string | null>(null);
+  protected readonly savingAddress = signal(false);
+  protected readonly addressError = signal<string | null>(null);
+
+  // F-CMD-05/07. checkoutResult holds the validated order once POST
+  // /cart/checkout succeeds -- the template switches to a confirmation
+  // view instead of the (now empty, DRAFT gone) cart when it's set.
+  protected readonly checkingOut = signal(false);
+  protected readonly checkoutError = signal<string | null>(null);
+  protected readonly checkoutResult = signal<Order | null>(null);
+
   constructor() {
     effect(() => {
       if (!this.cart.hasValue()) {
@@ -109,6 +128,9 @@ export class CartPage {
       }
       if (this.selectedDeliverySlotId() === null && data.deliverySlotId !== null) {
         this.selectedDeliverySlotId.set(data.deliverySlotId);
+      }
+      if (this.selectedAddressId() === null && data.deliveryAddressId !== null) {
+        this.selectedAddressId.set(data.deliveryAddressId);
       }
     });
   }
@@ -148,6 +170,56 @@ export class CartPage {
       return false;
     }
     return this.selectedDeliverySlotId() !== null;
+  });
+
+  protected readonly selectedAddress = computed(() => {
+    if (!this.addresses.hasValue()) {
+      return null;
+    }
+    const id = this.selectedAddressId();
+    return this.addresses.value().addresses.find((address) => address.id === id) ?? null;
+  });
+
+  protected readonly canSaveAddress = computed(() => this.selectedAddressId() !== null);
+
+  // F-CMD-05. Preview of the recap ("sous-total, remise, frais de
+  // livraison, total TTC", CAHIER-DES-CHARGES.md §5.3) shown before
+  // validation -- computeOrderTotals only needs a subtotal and a
+  // quantity, so a single synthetic line reproduces the exact same figures
+  // the API will freeze at checkout, without duplicating the delivery-fee
+  // threshold logic here. Null when there's nothing meaningful to preview
+  // (empty cart or a line whose pricing became unavailable).
+  protected readonly totalsPreview = computed(() => {
+    if (!this.cart.hasValue()) {
+      return null;
+    }
+    const data = this.cart.value().cart;
+    if (data.hasUnavailablePricing || data.subtotalXof === null || data.items.length === 0) {
+      return null;
+    }
+    return computeOrderTotals([{ unitPriceXof: data.subtotalXof, quantity: 1 }]);
+  });
+
+  // Gated on *saved* state only (never the possibly-unsaved local
+  // choices): checkout validates the same preconditions server-side
+  // regardless, but disabling the button early avoids a guaranteed-400
+  // round trip for an obviously incomplete cart.
+  protected readonly canCheckout = computed(() => {
+    if (!this.cart.hasValue()) {
+      return false;
+    }
+    const data = this.cart.value().cart;
+    if (data.items.length === 0 || data.hasUnavailablePricing) {
+      return false;
+    }
+    if (
+      data.pickupType === null ||
+      data.deliverySlotId === null ||
+      data.deliveryAddressId === null
+    ) {
+      return false;
+    }
+    return data.pickupType === 'AGENCY' || data.pickupSlotId !== null;
   });
 
   protected async updateQuantity(itemId: string, quantity: number): Promise<void> {
@@ -257,6 +329,44 @@ export class CartPage {
       this.slotsError.set(extractErrorMessage(err));
     } finally {
       this.savingSlots.set(false);
+    }
+  }
+
+  protected chooseAddress(addressId: string): void {
+    this.selectedAddressId.set(addressId || null);
+  }
+
+  protected async saveAddress(): Promise<void> {
+    const addressId = this.selectedAddressId();
+    if (!addressId || !this.canSaveAddress()) {
+      return;
+    }
+    this.savingAddress.set(true);
+    this.addressError.set(null);
+    try {
+      await this.cartService.setDeliveryAddress({ addressId });
+      this.cart.reload();
+    } catch (err) {
+      this.addressError.set(extractErrorMessage(err));
+    } finally {
+      this.savingAddress.set(false);
+    }
+  }
+
+  protected async checkout(): Promise<void> {
+    if (!this.canCheckout()) {
+      return;
+    }
+    this.checkingOut.set(true);
+    this.checkoutError.set(null);
+    try {
+      const { order } = await this.cartService.checkout();
+      this.checkoutResult.set(order);
+      this.cart.reload();
+    } catch (err) {
+      this.checkoutError.set(extractErrorMessage(err));
+    } finally {
+      this.checkingOut.set(false);
     }
   }
 }

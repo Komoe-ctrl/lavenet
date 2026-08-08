@@ -2,15 +2,19 @@ import { Injectable, inject } from '@angular/core';
 import { Api } from '../../../core/api-client/api';
 import {
   cartControllerAddItem,
+  cartControllerCheckout,
   cartControllerClearCart,
   cartControllerGetCart,
   cartControllerRemoveItem,
+  cartControllerSetDeliveryAddress,
   cartControllerSetPickupMode,
   cartControllerSetSlots,
   cartControllerUpdateItem,
 } from '../../../core/api-client/functions';
 import { AddCartItemDto } from '../../../core/api-client/models/add-cart-item-dto';
 import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
+import { CheckoutResponseDtoOutput } from '../../../core/api-client/models/checkout-response-dto-output';
+import { SetDeliveryAddressDto } from '../../../core/api-client/models/set-delivery-address-dto';
 import { SetPickupModeDto } from '../../../core/api-client/models/set-pickup-mode-dto';
 import { SetSlotsDto } from '../../../core/api-client/models/set-slots-dto';
 import { UpdateCartItemDto } from '../../../core/api-client/models/update-cart-item-dto';
@@ -47,5 +51,13 @@ export class CartService {
 
   setSlots(body: SetSlotsDto): Promise<CartResponseDtoOutput> {
     return this.api.invoke(cartControllerSetSlots, { body });
+  }
+
+  setDeliveryAddress(body: SetDeliveryAddressDto): Promise<CartResponseDtoOutput> {
+    return this.api.invoke(cartControllerSetDeliveryAddress, { body });
+  }
+
+  checkout(): Promise<CheckoutResponseDtoOutput> {
+    return this.api.invoke(cartControllerCheckout);
   }
 }
