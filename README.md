@@ -7,9 +7,11 @@ suivi de commande, paiement Mobile Money ou espèces. Ce dépôt est une pièce 
 portfolio — la qualité du code, des commits et du contrat d'API compte autant que les
 fonctionnalités.
 
-**État actuel** : lot 0 (fondations) livré — monorepo, contrat d'API généré, squelette
-d'authentification (connexion, session, route protégée), déploiement. Le catalogue, le
-panier, le checkout et le reste du parcours V1 (voir CLAUDE.md §11) restent à construire.
+**État actuel** : lots 0 à 3 livrés — authentification complète (inscription, OTP, mot de
+passe, profil, adresses), catalogue et tarifs publics, panier, mode de retrait et
+créneaux à capacité, checkout (gel des prix, réservation atomique des créneaux,
+référence de commande). Machine à états et suivi client (lot 4) et le reste du parcours
+V1 (voir CLAUDE.md §11) restent à construire.
 
 - Web : [lavenet.vercel.app](https://lavenet.vercel.app)
 - API + doc OpenAPI : [lavenet-api.onrender.com/docs](https://lavenet-api.onrender.com/docs)
@@ -121,6 +123,52 @@ mettent à jour si elles changent dans `prisma/catalog-data.ts`) et n'ajoute que
 avoir ajouté un nouveau service ou un nouveau tarif dans `prisma/catalog-data.ts` ne fait
 qu'ajouter ce qui manque. Vérifié contre le scénario réel (utilisateurs déjà en base,
 catalogue vide) sur la branche dev Neon avant la mise en production.
+
+**Seeder l'agence en production** (une ligne, F-CMD-03 — dépôt en agence) :
+
+1. `.env.production.local` déjà en place (voir ci-dessus).
+2. `pnpm db:seed:agency:prod`
+
+Upsert par `slug`, comme le catalogue — rejouable sans risque après une modification de
+`prisma/agency-data.ts`.
+
+**Seeder / renouveler les créneaux en production** (F-CMD-04 — sans ça, le checkout est
+impossible : `PATCH /cart/slots` et `POST /cart/checkout` n'ont aucun `TimeSlot` à
+proposer ou à réserver) :
+
+1. `.env.production.local` déjà en place (voir ci-dessus).
+2. `pnpm db:seed:slots:prod`
+
+Même principe d'idempotence que le catalogue (upsert par la contrainte unique
+`(date, startsAt)`, jamais de doublon), mais avec une différence importante : contrairement
+au catalogue ou à l'agence, **ce script doit être rejoué périodiquement**. Il génère une
+fenêtre glissante de `WINDOW_DAYS` (21) jours **à partir du moment où il tourne**
+(`prisma/timeslot-data.ts`), pas une plage calendaire fixe — chaque jour qui passe fait
+sortir un jour du bout de la fenêtre sans qu'un nouveau soit ajouté à l'autre bout. Sans
+rejeu, la fenêtre s'épuise en 21 jours et le checkout redevient bloqué, silencieusement.
+**Renouvelez-la au moins une fois par semaine** (une marge confortable avant les 21 jours).
+
+_Pourquoi pas un vrai back-office de créneaux dès maintenant ?_ La création de créneaux
+en back-office (F-LIV-01/F-ADM-05) est un lot plus tardif ; jusque-là, ce script est la
+seule source de `TimeSlot`.
+
+## Renouvellement automatique (proposé, non implémenté)
+
+Plutôt que de compter sur un rejeu manuel régulier de `pnpm db:seed:slots:prod` (le
+risque exact qui a laissé la production sans `TimeSlot` la première fois), un workflow
+GitHub Actions planifié (`on: schedule`) peut exécuter ce script chaque semaine sans
+intervention :
+
+- Gratuit (minutes GitHub Actions incluses), ne dépend pas du réveil de l'API Render
+  (contrairement à un cron interne à l'app, peu fiable vu `docs/ADR/0003` — l'API peut
+  dormir des jours sans visite).
+- Nécessite un secret de dépôt (`PROD_DATABASE_URL`, la même chaîne que
+  `.env.production.local`) — la seule étape qui ne peut pas être automatisée depuis ce
+  dépôt, à ajouter dans Settings → Secrets and variables → Actions.
+
+Écarté pour l'instant : une régénération "paresseuse" déclenchée par l'API elle-même (ex.
+dans `GET /slots`) mélangerait une route de lecture publique avec une écriture en base,
+et resterait sujette au même problème de sommeil de l'API que le cron interne.
 
 ## Développement
 
