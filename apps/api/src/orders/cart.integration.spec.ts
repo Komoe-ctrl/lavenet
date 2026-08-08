@@ -1475,6 +1475,16 @@ describe('Cart (integration)', () => {
         where: { id: checkoutDeliverySlotId },
       });
       expect(deliverySlot.bookedCount).toBe(1);
+
+      // F-STA-02: checkout is the first transition the state machine
+      // allows (DRAFT -> PENDING_PICKUP) -- it must leave exactly one
+      // history row, attributed to the client who checked out.
+      const history = await prisma.orderStatusHistory.findMany({ where: { orderId: order.id } });
+      expect(history).toHaveLength(1);
+      expect(history[0].fromStatus).toBe('DRAFT');
+      expect(history[0].toStatus).toBe('PENDING_PICKUP');
+      expect(history[0].actorId).toBe(userA.id);
+      expect(history[0].reason).toBeNull();
     }, 30_000);
 
     it('leaves no DRAFT cart behind after checkout -- a second checkout finds nothing to validate', async () => {

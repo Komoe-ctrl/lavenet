@@ -35,10 +35,11 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  refreshTokens RefreshToken[]
-  otpCodes      OtpCode[]
-  addresses     Address[]
-  orders        Order[]
+  refreshTokens      RefreshToken[]
+  otpCodes           OtpCode[]
+  addresses          Address[]
+  orders             Order[]
+  orderStatusActions OrderStatusHistory[]
 
   @@index([role])
   @@map("users")
@@ -360,12 +361,13 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agency          Agency?     @relation(fields: [agencyId], references: [id])
-  pickupSlot      TimeSlot?   @relation("PickupSlot", fields: [pickupSlotId], references: [id])
-  deliverySlot    TimeSlot?   @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
-  deliveryAddress Address?    @relation(fields: [deliveryAddressId], references: [id])
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agency          Agency?              @relation(fields: [agencyId], references: [id])
+  pickupSlot      TimeSlot?            @relation("PickupSlot", fields: [pickupSlotId], references: [id])
+  deliverySlot    TimeSlot?            @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
+  deliveryAddress Address?             @relation(fields: [deliveryAddressId], references: [id])
   items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
 
   @@index([userId, status])
   @@index([agencyId])
@@ -400,4 +402,33 @@ model OrderItem {
 
   @@index([orderId])
   @@map("order_items")
+}
+
+// F-STA-01/02. One row per transition validated by
+// libs/shared/domain/order-state-machine.ts's canTransition -- never for
+// order creation itself (DRAFT has no "from"; Order.createdAt already
+// captures that moment). actorId is the user who caused the transition:
+// the client for checkout (DRAFT -> PENDING_PICKUP) and cancellation
+// (-> CANCELLED); staff for every later transition (a future F-ADM lot).
+// reason is required by the domain layer only for ON_HOLD
+// (requiresReason), optional everywhere else -- nullable here rather than
+// re-encoding that rule as a DB constraint. actor cascades on delete for
+// the same reason every other direct User FK in this schema does (User,
+// RefreshToken, OtpCode, Address, Order): production only ever
+// soft-deletes a User (CLAUDE.md §4 rule 8), so this only matters for
+// hard-deleting throwaway test users, never for real audit-trail loss.
+model OrderStatusHistory {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus
+  toStatus   OrderStatus
+  actorId    String
+  reason     String?
+  createdAt  DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User  @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_history")
 }

@@ -108,6 +108,7 @@ export class CheckoutService {
 
     const result = await this.repo.commitCheckout({
       orderId: order.id,
+      userId,
       pickupSlotId: order.pickupType === 'HOME' ? (order.pickupSlotId as string) : null,
       deliverySlotId: order.deliverySlotId,
       itemPrices: pricedItems.map((priced) => ({
