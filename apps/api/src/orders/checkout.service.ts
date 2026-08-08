@@ -10,11 +10,12 @@ import {
   isPastDropoffDate,
   MIN_ORDER_XOF,
 } from '@lavenet/shared-domain';
-import type { Order, OrderItem } from '@lavenet/shared-schemas';
+import type { Order } from '@lavenet/shared-schemas';
 import { assertDeliveryNotBeforeMinimum } from './assert-delivery-slot';
 import { formatIsoDate } from './format-iso-date';
 import { type CheckoutOrderRecord, OrdersRepository } from './orders.repository';
 import { resolvePriceForArticleType } from './resolve-price';
+import { toOrderItem } from './to-order-item';
 
 // F-CMD-05/07. The one place a DRAFT order becomes a real one: every
 // precondition the checkout tunnel's own PATCH endpoints already checked
@@ -139,24 +140,11 @@ export class CheckoutService {
 }
 
 function toOrder(order: CheckoutOrderRecord): Order {
-  const items: OrderItem[] = order.items.map((item) => ({
-    id: item.id,
-    serviceId: item.serviceId,
-    serviceName: item.service.name,
-    unit: item.service.unit as OrderItem['unit'],
-    articleTypeId: item.articleTypeId,
-    articleTypeName: item.articleType?.name ?? null,
-    quantity: item.quantity,
-    instructions: item.instructions,
-    unitPriceXof: item.unitPriceXof as number,
-    lineTotalXof: (item.unitPriceXof as number) * item.quantity,
-  }));
-
   return {
     id: order.id,
     reference: order.reference as string,
     status: 'PENDING_PICKUP',
-    items,
+    items: order.items.map(toOrderItem),
     subtotalXof: order.subtotalXof as number,
     discountXof: order.discountXof as number,
     deliveryFeeXof: order.deliveryFeeXof as number,
