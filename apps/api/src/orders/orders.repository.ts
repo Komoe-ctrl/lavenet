@@ -44,6 +44,7 @@ export interface CheckoutAddressSnapshot {
 
 export interface CheckoutInput {
   orderId: string;
+  userId: string;
   pickupSlotId: string | null;
   deliverySlotId: string;
   itemPrices: { itemId: string; unitPriceXof: number }[];
@@ -219,7 +220,7 @@ export class OrdersRepository {
           ),
         );
 
-        return tx.order.update({
+        const order = await tx.order.update({
           where: { id: input.orderId },
           data: {
             status: 'PENDING_PICKUP',
@@ -238,6 +239,21 @@ export class OrdersRepository {
           },
           include: checkoutOrderInclude,
         });
+
+        // F-STA-02: every transition the state machine allows writes a
+        // history row, in the same transaction as the status change it
+        // records -- checkout is the actor here (there's no staff
+        // involvement yet), same convention cancel() below will follow.
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: input.orderId,
+            fromStatus: 'DRAFT',
+            toStatus: 'PENDING_PICKUP',
+            actorId: input.userId,
+          },
+        });
+
+        return order;
       });
       return { ok: true, order };
     } catch (err) {
