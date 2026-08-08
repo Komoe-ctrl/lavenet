@@ -27,6 +27,8 @@ const EMPTY_CART: CartResponseDtoOutput = {
     pickupType: null,
     agencyId: null,
     agencyDropoffDate: null,
+    pickupSlotId: null,
+    deliverySlotId: null,
   },
 };
 
