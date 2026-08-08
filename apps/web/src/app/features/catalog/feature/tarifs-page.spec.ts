@@ -103,19 +103,20 @@ describe('TarifsPage', () => {
     expect(text).toContain('projet de démonstration');
   });
 
-  it('shows the development notice and real delivery figures from the centralized business config', async () => {
+  it('shows real delivery figures from the centralized business config', async () => {
     configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
     const fixture = TestBed.createComponent(TarifsPage);
     fixture.detectChanges();
     await fixture.whenStable();
 
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('en cours de développement');
     // Sourced from shared/config/site-config.ts, itself derived from
     // libs/shared/domain/business-config.ts (docs/ADR/0006) -- not a
     // placeholder, and not redeclared here as a literal amount.
     expect(text).toContain(siteConfig.delivery.feeNote);
     expect(text).toContain(siteConfig.delivery.minimumOrderNote);
+    // Ordering is live -- this page must never claim otherwise.
+    expect(text).not.toContain('en cours de développement');
   });
 
   it('sets the page title and Open Graph tags', async () => {

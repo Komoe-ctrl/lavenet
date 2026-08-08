@@ -55,25 +55,28 @@ describe('HomePage', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('LaveNet');
     expect(text).toContain('Le pressing en ligne pour Abidjan');
-    expect(text).toContain('Voir nos tarifs');
+    expect(text).toContain('Commander');
     expect(text).toContain('projet de démonstration');
     expect(text).toContain('Dan Lefebvre (Unsplash)');
     const cta: HTMLAnchorElement = fixture.nativeElement.querySelector('.cta');
-    expect(cta.getAttribute('href')).toBe('/tarifs');
+    expect(cta.getAttribute('href')).toBe('/panier');
   });
 
-  // The hero used to promise "Commander" with no order tunnel behind it --
-  // this guards against that regressing.
-  it('never promises an order it cannot fulfil', async () => {
+  // The order tunnel (lot 3/4) is live -- the hero must lead to it, not to
+  // a "coming soon" dead end. Regression guard for the opposite direction
+  // of this project's earlier state, where the tunnel didn't exist yet.
+  it('never claims ordering is still unavailable', async () => {
     configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
     const fixture = TestBed.createComponent(HomePage);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(fixture.nativeElement.textContent).not.toContain('Commander');
+    const text = fixture.nativeElement.textContent;
+    expect(text).not.toContain('en cours de développement');
+    expect(text).not.toContain("n'est pas encore disponible");
   });
 
-  it('shows the delivery coverage, hours placeholder and FAQ', async () => {
+  it('shows the delivery coverage, real hours and FAQ', async () => {
     configureWith({ loadCatalog: () => Promise.resolve({ categories: [] }) });
     const fixture = TestBed.createComponent(HomePage);
     fixture.detectChanges();
@@ -85,9 +88,9 @@ describe('HomePage', () => {
     expect(text).toContain('Horaires de collecte et de livraison');
     expect(text).toContain('Questions fréquentes');
     expect(text).toContain('Comment payer ma commande');
-    // No invented figures: the copy must say these are still pending, not
-    // state a fabricated fee/schedule as if it were real.
-    expect(text).toContain('seront communiqués');
+    // Real hours, not a "to be announced" placeholder.
+    expect(text).toContain(siteConfig.coverage.hoursNote);
+    expect(text).not.toContain('seront communiqués');
   });
 
   // All of this must come from shared/config/site-config.ts, not be
