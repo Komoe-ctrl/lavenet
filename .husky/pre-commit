@@ -1,2 +1,19 @@
 npx lint-staged
 npx nx affected -t lint typecheck test --uncommitted
+
+# Only when the API surface (controllers/DTOs) or the shared zod schemas
+# they're derived from actually changed in this commit -- otherwise every
+# commit pays a ~25s tax (boots a NestJS app in-process to regenerate the
+# OpenAPI spec) for a check that can't have failed. Scoped to staged
+# files, not the whole working tree, unlike the nx affected line above:
+# this check cares about what's being committed, not what's merely
+# present on disk.
+if git diff --cached --name-only | grep -qE '^(apps/api/|libs/shared/schemas/)'; then
+  echo "Surface API modifiée -- vérification que le client Angular généré est à jour..."
+  pnpm api:client:check || {
+    echo ""
+    echo "Le client Angular généré ne correspond plus au contrat API exposé."
+    echo "Lancez : pnpm api:client, puis committez apps/web/src/app/core/api-client dans un commit séparé."
+    exit 1
+  }
+fi

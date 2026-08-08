@@ -298,7 +298,10 @@ docs(adr): record Angular + NestJS stack decision
 - Pas de `wip`, `update`, `fix bug`. Pas de commit de 40 fichiers non liés.
 - Le client API généré est committé, dans un commit séparé de son utilisation.
 
-**Hook pre-commit** : lint + typecheck + tests unitaires sur les projets affectés.
+**Hook pre-commit** : lint + typecheck + tests unitaires sur les projets affectés, et,
+si `apps/api/` ou `libs/shared/schemas/` fait partie du commit, `api:client:check`
+(le client Angular généré doit déjà être à jour et committé — pas seulement vérifié en
+CI après coup).
 
 **PR** : contexte, changements, comment tester, captures pour l'UI, checklist (tests,
 migration relue, pas de secret, doc et spec OpenAPI à jour).
