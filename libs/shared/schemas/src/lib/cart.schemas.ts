@@ -78,8 +78,25 @@ export const cartSchema = z.object({
   // already-fetched GET /slots list" reasoning as agencyId above.
   pickupSlotId: z.string().nullable(),
   deliverySlotId: z.string().nullable(),
+  // F-CMD-05 (increment 4). Raw id, same "resolve display info from the
+  // already-fetched address list" reasoning as agencyId/pickupSlotId above
+  // -- the web already has the user's addresses (GET /addresses, F-AUTH-06).
+  // Null until chosen via PATCH /cart/address; a preference, not the
+  // checkout snapshot (docs/ADR/0005-address-deletion-policy.md).
+  deliveryAddressId: z.string().nullable(),
 });
 export type Cart = z.infer<typeof cartSchema>;
 
 export const cartResponseSchema = z.object({ cart: cartSchema });
 export type CartResponse = z.infer<typeof cartResponseSchema>;
+
+// F-CMD-05. Sets the cart's delivery-address *preference* -- checkout later
+// copies the referenced Address's fields onto the order as a frozen
+// snapshot (docs/ADR/0005), it never keeps reading this id live afterwards.
+export const setDeliveryAddressSchema = z.object({
+  // z.string(msg), not just .min(1, msg): a completely missing field hits
+  // zod's generic "invalid type" error instead of the min() message
+  // otherwise (zod v4 quirk, see slot.schemas.ts's deliverySlotId).
+  addressId: z.string('Adresse requise.').min(1, 'Adresse requise.'),
+});
+export type SetDeliveryAddressInput = z.infer<typeof setDeliveryAddressSchema>;
