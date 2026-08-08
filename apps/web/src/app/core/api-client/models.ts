@@ -12,6 +12,7 @@ export type { ChangePasswordDto } from './models/change-password-dto';
 export type { ChangePasswordResponseDtoOutput } from './models/change-password-response-dto-output';
 export type { ChangePhoneDto } from './models/change-phone-dto';
 export type { ChangePhoneResponseDtoOutput } from './models/change-phone-response-dto-output';
+export type { CheckoutResponseDtoOutput } from './models/checkout-response-dto-output';
 export type { CreateAddressDto } from './models/create-address-dto';
 export type { CreateAddressResponseDtoOutput } from './models/create-address-response-dto-output';
 export type { ListAddressesResponseDtoOutput } from './models/list-addresses-response-dto-output';
@@ -25,6 +26,7 @@ export type { PasswordResetRequestResponseDtoOutput } from './models/password-re
 export type { RefreshResponseDtoOutput } from './models/refresh-response-dto-output';
 export type { RegisterDto } from './models/register-dto';
 export type { RegisterResponseDtoOutput } from './models/register-response-dto-output';
+export type { SetDeliveryAddressDto } from './models/set-delivery-address-dto';
 export type { SetPickupModeDto } from './models/set-pickup-mode-dto';
 export type { SetSlotsDto } from './models/set-slots-dto';
 export type { SlotsResponseDtoOutput } from './models/slots-response-dto-output';
