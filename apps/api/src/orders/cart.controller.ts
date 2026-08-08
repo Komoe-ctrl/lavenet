@@ -15,11 +15,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   AddCartItemDto,
   CartResponseDto,
+  CheckoutResponseDto,
+  SetDeliveryAddressDto,
   SetPickupModeDto,
   SetSlotsDto,
   UpdateCartItemDto,
 } from './cart.dto';
 import { CartService } from './cart.service';
+import { CheckoutService } from './checkout.service';
 
 // Every route scoped to the current token's user, no :userId in any URL.
 // Item ownership (via the item's parent order) is checked in the service
@@ -27,7 +30,10 @@ import { CartService } from './cart.service';
 @Controller('cart')
 @UseGuards(JwtAuthGuard)
 export class CartController {
-  constructor(private readonly cartService: CartService) {}
+  constructor(
+    private readonly cartService: CartService,
+    private readonly checkoutService: CheckoutService,
+  ) {}
 
   @Get()
   @ZodResponse({ type: CartResponseDto })
@@ -85,5 +91,24 @@ export class CartController {
   @ZodResponse({ type: CartResponseDto })
   setSlots(@CurrentUser() userId: string, @Body() dto: SetSlotsDto) {
     return this.cartService.setSlots(userId, dto);
+  }
+
+  // F-CMD-05. Sets the delivery-address *preference* -- checkout is what
+  // copies it onto the order as a frozen snapshot.
+  @Patch('address')
+  @HttpCode(200)
+  @ZodResponse({ type: CartResponseDto })
+  setDeliveryAddress(@CurrentUser() userId: string, @Body() dto: SetDeliveryAddressDto) {
+    return this.cartService.setDeliveryAddress(userId, dto);
+  }
+
+  // F-CMD-05/07. The DRAFT -> PENDING_PICKUP transition: every
+  // precondition is re-validated from scratch server-side (business
+  // validation lives in CheckoutService, never here or on the client).
+  @Post('checkout')
+  @HttpCode(200)
+  @ZodResponse({ type: CheckoutResponseDto })
+  checkout(@CurrentUser() userId: string) {
+    return this.checkoutService.checkout(userId);
   }
 }

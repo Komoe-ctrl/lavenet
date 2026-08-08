@@ -10,5 +10,8 @@ import { AddressesService } from './addresses.service';
   imports: [AuthModule],
   controllers: [AddressesController],
   providers: [AddressesService, AddressesRepository],
+  // AddressesRepository: OrdersModule needs it too (F-CMD-05, PATCH
+  // /cart/address validates ownership of the chosen address).
+  exports: [AddressesRepository],
 })
 export class AddressesModule {}

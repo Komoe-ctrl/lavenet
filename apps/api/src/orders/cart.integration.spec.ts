@@ -31,18 +31,33 @@ describe('Cart (integration)', () => {
   const kgServiceId = `svc-kg-cart-test-${runId}`;
   const pieceServiceId = `svc-piece-cart-test-${runId}`;
   const inactiveServiceId = `svc-inactive-cart-test-${runId}`;
+  const revocableServiceId = `svc-revocable-cart-test-${runId}`;
   const agencyId = `agy-cart-test-${runId}`;
   const pickupSlotId = `slot-pickup-${runId}`;
   const deliveryTooEarlyHomeId = `slot-delivery-early-home-${runId}`;
   const deliveryValidHomeId = `slot-delivery-valid-home-${runId}`;
   const deliveryTooEarlyAgencyId = `slot-delivery-early-agency-${runId}`;
   const deliveryValidAgencyId = `slot-delivery-valid-agency-${runId}`;
+  // F-CMD-05/07 (increment 4) fixtures.
+  const addressAId = `addr-cart-test-a-${runId}`;
+  const addressBId = `addr-cart-test-b-${runId}`;
+  const deletedAddressId = `addr-cart-test-deleted-${runId}`;
+  const checkoutPickupSlotId = `slot-checkout-pickup-${runId}`;
+  const checkoutDeliverySlotId = `slot-checkout-delivery-${runId}`;
+  const checkoutAgencyDeliverySlotId = `slot-checkout-agency-delivery-${runId}`;
+  const racePickupSlotId = `slot-race-pickup-${runId}`;
+  const raceSlotId = `slot-race-delivery-${runId}`;
   const timeSlotIds = [
     pickupSlotId,
     deliveryTooEarlyHomeId,
     deliveryValidHomeId,
     deliveryTooEarlyAgencyId,
     deliveryValidAgencyId,
+    checkoutPickupSlotId,
+    checkoutDeliverySlotId,
+    checkoutAgencyDeliverySlotId,
+    racePickupSlotId,
+    raceSlotId,
   ];
 
   function daysFromNowAtUtc(days: number, hour: number): Date {
@@ -220,16 +235,121 @@ describe('Cart (integration)', () => {
         capacity: 5,
       },
     });
+
+    // F-CMD-05/07 (increment 4) fixtures below.
+    await prisma.service.create({
+      data: {
+        id: revocableServiceId,
+        categoryId,
+        slug: `revocable-cart-test-${runId}`,
+        name: 'Service révocable (test)',
+        unit: 'KG',
+        processingHours: 24,
+        priceRules: {
+          create: [{ amountXof: 1500, effectiveFrom: new Date('2026-01-01T00:00:00Z') }],
+        },
+      },
+    });
+    await prisma.address.create({
+      data: {
+        id: addressAId,
+        userId: userA.id,
+        label: 'Maison (test)',
+        commune: 'Cocody',
+        quartier: 'Angré',
+        details: 'Portail bleu (test)',
+      },
+    });
+    await prisma.address.create({
+      data: {
+        id: addressBId,
+        userId: userB.id,
+        label: 'Maison (test)',
+        commune: 'Marcory',
+        quartier: 'Zone 4',
+        details: 'Immeuble rouge (test)',
+      },
+    });
+    await prisma.address.create({
+      data: {
+        id: deletedAddressId,
+        userId: userA.id,
+        label: 'Ancienne adresse (test)',
+        commune: 'Cocody',
+        quartier: 'Riviera',
+        details: 'Adresse supprimée (test)',
+        deletedAt: new Date(),
+      },
+    });
+
+    // Checkout tests need their own slots (day+10/+13), off-grid and past
+    // the pickup/slots describe blocks' own day+3..+6 fixtures, so a
+    // checkout test can never collide with a slot state an earlier test
+    // already relied on.
+    await prisma.timeSlot.create({
+      data: {
+        id: checkoutPickupSlotId,
+        date: dateOnly(daysFromNowAtUtc(10, 6)),
+        startsAt: daysFromNowAtUtc(10, 6),
+        endsAt: daysFromNowAtUtc(10, 7),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: checkoutDeliverySlotId,
+        date: dateOnly(daysFromNowAtUtc(13, 9)),
+        startsAt: daysFromNowAtUtc(13, 9),
+        endsAt: daysFromNowAtUtc(13, 11),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: checkoutAgencyDeliverySlotId,
+        date: dateOnly(daysFromNowAtUtc(13, 13)),
+        startsAt: daysFromNowAtUtc(13, 13),
+        endsAt: daysFromNowAtUtc(13, 15),
+        capacity: 5,
+      },
+    });
+    // Concurrency test (CLAUDE.md §4 rule 4): one delivery slot with a
+    // single seat, shared by two independently prepared carts racing to
+    // check out at the same time.
+    await prisma.timeSlot.create({
+      data: {
+        id: racePickupSlotId,
+        date: dateOnly(daysFromNowAtUtc(15, 6)),
+        startsAt: daysFromNowAtUtc(15, 6),
+        endsAt: daysFromNowAtUtc(15, 7),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: raceSlotId,
+        date: dateOnly(daysFromNowAtUtc(17, 9)),
+        startsAt: daysFromNowAtUtc(17, 9),
+        endsAt: daysFromNowAtUtc(17, 11),
+        capacity: 1,
+      },
+    });
   }, 30_000);
 
   afterAll(async () => {
     const userIds = [userA.id, userB.id];
+    await prisma.slotBooking.deleteMany({ where: { slotId: { in: timeSlotIds } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: userIds } } } });
     await prisma.order.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.address.deleteMany({
+      where: { id: { in: [addressAId, addressBId, deletedAddressId] } },
+    });
     await prisma.agency.delete({ where: { id: agencyId } });
     await prisma.timeSlot.deleteMany({ where: { id: { in: timeSlotIds } } });
     await prisma.priceRule.deleteMany({
-      where: { serviceId: { in: [kgServiceId, pieceServiceId, inactiveServiceId] } },
+      where: {
+        serviceId: { in: [kgServiceId, pieceServiceId, inactiveServiceId, revocableServiceId] },
+      },
     });
     await prisma.service.deleteMany({ where: { categoryId } });
     await prisma.articleType.delete({ where: { id: articleTypeId } });
@@ -921,6 +1041,577 @@ describe('Cart (integration)', () => {
         .set('Authorization', `Bearer ${tokenB}`);
       expect(bCart.body.cart.deliverySlotId).toBe(deliveryValidAgencyId);
       expect(bCart.body.cart.pickupSlotId).toBeNull();
+    }, 45_000);
+  });
+
+  describe('delivery address (F-CMD-05)', () => {
+    it('rejects the address route with no token', async () => {
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .send({ addressId: addressAId })
+        .expect(401);
+    });
+
+    it('rejects setting a delivery address with no cart yet', async () => {
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Adresse',
+          email: `cart-noaddr-${runId}@lavenet.test`,
+          phone: `+22535${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ addressId: addressAId });
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Panier introuvable.');
+
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('sets a delivery address on an existing cart', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ serviceId: kgServiceId, quantity: 1 })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ addressId: addressAId });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.deliveryAddressId).toBe(addressAId);
+    });
+
+    it('rejects an unknown address id', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ addressId: 'does-not-exist' });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Adresse introuvable.');
+    });
+
+    it('rejects an address belonging to another user (IDOR), with the same message as unknown', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ addressId: addressBId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Adresse introuvable.');
+    });
+
+    it('rejects a soft-deleted address', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ addressId: deletedAddressId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Adresse introuvable.');
+    });
+
+    it("keeps each user's delivery-address selection isolated from the other's cart (IDOR)", async () => {
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ serviceId: kgServiceId, quantity: 1 });
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ addressId: addressBId })
+        .expect(200);
+
+      const aCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`);
+      expect(aCart.body.cart.deliveryAddressId).toBe(addressAId);
+
+      const bCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenB}`);
+      expect(bCart.body.cart.deliveryAddressId).toBe(addressBId);
+    });
+  });
+
+  describe('checkout (F-CMD-05/07)', () => {
+    // Quantity 2 of the 1200 XOF/kg service (2400 XOF) is deliberately
+    // above MIN_ORDER_XOF (2000) and below FREE_DELIVERY_THRESHOLD_XOF
+    // (10000) -- a checkout expected to succeed under the HOME minimum-
+    // order rule, while still owing the flat delivery fee.
+    async function prepareHomeCart(
+      token: string,
+      opts: { addressId: string; pickupSlotId: string; deliverySlotId: string; quantity?: number },
+    ) {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ serviceId: kgServiceId, quantity: opts.quantity ?? 2 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ pickupSlotId: opts.pickupSlotId, deliverySlotId: opts.deliverySlotId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ addressId: opts.addressId })
+        .expect(200);
+    }
+
+    it('rejects checkout with no token', async () => {
+      await request(app.getHttpServer()).post(`/${API_GLOBAL_PREFIX}/cart/checkout`).expect(401);
+    });
+
+    it('rejects checkout with no cart yet', async () => {
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Commande',
+          email: `cart-nocheckout-${runId}@lavenet.test`,
+          phone: `+22538${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send();
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Panier introuvable.');
+
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('rejects checkout on an empty cart', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Le panier est vide.');
+    });
+
+    it('rejects checkout before a pickup mode is chosen', async () => {
+      // tokenA already has a pickup mode set from earlier tests in this
+      // file (PATCH /cart/pickup, once set, is never cleared by DELETE
+      // /cart) -- only a fresh, never-touched user can exercise "no pickup
+      // mode chosen yet", same reasoning as the pickup-mode/slots describe
+      // blocks' own fresh-user tests.
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Mode De Retrait',
+          email: `cart-nopickup-${runId}@lavenet.test`,
+          phone: `+22540${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ serviceId: kgServiceId, quantity: 2 })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Choisissez d'abord un mode de retrait.");
+
+      await prisma.orderItem.deleteMany({ where: { order: { userId: freshUser.id } } });
+      await prisma.order.deleteMany({ where: { userId: freshUser.id } });
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('rejects checkout before a delivery slot is chosen', async () => {
+      // A fresh user, not tokenA: tokenA's order carries a *stale*
+      // deliverySlotId left over from an earlier describe block in this
+      // file (PATCH /cart/slots values are never cleared by DELETE /cart
+      // or by switching pickup mode -- see the "stale AGENCY selection"
+      // test below), which would satisfy this check by accident and mask
+      // what this test is meant to prove. Only a user who has never called
+      // PATCH /cart/slots at all guarantees a genuinely null deliverySlotId.
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Creneau Livraison',
+          email: `cart-nodeliveryslot-${runId}@lavenet.test`,
+          phone: `+22541${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ serviceId: kgServiceId, quantity: 2 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Choisissez un créneau de livraison.');
+
+      await prisma.orderItem.deleteMany({ where: { order: { userId: freshUser.id } } });
+      await prisma.order.deleteMany({ where: { userId: freshUser.id } });
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    // Regression guard for a real inconsistency: PATCH /cart/pickup never
+    // clears pickupSlotId/deliverySlotId when switching modes (by design,
+    // see cart.service.ts), so a client can reach checkout with a delivery
+    // slot chosen under AGENCY and no pickupSlotId at all after switching
+    // back to HOME. Checkout must catch this itself, not trust the cart's
+    // already-saved state.
+    it('rejects checkout when HOME has a delivery slot but no pickup slot (stale AGENCY selection)', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ serviceId: kgServiceId, quantity: 2 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({
+          pickupType: 'AGENCY',
+          agencyId,
+          agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+        })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ deliverySlotId: checkoutAgencyDeliverySlotId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Choisissez un créneau de retrait.');
+    }, 30_000);
+
+    it('rejects checkout before a delivery address is chosen', async () => {
+      // A fresh user, not tokenA: tokenA's order already has a
+      // deliveryAddressId from the delivery-address describe block above
+      // (PATCH /cart/address, once set, is never cleared by DELETE /cart
+      // either) -- only a never-touched user guarantees a genuinely null
+      // deliveryAddressId, same reasoning as the two fresh-user tests above.
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Adresse De Livraison',
+          email: `cart-nocheckoutaddr-${runId}@lavenet.test`,
+          phone: `+22542${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ serviceId: kgServiceId, quantity: 2 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ pickupSlotId: checkoutPickupSlotId, deliverySlotId: checkoutDeliverySlotId })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Choisissez une adresse de livraison.');
+
+      await prisma.orderItem.deleteMany({ where: { order: { userId: freshUser.id } } });
+      await prisma.order.deleteMany({ where: { userId: freshUser.id } });
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('rejects HOME checkout below the minimum order, suggesting AGENCY (docs/ADR/0006)', async () => {
+      await prepareHomeCart(tokenA, {
+        addressId: addressAId,
+        pickupSlotId: checkoutPickupSlotId,
+        deliverySlotId: checkoutDeliverySlotId,
+        quantity: 1, // 1200 XOF, below MIN_ORDER_XOF (2000)
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('Montant minimum');
+      expect(res.body.message).toContain('dépôt en agence');
+    }, 30_000);
+
+    it('rejects checkout when a cart line is no longer available', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ serviceId: revocableServiceId, quantity: 2 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId: checkoutPickupSlotId, deliverySlotId: checkoutDeliverySlotId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ addressId: addressAId })
+        .expect(200);
+
+      await prisma.service.update({ where: { id: revocableServiceId }, data: { isActive: false } });
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe(
+        'Certains articles de votre panier ne sont plus disponibles. Retirez-les avant de valider votre commande.',
+      );
+    }, 30_000);
+
+    it('checks out a HOME order: freezes prices/totals, books both slots, issues a readable reference', async () => {
+      await prepareHomeCart(tokenA, {
+        addressId: addressAId,
+        pickupSlotId: checkoutPickupSlotId,
+        deliverySlotId: checkoutDeliverySlotId,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(200);
+      const { order } = res.body;
+      expect(order.reference).toMatch(/^LN-\d{4}-\d{6,}$/);
+      expect(order.status).toBe('PENDING_PICKUP');
+      expect(order.pickupType).toBe('HOME');
+      expect(order.pickupSlotId).toBe(checkoutPickupSlotId);
+      expect(order.deliverySlotId).toBe(checkoutDeliverySlotId);
+      expect(order.items).toHaveLength(1);
+      expect(order.items[0].unitPriceXof).toBe(1200);
+      expect(order.items[0].lineTotalXof).toBe(2400);
+      expect(order.subtotalXof).toBe(2400);
+      expect(order.discountXof).toBe(0);
+      expect(order.deliveryFeeXof).toBe(1000);
+      expect(order.vatRateBps).toBe(0);
+      expect(order.vatAmountXof).toBe(0);
+      expect(order.totalXof).toBe(3400);
+      expect(order.deliveryCommune).toBe('Cocody');
+      expect(order.deliveryQuartier).toBe('Angré');
+      expect(order.deliveryDetails).toBe('Portail bleu (test)');
+
+      const pickupSlot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: checkoutPickupSlotId },
+      });
+      expect(pickupSlot.bookedCount).toBe(1);
+      const deliverySlot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: checkoutDeliverySlotId },
+      });
+      expect(deliverySlot.bookedCount).toBe(1);
+    }, 30_000);
+
+    it('leaves no DRAFT cart behind after checkout -- a second checkout finds nothing to validate', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send();
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe('Panier introuvable.');
+    });
+
+    it('checks out an AGENCY order below the minimum order -- MIN_ORDER_XOF only gates HOME', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ serviceId: kgServiceId, quantity: 1 }) // 1200 XOF, below MIN_ORDER_XOF
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({
+          pickupType: 'AGENCY',
+          agencyId,
+          agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+        })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ deliverySlotId: checkoutAgencyDeliverySlotId })
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/address`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ addressId: addressBId })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send();
+      expect(res.status).toBe(200);
+      expect(res.body.order.pickupType).toBe('AGENCY');
+      expect(res.body.order.pickupSlotId).toBeNull();
+      expect(res.body.order.deliverySlotId).toBe(checkoutAgencyDeliverySlotId);
+      expect(res.body.order.subtotalXof).toBe(1200);
+    }, 30_000);
+
+    it('books at most one of two simultaneous checkouts for the last seat of a shared delivery slot', async () => {
+      const raceDigits = Date.now().toString().slice(-8);
+      const userRaceA = await prisma.user.create({
+        data: {
+          fullName: 'Course A',
+          email: `cart-race-a-${runId}@lavenet.test`,
+          phone: `+22539${raceDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const userRaceB = await prisma.user.create({
+        data: {
+          fullName: 'Course B',
+          email: `cart-race-b-${runId}@lavenet.test`,
+          phone: `+22530${raceDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const tokenRaceA = signToken(userRaceA.id);
+      const tokenRaceB = signToken(userRaceB.id);
+      const raceAddressA = await prisma.address.create({
+        data: {
+          userId: userRaceA.id,
+          label: 'Course',
+          commune: 'Cocody',
+          quartier: 'Angré',
+          details: 'Course A (test)',
+        },
+      });
+      const raceAddressB = await prisma.address.create({
+        data: {
+          userId: userRaceB.id,
+          label: 'Course',
+          commune: 'Cocody',
+          quartier: 'Angré',
+          details: 'Course B (test)',
+        },
+      });
+
+      await prepareHomeCart(tokenRaceA, {
+        addressId: raceAddressA.id,
+        pickupSlotId: racePickupSlotId,
+        deliverySlotId: raceSlotId,
+      });
+      await prepareHomeCart(tokenRaceB, {
+        addressId: raceAddressB.id,
+        pickupSlotId: racePickupSlotId,
+        deliverySlotId: raceSlotId,
+      });
+
+      const [resA, resB] = await Promise.all([
+        request(app.getHttpServer())
+          .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+          .set('Authorization', `Bearer ${tokenRaceA}`)
+          .send(),
+        request(app.getHttpServer())
+          .post(`/${API_GLOBAL_PREFIX}/cart/checkout`)
+          .set('Authorization', `Bearer ${tokenRaceB}`)
+          .send(),
+      ]);
+
+      const statuses = [resA.status, resB.status].sort();
+      expect(statuses).toEqual([200, 409]);
+      const winner = resA.status === 200 ? resA : resB;
+      const loser = resA.status === 200 ? resB : resA;
+      expect(winner.body.order.deliverySlotId).toBe(raceSlotId);
+      expect(loser.body.message).toContain('complété');
+
+      // The DB, not the HTTP responses, is the real guarantee (CLAUDE.md §4
+      // rule 4): exactly one seat booked, capacity never exceeded, and the
+      // loser's *own* pickup-slot booking was rolled back too, not left
+      // dangling from the same failed transaction.
+      const deliverySlot = await prisma.timeSlot.findUniqueOrThrow({ where: { id: raceSlotId } });
+      expect(deliverySlot.bookedCount).toBe(1);
+      const deliveryBookings = await prisma.slotBooking.findMany({ where: { slotId: raceSlotId } });
+      expect(deliveryBookings).toHaveLength(1);
+      const pickupSlot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: racePickupSlotId },
+      });
+      expect(pickupSlot.bookedCount).toBe(1);
+
+      await prisma.user.delete({ where: { id: userRaceA.id } });
+      await prisma.user.delete({ where: { id: userRaceB.id } });
     }, 45_000);
   });
 });

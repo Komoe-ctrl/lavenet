@@ -1,27 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  isPastDropoffDate,
-  resolveActivePriceRule,
-  resolveMinDeliverySlot,
-} from '@lavenet/shared-domain';
+import { isPastDropoffDate } from '@lavenet/shared-domain';
 import type {
   AddCartItemInput,
   Cart,
   CartItem,
+  SetDeliveryAddressInput,
   SetPickupModeInput,
   SetSlotsInput,
   UpdateCartItemInput,
 } from '@lavenet/shared-schemas';
+import { AddressesRepository } from '../addresses/addresses.repository';
 import { AgenciesRepository } from '../agencies/agencies.repository';
 import { SlotsRepository } from '../slots/slots.repository';
+import { assertDeliveryNotBeforeMinimum } from './assert-delivery-slot';
+import { formatIsoDate } from './format-iso-date';
 import { OrdersRepository } from './orders.repository';
-
-interface PriceRuleRecord {
-  articleTypeId: string | null;
-  amountXof: number;
-  effectiveFrom: Date;
-  effectiveTo: Date | null;
-}
+import { type PriceRuleRecord, resolvePriceForArticleType } from './resolve-price';
 
 interface ServiceRecord {
   id: string;
@@ -61,6 +55,7 @@ export class CartService {
     private readonly repo: OrdersRepository,
     private readonly agenciesRepo: AgenciesRepository,
     private readonly slotsRepo: SlotsRepository,
+    private readonly addressesRepo: AddressesRepository,
   ) {}
 
   async getCart(userId: string): Promise<{ cart: Cart }> {
@@ -193,7 +188,7 @@ export class CartService {
       if (!deliverySlot) {
         throw new BadRequestException('Créneau de livraison introuvable.');
       }
-      this.assertDeliveryNotBeforeMinimum(
+      assertDeliveryNotBeforeMinimum(
         { type: 'HOME', slotEndsAt: pickupSlot.endsAt },
         order.items,
         deliverySlot.startsAt,
@@ -212,7 +207,7 @@ export class CartService {
     }
     // order.pickupType === 'AGENCY' guarantees agencyDropoffDate is set
     // (setPickupMode never persists one without the other).
-    this.assertDeliveryNotBeforeMinimum(
+    assertDeliveryNotBeforeMinimum(
       { type: 'AGENCY', dropoffDate: order.agencyDropoffDate as Date },
       order.items,
       deliverySlot.startsAt,
@@ -222,18 +217,28 @@ export class CartService {
     return this.getCart(userId);
   }
 
-  private assertDeliveryNotBeforeMinimum(
-    anchor: Parameters<typeof resolveMinDeliverySlot>[0],
-    items: OrderItemRecord[],
-    deliverySlotStartsAt: Date,
-  ): void {
-    const slowestProcessingHours = Math.max(...items.map((item) => item.service.processingHours));
-    const minDeliverySlot = resolveMinDeliverySlot(anchor, slowestProcessingHours);
-    if (deliverySlotStartsAt < minDeliverySlot) {
-      throw new BadRequestException(
-        'Le créneau de livraison choisi est trop proche du retrait pour le temps de traitement requis.',
-      );
+  // F-CMD-05. Sets the cart's delivery-address *preference* -- checkout
+  // (CheckoutService) is what later copies the referenced Address's fields
+  // onto the order as a frozen snapshot (docs/ADR/0005). Ownership checked
+  // the same way as everywhere else in this service: same 400 whether the
+  // address doesn't exist, belongs to another user, or was soft-deleted, so
+  // an attacker probing ids can't tell any of these apart (CLAUDE.md §5).
+  async setDeliveryAddress(
+    userId: string,
+    input: SetDeliveryAddressInput,
+  ): Promise<{ cart: Cart }> {
+    const order = await this.repo.findDraftOrderWithItems(userId);
+    if (!order) {
+      throw new NotFoundException('Panier introuvable.');
     }
+
+    const address = await this.addressesRepo.findById(input.addressId);
+    if (!address || address.userId !== userId || address.deletedAt) {
+      throw new BadRequestException('Adresse introuvable.');
+    }
+
+    await this.repo.setDeliveryAddress(order.id, address.id);
+    return this.getCart(userId);
   }
 
   // Same NotFoundException whether the item doesn't exist, belongs to
@@ -313,16 +318,4 @@ export class CartService {
       deliveryAddressId: order.deliveryAddressId,
     };
   }
-}
-
-function formatIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function resolvePriceForArticleType(
-  service: { priceRules: PriceRuleRecord[] },
-  articleTypeId: string | null,
-): PriceRuleRecord | undefined {
-  const rules = service.priceRules.filter((rule) => rule.articleTypeId === articleTypeId);
-  return resolveActivePriceRule(rules);
 }
