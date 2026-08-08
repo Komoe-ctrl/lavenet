@@ -26,6 +26,8 @@ export type { RefreshResponseDtoOutput } from './models/refresh-response-dto-out
 export type { RegisterDto } from './models/register-dto';
 export type { RegisterResponseDtoOutput } from './models/register-response-dto-output';
 export type { SetPickupModeDto } from './models/set-pickup-mode-dto';
+export type { SetSlotsDto } from './models/set-slots-dto';
+export type { SlotsResponseDtoOutput } from './models/slots-response-dto-output';
 export type { UpdateAddressDto } from './models/update-address-dto';
 export type { UpdateAddressResponseDtoOutput } from './models/update-address-response-dto-output';
 export type { UpdateCartItemDto } from './models/update-cart-item-dto';

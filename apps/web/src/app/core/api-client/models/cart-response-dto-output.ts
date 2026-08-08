@@ -22,5 +22,7 @@ export interface CartResponseDtoOutput {
 'pickupType': (('HOME' | 'AGENCY')) | null;
 'agencyId': string | null;
 'agencyDropoffDate': string | null;
+'pickupSlotId': string | null;
+'deliverySlotId': string | null;
 };
 }

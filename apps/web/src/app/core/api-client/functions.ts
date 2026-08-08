@@ -41,6 +41,8 @@ export type { AddressesControllerUpdate$Params as AddressesControllerUpdate$Para
 export { addressesControllerUpdate as addressesControllerUpdate } from './fn/addresses/addresses-controller-update';
 export type { AgenciesControllerListAgencies$Params as AgenciesControllerListAgencies$Params } from './fn/agencies/agencies-controller-list-agencies';
 export { agenciesControllerListAgencies as agenciesControllerListAgencies } from './fn/agencies/agencies-controller-list-agencies';
+export type { SlotsControllerListSlots$Params as SlotsControllerListSlots$Params } from './fn/slots/slots-controller-list-slots';
+export { slotsControllerListSlots as slotsControllerListSlots } from './fn/slots/slots-controller-list-slots';
 export type { CartControllerGetCart$Params as CartControllerGetCart$Params } from './fn/cart/cart-controller-get-cart';
 export { cartControllerGetCart as cartControllerGetCart } from './fn/cart/cart-controller-get-cart';
 export type { CartControllerClearCart$Params as CartControllerClearCart$Params } from './fn/cart/cart-controller-clear-cart';
@@ -53,3 +55,5 @@ export type { CartControllerUpdateItem$Params as CartControllerUpdateItem$Params
 export { cartControllerUpdateItem as cartControllerUpdateItem } from './fn/cart/cart-controller-update-item';
 export type { CartControllerSetPickupMode$Params as CartControllerSetPickupMode$Params } from './fn/cart/cart-controller-set-pickup-mode';
 export { cartControllerSetPickupMode as cartControllerSetPickupMode } from './fn/cart/cart-controller-set-pickup-mode';
+export type { CartControllerSetSlots$Params as CartControllerSetSlots$Params } from './fn/cart/cart-controller-set-slots';
+export { cartControllerSetSlots as cartControllerSetSlots } from './fn/cart/cart-controller-set-slots';
