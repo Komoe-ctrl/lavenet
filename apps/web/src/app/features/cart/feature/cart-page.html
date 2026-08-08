@@ -152,6 +152,64 @@
           {{ savingPickup() ? 'Enregistrement…' : 'Valider le mode de retrait' }}
         </button>
       </section>
+
+      @if (data.pickupType !== null) {
+        <section class="pickup-mode slots-section">
+          <h2>Créneaux</h2>
+
+          @if (slots.isLoading()) {
+            <p class="state">Chargement des créneaux…</p>
+          } @else if (slots.error()) {
+            <p class="state state-error" role="alert">Impossible de charger les créneaux.</p>
+          } @else if (slots.hasValue()) {
+            @if (data.pickupType === 'HOME') {
+              <label class="pickup-mode__field slots-section__field">
+                Créneau de retrait
+                <select (change)="choosePickupSlot($any($event.target).value)">
+                  <option value="" [selected]="selectedPickupSlotId() === null">
+                    Choisir un créneau
+                  </option>
+                  @for (slot of slots.value().slots; track slot.id) {
+                    <option [value]="slot.id" [selected]="selectedPickupSlotId() === slot.id">
+                      {{ formatSlotLabel(slot.startsAt, slot.endsAt) }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+            <label class="pickup-mode__field slots-section__field">
+              Créneau de livraison
+              <select (change)="chooseDeliverySlot($any($event.target).value)">
+                <option value="" [selected]="selectedDeliverySlotId() === null">
+                  Choisir un créneau
+                </option>
+                @for (slot of slots.value().slots; track slot.id) {
+                  <option [value]="slot.id" [selected]="selectedDeliverySlotId() === slot.id">
+                    {{ formatSlotLabel(slot.startsAt, slot.endsAt) }}
+                  </option>
+                }
+              </select>
+            </label>
+            <p class="pickup-mode__hours">
+              Le créneau de livraison doit laisser le temps de traitement nécessaire après le
+              retrait.
+            </p>
+          }
+
+          @if (slotsError()) {
+            <p class="field-error" role="alert">{{ slotsError() }}</p>
+          }
+
+          <button
+            type="button"
+            class="pickup-mode__save slots-section__save"
+            [disabled]="savingSlots() || !canSaveSlots()"
+            (click)="saveSlots()"
+          >
+            {{ savingSlots() ? 'Enregistrement…' : 'Valider les créneaux' }}
+          </button>
+        </section>
+      }
     }
   }
 </main>

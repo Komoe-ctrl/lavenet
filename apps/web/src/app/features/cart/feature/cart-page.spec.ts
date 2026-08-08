@@ -5,9 +5,11 @@ import { provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { AgenciesResponseDtoOutput } from '../../../core/api-client/models/agencies-response-dto-output';
 import { CartResponseDtoOutput } from '../../../core/api-client/models/cart-response-dto-output';
+import { SlotsResponseDtoOutput } from '../../../core/api-client/models/slots-response-dto-output';
 import { SessionStore } from '../../../core/auth/session.store';
 import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
+import { SlotsService } from '../data-access/slots.service';
 import { CartPage } from './cart-page';
 
 const EMPTY_CART: CartResponseDtoOutput = {
@@ -19,6 +21,8 @@ const EMPTY_CART: CartResponseDtoOutput = {
     pickupType: null,
     agencyId: null,
     agencyDropoffDate: null,
+    pickupSlotId: null,
+    deliverySlotId: null,
   },
 };
 
@@ -58,6 +62,8 @@ const CART_WITH_ITEMS: CartResponseDtoOutput = {
     pickupType: null,
     agencyId: null,
     agencyDropoffDate: null,
+    pickupSlotId: null,
+    deliverySlotId: null,
   },
 };
 
@@ -72,16 +78,42 @@ const AGENCIES: AgenciesResponseDtoOutput = {
   ],
 };
 
+const SLOTS: SlotsResponseDtoOutput = {
+  slots: [
+    {
+      id: 'slot_1',
+      date: '2026-08-10',
+      startsAt: '2026-08-10T08:00:00.000Z',
+      endsAt: '2026-08-10T10:00:00.000Z',
+      capacity: 5,
+      seatsAvailable: 5,
+    },
+    {
+      id: 'slot_2',
+      date: '2026-08-13',
+      startsAt: '2026-08-13T08:00:00.000Z',
+      endsAt: '2026-08-13T10:00:00.000Z',
+      capacity: 5,
+      seatsAvailable: 5,
+    },
+  ],
+};
+
 type FakeCartService = {
   getCart: () => Promise<CartResponseDtoOutput>;
   updateItem: (id: string, body: unknown) => Promise<CartResponseDtoOutput>;
   removeItem: (id: string) => Promise<CartResponseDtoOutput>;
   clearCart: () => Promise<CartResponseDtoOutput>;
   setPickupMode: (body: unknown) => Promise<CartResponseDtoOutput>;
+  setSlots: (body: unknown) => Promise<CartResponseDtoOutput>;
 };
 
 type FakeAgenciesService = {
   listAgencies: () => Promise<AgenciesResponseDtoOutput>;
+};
+
+type FakeSlotsService = {
+  listSlots: () => Promise<SlotsResponseDtoOutput>;
 };
 
 // SiteHeader (rendered by CartPage) reads isAuthenticated()/user() -- a
@@ -89,6 +121,7 @@ type FakeAgenciesService = {
 function configureWith(
   service: Partial<FakeCartService>,
   agenciesService: Partial<FakeAgenciesService> = {},
+  slotsService: Partial<FakeSlotsService> = {},
 ) {
   TestBed.configureTestingModule({
     providers: [
@@ -102,6 +135,7 @@ function configureWith(
           removeItem: vi.fn(),
           clearCart: vi.fn(),
           setPickupMode: vi.fn(),
+          setSlots: vi.fn(),
           ...service,
         },
       },
@@ -110,6 +144,13 @@ function configureWith(
         useValue: {
           listAgencies: vi.fn().mockResolvedValue(AGENCIES),
           ...agenciesService,
+        },
+      },
+      {
+        provide: SlotsService,
+        useValue: {
+          listSlots: vi.fn().mockResolvedValue(SLOTS),
+          ...slotsService,
         },
       },
       { provide: SessionStore, useValue: { isAuthenticated: () => true, user: () => null } },
@@ -198,6 +239,8 @@ describe('CartPage', () => {
         pickupType: null,
         agencyId: null,
         agencyDropoffDate: null,
+        pickupSlotId: null,
+        deliverySlotId: null,
       },
     };
     const removeItem = vi.fn().mockResolvedValue(afterRemoval);
@@ -229,6 +272,8 @@ describe('CartPage', () => {
         pickupType: null,
         agencyId: null,
         agencyDropoffDate: null,
+        pickupSlotId: null,
+        deliverySlotId: null,
       },
     };
     const clearCart = vi.fn().mockResolvedValue(afterClearing);
@@ -262,6 +307,8 @@ describe('CartPage', () => {
             pickupType: null,
             agencyId: null,
             agencyDropoffDate: null,
+            pickupSlotId: null,
+            deliverySlotId: null,
           },
         }),
     });
@@ -465,6 +512,170 @@ describe('CartPage', () => {
       await fixture.whenStable();
 
       expect(fixture.nativeElement.textContent).toContain('Agence introuvable.');
+    });
+  });
+
+  describe('slots (F-CMD-04)', () => {
+    function cartWithPickup(pickupType: 'HOME' | 'AGENCY'): CartResponseDtoOutput {
+      return {
+        cart: {
+          ...CART_WITH_ITEMS.cart,
+          pickupType,
+          agencyId: pickupType === 'AGENCY' ? 'agy_1' : null,
+          agencyDropoffDate: pickupType === 'AGENCY' ? '2026-08-10' : null,
+        },
+      };
+    }
+
+    it('hides the slots section until a pickup mode is saved', async () => {
+      configureWith({ getCart: () => Promise.resolve(CART_WITH_ITEMS) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.slots-section')).toBeNull();
+    });
+
+    it('shows both a pickup-slot and a delivery-slot picker for HOME', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('HOME')) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const selects = fixture.nativeElement.querySelectorAll('.slots-section__field select');
+      expect(selects).toHaveLength(2);
+      expect(fixture.nativeElement.textContent).toContain('Créneau de retrait');
+      expect(fixture.nativeElement.textContent).toContain('Créneau de livraison');
+    });
+
+    it('shows only a delivery-slot picker for AGENCY', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('AGENCY')) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const selects = fixture.nativeElement.querySelectorAll('.slots-section__field select');
+      expect(selects).toHaveLength(1);
+      expect(fixture.nativeElement.textContent).not.toContain('Créneau de retrait');
+      expect(fixture.nativeElement.textContent).toContain('Créneau de livraison');
+    });
+
+    it('keeps the save button disabled for HOME until both slots are chosen', async () => {
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('HOME')) });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.slots-section__save');
+      expect(saveButton.disabled).toBe(true);
+
+      const [pickupSelect, deliverySelect]: HTMLSelectElement[] =
+        fixture.nativeElement.querySelectorAll('.slots-section__field select');
+      pickupSelect.value = 'slot_1';
+      pickupSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(saveButton.disabled).toBe(true);
+
+      deliverySelect.value = 'slot_2';
+      deliverySelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(saveButton.disabled).toBe(false);
+    });
+
+    it('saves HOME slots with both a pickup and a delivery slot id', async () => {
+      const setSlots = vi.fn().mockResolvedValue(cartWithPickup('HOME'));
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('HOME')), setSlots });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [pickupSelect, deliverySelect]: HTMLSelectElement[] =
+        fixture.nativeElement.querySelectorAll('.slots-section__field select');
+      pickupSelect.value = 'slot_1';
+      pickupSelect.dispatchEvent(new Event('change'));
+      deliverySelect.value = 'slot_2';
+      deliverySelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('.slots-section__save').click();
+      await fixture.whenStable();
+
+      expect(setSlots).toHaveBeenCalledWith({ pickupSlotId: 'slot_1', deliverySlotId: 'slot_2' });
+    });
+
+    it('saves AGENCY slots with just a delivery slot id', async () => {
+      const setSlots = vi.fn().mockResolvedValue(cartWithPickup('AGENCY'));
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('AGENCY')), setSlots });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [deliverySelect]: HTMLSelectElement[] = fixture.nativeElement.querySelectorAll(
+        '.slots-section__field select',
+      );
+      deliverySelect.value = 'slot_2';
+      deliverySelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      fixture.nativeElement.querySelector('.slots-section__save').click();
+      await fixture.whenStable();
+
+      expect(setSlots).toHaveBeenCalledWith({ deliverySlotId: 'slot_2' });
+    });
+
+    it('pre-selects the slots already saved on the cart', async () => {
+      configureWith({
+        getCart: () =>
+          Promise.resolve({
+            cart: {
+              ...cartWithPickup('HOME').cart,
+              pickupSlotId: 'slot_1',
+              deliverySlotId: 'slot_2',
+            },
+          }),
+      });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [pickupSelect, deliverySelect]: HTMLSelectElement[] =
+        fixture.nativeElement.querySelectorAll('.slots-section__field select');
+      expect(pickupSelect.value).toBe('slot_1');
+      expect(deliverySelect.value).toBe('slot_2');
+
+      const saveButton: HTMLButtonElement =
+        fixture.nativeElement.querySelector('.slots-section__save');
+      expect(saveButton.disabled).toBe(false);
+    });
+
+    it('shows an inline error when saving slots fails', async () => {
+      const setSlots = vi.fn(() =>
+        Promise.reject(
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message:
+                'Le créneau de livraison choisi est trop proche du retrait pour le temps de traitement requis.',
+            },
+          }),
+        ),
+      );
+      configureWith({ getCart: () => Promise.resolve(cartWithPickup('AGENCY')), setSlots });
+      const fixture = TestBed.createComponent(CartPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const [deliverySelect]: HTMLSelectElement[] = fixture.nativeElement.querySelectorAll(
+        '.slots-section__field select',
+      );
+      deliverySelect.value = 'slot_1';
+      deliverySelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.nativeElement.querySelector('.slots-section__save').click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('trop proche du retrait');
     });
   });
 });
