@@ -2,6 +2,8 @@ import { createZodDto } from 'nestjs-zod';
 import {
   addCartItemSchema,
   cartResponseSchema,
+  checkoutResponseSchema,
+  setDeliveryAddressSchema,
   setPickupModeSchema,
   setSlotsSchema,
   updateCartItemSchema,
@@ -11,6 +13,8 @@ export class AddCartItemDto extends createZodDto(addCartItemSchema) {}
 export class UpdateCartItemDto extends createZodDto(updateCartItemSchema) {}
 export class CartResponseDto extends createZodDto(cartResponseSchema) {}
 export class SetSlotsDto extends createZodDto(setSlotsSchema) {}
+export class SetDeliveryAddressDto extends createZodDto(setDeliveryAddressSchema) {}
+export class CheckoutResponseDto extends createZodDto(checkoutResponseSchema) {}
 
 // Not `class ... extends createZodDto(...)`, unlike the DTOs above: a
 // discriminated union's parsed type is a union, and TS refuses to extend a
