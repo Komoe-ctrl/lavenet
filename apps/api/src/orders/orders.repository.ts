@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { formatOrderReference } from '@lavenet/shared-domain';
+import type { PlacedOrderStatus } from '@lavenet/shared-schemas';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface AddItemData {
@@ -60,6 +61,15 @@ const checkoutOrderInclude = {
 } satisfies Prisma.OrderInclude;
 
 export type CheckoutOrderRecord = Prisma.OrderGetPayload<{ include: typeof checkoutOrderInclude }>;
+
+// F-CMD-09. Same items shape as checkoutOrderInclude, plus the transition
+// history the detail endpoint's frise needs.
+const orderDetailInclude = {
+  items: { include: { service: true, articleType: true }, orderBy: { createdAt: 'asc' } },
+  statusHistory: { orderBy: { createdAt: 'asc' } },
+} satisfies Prisma.OrderInclude;
+
+export type OrderDetailRecord = Prisma.OrderGetPayload<{ include: typeof orderDetailInclude }>;
 
 export type CheckoutResult =
   { ok: true; order: CheckoutOrderRecord } | { ok: false; reason: CheckoutSlotFullReason };
@@ -182,6 +192,31 @@ export class OrdersRepository {
         deliveryAddress: true,
       },
     });
+  }
+
+  // F-CMD-09. DRAFT excluded unconditionally (it's the cart, never a
+  // placed order) regardless of whether a status filter was given -- the
+  // filter narrows within placed orders, it never widens back to DRAFT.
+  findPlacedOrdersForUser(userId: string, status?: PlacedOrderStatus) {
+    return this.prisma.order.findMany({
+      where: { userId, status: status ?? { not: 'DRAFT' } },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        totalXof: true,
+        createdAt: true,
+        _count: { select: { items: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // F-CMD-09. Ownership (IDOR) is checked by the caller (OrdersHistoryService)
+  // by comparing the returned row's userId -- same 404-either-way pattern as
+  // AddressesService.assertOwnedAddress.
+  findOrderDetail(orderId: string) {
+    return this.prisma.order.findUnique({ where: { id: orderId }, include: orderDetailInclude });
   }
 
   // F-CMD-05/07/CLAUDE.md §4 rule 4. One atomic transaction: books the

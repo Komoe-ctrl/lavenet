@@ -6,7 +6,9 @@ import { SlotsModule } from '../slots/slots.module';
 import { CartController } from './cart.controller';
 import { CartService } from './cart.service';
 import { CheckoutService } from './checkout.service';
+import { OrdersController } from './orders.controller';
 import { OrdersRepository } from './orders.repository';
+import { OrdersService } from './orders.service';
 
 @Module({
   // AuthModule for JwtAuthGuard (needs AuthService injected, exported
@@ -18,7 +20,7 @@ import { OrdersRepository } from './orders.repository';
   // delivery address id). All exported from their own module -- see
   // agencies.module.ts/slots.module.ts/addresses.module.ts.
   imports: [AuthModule, AgenciesModule, SlotsModule, AddressesModule],
-  controllers: [CartController],
-  providers: [CartService, CheckoutService, OrdersRepository],
+  controllers: [CartController, OrdersController],
+  providers: [CartService, CheckoutService, OrdersService, OrdersRepository],
 })
 export class OrdersModule {}
