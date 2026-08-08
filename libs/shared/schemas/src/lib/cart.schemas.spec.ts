@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { addCartItemSchema, cartSchema, updateCartItemSchema } from './cart.schemas';
+import {
+  addCartItemSchema,
+  cartSchema,
+  setDeliveryAddressSchema,
+  updateCartItemSchema,
+} from './cart.schemas';
 
 describe('addCartItemSchema', () => {
   function validInput() {
@@ -90,6 +95,7 @@ describe('cartSchema', () => {
       agencyDropoffDate: null,
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
     expect(result.success).toBe(true);
   });
@@ -119,6 +125,7 @@ describe('cartSchema', () => {
       agencyDropoffDate: null,
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
     expect(result.success).toBe(true);
   });
@@ -134,6 +141,7 @@ describe('cartSchema', () => {
       agencyDropoffDate: null,
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
     expect(result.success).toBe(true);
   });
@@ -149,6 +157,7 @@ describe('cartSchema', () => {
       agencyDropoffDate: '2026-08-10',
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
     expect(result.success).toBe(true);
   });
@@ -164,7 +173,40 @@ describe('cartSchema', () => {
       agencyDropoffDate: null,
       pickupSlotId: 'slot_1',
       deliverySlotId: 'slot_2',
+      deliveryAddressId: null,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts a cart with a delivery address chosen', () => {
+    const result = cartSchema.safeParse({
+      id: 'ord_1',
+      items: [],
+      subtotalXof: 0,
+      hasUnavailablePricing: false,
+      pickupType: 'HOME',
+      agencyId: null,
+      agencyDropoffDate: null,
+      pickupSlotId: null,
+      deliverySlotId: null,
+      deliveryAddressId: 'addr_1',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('setDeliveryAddressSchema', () => {
+  it('accepts a non-empty addressId', () => {
+    expect(setDeliveryAddressSchema.safeParse({ addressId: 'addr_1' }).success).toBe(true);
+  });
+
+  it('rejects a missing addressId, with a French message', () => {
+    const result = setDeliveryAddressSchema.safeParse({});
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe('Adresse requise.');
+  });
+
+  it('rejects an empty addressId', () => {
+    expect(setDeliveryAddressSchema.safeParse({ addressId: '' }).success).toBe(false);
   });
 });

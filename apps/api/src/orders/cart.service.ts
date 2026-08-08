@@ -52,6 +52,7 @@ interface OrderWithItemsRecord {
   agencyDropoffDate: Date | null;
   pickupSlotId: string | null;
   deliverySlotId: string | null;
+  deliveryAddressId: string | null;
 }
 
 @Injectable()
@@ -259,6 +260,7 @@ export class CartService {
         agencyDropoffDate: null,
         pickupSlotId: null,
         deliverySlotId: null,
+        deliveryAddressId: null,
       };
     }
 
@@ -308,6 +310,7 @@ export class CartService {
       agencyDropoffDate: order.agencyDropoffDate ? formatIsoDate(order.agencyDropoffDate) : null,
       pickupSlotId: order.pickupSlotId,
       deliverySlotId: order.deliverySlotId,
+      deliveryAddressId: order.deliveryAddressId,
     };
   }
 }

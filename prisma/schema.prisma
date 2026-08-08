@@ -101,7 +101,8 @@ model Address {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([userId])
   @@map("addresses")
@@ -318,19 +319,59 @@ model Order {
   pickupSlotId   String?
   deliverySlotId String?
 
+  // F-CMD-05/07 (increment 4). Everything below is null for the entire time
+  // the order is DRAFT and gets its one and only write at checkout, in the
+  // same transaction that books the slot seats -- same "frozen, never
+  // recomputed" convention as OrderItem.unitPriceXof (CLAUDE.md §4 rule 2).
+  //
+  // reference: human-readable, unique (CLAUDE.md §4 rule 9), consumed from
+  // `order_reference_seq` (raw SQL in this migration, CLAUDE.md §2 exception
+  // for slot/sequence reservations) in the checkout transaction. The
+  // sequence itself is NOT transactional in Postgres -- a rolled-back
+  // checkout burns a number, so this guarantees uniqueness, not
+  // gap-freeness. CLAUDE.md §4 rule 5's "no gaps" requirement is scoped to
+  // Invoice numbering, not Order.reference.
+  //
+  // vatRateBps/vatAmountXof: always written (even 0), never left null past
+  // checkout -- CLAUDE.md §4 rule 1 ("même à zéro"). See
+  // docs/ADR/0007-checkout-vat.md: V1 charges no VAT, but the columns exist
+  // so a future non-zero rate needs no migration.
+  //
+  // deliveryCommune/deliveryQuartier/deliveryDetails/deliveryGeoLat/
+  // deliveryGeoLng: copied from deliveryAddressId's Address at checkout, per
+  // docs/ADR/0005-address-deletion-policy.md -- deliveryAddressId itself is
+  // only ever consulted pre-checkout (like pickupSlotId/deliverySlotId, a
+  // preference, not a live source of truth); editing or soft-deleting the
+  // original Address afterwards must never change a validated order.
+  reference         String? @unique
+  subtotalXof       Int?
+  discountXof       Int?
+  deliveryFeeXof    Int?
+  vatRateBps        Int?
+  vatAmountXof      Int?
+  totalXof          Int?
+  deliveryAddressId String?
+  deliveryCommune   String?
+  deliveryQuartier  String?
+  deliveryDetails   String?
+  deliveryGeoLat    Float?
+  deliveryGeoLng    Float?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agency       Agency?     @relation(fields: [agencyId], references: [id])
-  pickupSlot   TimeSlot?   @relation("PickupSlot", fields: [pickupSlotId], references: [id])
-  deliverySlot TimeSlot?   @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
-  items        OrderItem[]
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agency          Agency?     @relation(fields: [agencyId], references: [id])
+  pickupSlot      TimeSlot?   @relation("PickupSlot", fields: [pickupSlotId], references: [id])
+  deliverySlot    TimeSlot?   @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
+  deliveryAddress Address?    @relation(fields: [deliveryAddressId], references: [id])
+  items           OrderItem[]
 
   @@index([userId, status])
   @@index([agencyId])
   @@index([pickupSlotId])
   @@index([deliverySlotId])
+  @@index([deliveryAddressId])
   @@map("orders")
 }
 

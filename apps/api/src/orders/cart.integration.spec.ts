@@ -269,6 +269,7 @@ describe('Cart (integration)', () => {
       agencyDropoffDate: null,
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
   });
 
@@ -546,6 +547,7 @@ describe('Cart (integration)', () => {
       agencyDropoffDate: null,
       pickupSlotId: null,
       deliverySlotId: null,
+      deliveryAddressId: null,
     });
   });
 
