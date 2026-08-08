@@ -12,6 +12,7 @@ import { hash } from '@node-rs/argon2';
 import { seedCatalog } from './catalog-data';
 import { seedAgency } from './agency-data';
 import { seedTimeSlots } from './timeslot-data';
+import { seedDemoOrders } from './order-data';
 
 // `prisma migrate dev` loads .env via prisma.config.ts before spawning this
 // script, but running it directly (pnpm db:seed / db:seed:prod) doesn't —
@@ -71,10 +72,12 @@ async function main() {
 
   const passwordHash = await hash(DEMO_PASSWORD);
 
+  const createdUsers = new Map<string, { id: string }>();
   for (const user of DEMO_USERS) {
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: { ...user, passwordHash, phoneVerifiedAt: new Date() },
     });
+    createdUsers.set(user.email, created);
   }
 
   console.log('Seeded demo accounts (password for both: %s):', DEMO_PASSWORD);
@@ -93,6 +96,12 @@ async function main() {
 
   const slotsResult = await seedTimeSlots(prisma);
   console.log(`Seeded ${slotsResult.created} time slot(s).`);
+
+  const client = createdUsers.get('client@lavenet.ci');
+  if (client) {
+    const ordersResult = await seedDemoOrders(prisma, client.id);
+    console.log(`Seeded ${ordersResult.created} demo order(s).`);
+  }
 
   await prisma.$disconnect();
 }

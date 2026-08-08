@@ -19,6 +19,8 @@
     "db:seed:agency:prod": "node -r @swc-node/register prisma/seed-agency.ts .env.production.local",
     "db:seed:slots": "node -r @swc-node/register prisma/seed-timeslots.ts",
     "db:seed:slots:prod": "node -r @swc-node/register prisma/seed-timeslots.ts .env.production.local",
+    "db:seed:demo-orders": "node -r @swc-node/register prisma/seed-demo-orders.ts",
+    "db:seed:demo-orders:prod": "node -r @swc-node/register prisma/seed-demo-orders.ts .env.production.local",
     "db:studio": "prisma studio",
     "db:check-drift": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
     "api:client:spec": "node tools/scripts/generate-openapi-spec.js",
