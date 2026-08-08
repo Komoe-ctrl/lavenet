@@ -20,8 +20,10 @@ model User {
   id              String    @id @default(cuid())
   role            UserRole  @default(CLIENT)
   // Nullable even though F-AUTH-01/05 require it at registration/profile
-  // edit: rows created before this field existed (the seeded demo accounts)
-  // predate it and can't be backfilled with a real value.
+  // edit: a real account can still exist without one in the interim (e.g.
+  // profile not yet completed). Demo accounts do have a real value
+  // (prisma/demo-accounts-data.ts, seeded via seed-demo-accounts.ts) --
+  // never left as a literal "—" on /compte.
   fullName        String?
   email           String?   @unique
   phone           String    @unique
