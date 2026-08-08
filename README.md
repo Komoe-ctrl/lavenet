@@ -109,6 +109,16 @@ après une remise à zéro de la base) :
 Le script refuse de s'exécuter si la base cible contient déjà des utilisateurs — pas de
 risque d'écraser des données par erreur de cible ou de double exécution.
 
+**Corriger / compléter les comptes de démo déjà en base** (ex. `fullName` manquant sur
+un compte créé par une version antérieure du seed) :
+
+1. `.env.production.local` déjà en place (voir ci-dessus).
+2. `pnpm db:seed:demo-accounts:prod`
+
+Idempotent, contrairement au seed de comptes ci-dessus : ne touche jamais le mot de
+passe, le rôle ou le téléphone d'un compte existant, ne complète que `fullName` s'il est
+`null`. Crée le compte s'il manque entièrement.
+
 **Seeder / mettre à jour le catalogue en production** (catégories, services, types
 d'article, tarifs — indépendant des comptes, rejouable sans risque) :
 
@@ -150,6 +160,18 @@ rejeu, la fenêtre s'épuise en 21 jours et le checkout redevient bloqué, silen
 _Pourquoi pas un vrai back-office de créneaux dès maintenant ?_ La création de créneaux
 en back-office (F-LIV-01/F-ADM-05) est un lot plus tardif ; jusque-là, ce script est la
 seule source de `TimeSlot`.
+
+**Seeder les commandes de démo en production** (F-CMD-09/F-STA — sans ça, l'historique
+et la frise de progression n'ont rien à montrer en démo) :
+
+1. `.env.production.local` déjà en place (voir ci-dessus), comptes de démo, catalogue,
+   agence déjà seedés (voir ci-dessus).
+2. `pnpm db:seed:demo-orders:prod`
+
+Idempotent comme le catalogue : 25 commandes réparties sur tous les statuts et 60 jours,
+upsertées par une référence fixe (`LN-DEMO-NNN`, jamais la séquence réelle
+`order_reference_seq` — la consommer ici ferait qu'un rejeu crée 25 commandes de plus
+au lieu de mettre à jour les mêmes 25).
 
 ## Renouvellement automatique
 

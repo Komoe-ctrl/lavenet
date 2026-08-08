@@ -13,6 +13,7 @@ import { seedCatalog } from './catalog-data';
 import { seedAgency } from './agency-data';
 import { seedTimeSlots } from './timeslot-data';
 import { seedDemoOrders } from './order-data';
+import { DEMO_PASSWORD, seedDemoAccounts } from './demo-accounts-data';
 
 // `prisma migrate dev` loads .env via prisma.config.ts before spawning this
 // script, but running it directly (pnpm db:seed / db:seed:prod) doesn't —
@@ -30,23 +31,6 @@ try {
   }
   // no .env file (CI) — env vars are expected to be set already
 }
-
-const DEMO_PASSWORD = 'Demo1234!';
-
-const DEMO_USERS = [
-  {
-    phone: '+2250700000001',
-    email: 'admin@lavenet.ci',
-    fullName: 'Admin LaveNet',
-    role: 'ADMIN' as const,
-  },
-  {
-    phone: '+2250700000002',
-    email: 'client@lavenet.ci',
-    fullName: 'Client Démo',
-    role: 'CLIENT' as const,
-  },
-];
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -71,19 +55,8 @@ async function main() {
   }
 
   const passwordHash = await hash(DEMO_PASSWORD);
-
-  const createdUsers = new Map<string, { id: string }>();
-  for (const user of DEMO_USERS) {
-    const created = await prisma.user.create({
-      data: { ...user, passwordHash, phoneVerifiedAt: new Date() },
-    });
-    createdUsers.set(user.email, created);
-  }
-
-  console.log('Seeded demo accounts (password for both: %s):', DEMO_PASSWORD);
-  for (const user of DEMO_USERS) {
-    console.log(`  ${user.role.padEnd(6)} — ${user.email}`);
-  }
+  await seedDemoAccounts(prisma, passwordHash);
+  console.log('Seeded demo accounts (password for both: %s).', DEMO_PASSWORD);
 
   const catalogResult = await seedCatalog(prisma);
   console.log(
@@ -97,11 +70,9 @@ async function main() {
   const slotsResult = await seedTimeSlots(prisma);
   console.log(`Seeded ${slotsResult.created} time slot(s).`);
 
-  const client = createdUsers.get('client@lavenet.ci');
-  if (client) {
-    const ordersResult = await seedDemoOrders(prisma, client.id);
-    console.log(`Seeded ${ordersResult.created} demo order(s).`);
-  }
+  const client = await prisma.user.findUniqueOrThrow({ where: { email: 'client@lavenet.ci' } });
+  const ordersResult = await seedDemoOrders(prisma, client.id);
+  console.log(`Seeded ${ordersResult.created} demo order(s).`);
 
   await prisma.$disconnect();
 }
