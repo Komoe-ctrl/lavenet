@@ -59,6 +59,17 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./features/cart/feature/cart-page').then((m) => m.CartPage),
   },
   {
+    path: 'commandes',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/orders/feature/orders-page').then((m) => m.OrdersPage),
+  },
+  {
+    path: 'commandes/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/orders/feature/order-detail-page').then((m) => m.OrderDetailPage),
+  },
+  {
     path: '**',
     loadComponent: () =>
       import('./features/not-found/feature/not-found-page').then((m) => m.NotFoundPage),

@@ -1,0 +1,93 @@
+<app-site-header />
+
+<main class="order-detail-page">
+  @if (order.isLoading()) {
+    <p class="state">Chargement de la commande…</p>
+  } @else if (order.error()) {
+    <p class="state state-error" role="alert">Commande introuvable.</p>
+  } @else if (order.hasValue()) {
+    @let data = order.value();
+    <a routerLink="/commandes" class="back-link">← Mes commandes</a>
+
+    <h1>Commande {{ data.reference }}</h1>
+    <p class="order-date">Passée le {{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
+
+    @if (isInterrupted(data.status)) {
+      <p class="status-banner" [class.status-banner--cancelled]="data.status === 'CANCELLED'">
+        {{ statusLabels[data.status] }}
+      </p>
+    } @else {
+      <ol class="progress-frise">
+        @for (step of progressSteps; track step; let i = $index) {
+          <li
+            class="progress-frise__step"
+            [class.progress-frise__step--done]="i <= currentStepIndex()"
+            [class.progress-frise__step--current]="i === currentStepIndex()"
+          >
+            <span class="progress-frise__dot" aria-hidden="true"></span>
+            <span class="progress-frise__label">{{ statusLabels[step] }}</span>
+          </li>
+        }
+      </ol>
+    }
+
+    <ul class="cart-list">
+      @for (item of data.items; track item.id) {
+        <li class="cart-item">
+          <div class="cart-item__info">
+            <h3>{{ item.serviceName }}</h3>
+            @if (item.articleTypeName) {
+              <p class="cart-item__article">{{ item.articleTypeName }}</p>
+            }
+          </div>
+          <div class="cart-item__controls">
+            <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
+            <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
+          </div>
+        </li>
+      }
+    </ul>
+
+    <section class="order-summary">
+      <p>
+        Sous-total <strong>{{ data.subtotalXof | money }}</strong>
+      </p>
+      <p>
+        Remise <strong>{{ data.discountXof | money }}</strong>
+      </p>
+      <p>
+        Frais de livraison
+        <strong>{{ data.deliveryFeeXof === 0 ? 'Offerts' : (data.deliveryFeeXof | money) }}</strong>
+      </p>
+      <p class="order-summary__total">
+        Total TTC <strong>{{ data.totalXof | money }}</strong>
+      </p>
+    </section>
+
+    <p class="order-delivery">
+      Livraison : {{ data.deliveryCommune }}, {{ data.deliveryQuartier }} --
+      {{ data.deliveryDetails }}
+    </p>
+
+    @if (data.statusHistory.length > 0) {
+      <section class="history">
+        <h2>Historique</h2>
+        <ul class="history-list">
+          @for (entry of data.statusHistory; track entry.createdAt) {
+            <li>
+              <span class="history-list__date">{{
+                entry.createdAt | date: 'dd/MM/yyyy HH:mm'
+              }}</span>
+              <span>{{ statusLabels[entry.toStatus] }}</span>
+              @if (entry.reason) {
+                <span class="history-list__reason">« {{ entry.reason }} »</span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</main>
+
+<app-site-footer />

@@ -56,9 +56,9 @@ describe('AccountPage', () => {
     expect(text).toContain('client@lavenet.ci');
     expect(text).toContain('CLIENT');
     expect(text).toContain('Bientôt disponible');
-    expect(text).toContain('Créneaux');
-    expect(text).toContain('Suivi');
     expect(text).toContain('Paiement');
+    expect(text).toContain('Notifications');
+    expect(text).toContain('Mes commandes');
     // Already verified in SAMPLE_USER -- no nudge to go verify.
     expect(text).not.toContain('non vérifié');
   });

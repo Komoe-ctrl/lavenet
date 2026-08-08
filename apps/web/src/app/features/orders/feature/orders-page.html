@@ -1,0 +1,62 @@
+<app-site-header />
+
+<main class="orders-page">
+  <h1>Mes commandes</h1>
+
+  <div class="filters" role="group" aria-label="Filtrer par statut">
+    <button
+      type="button"
+      class="filter-chip"
+      [class.filter-chip--active]="statusFilter() === null"
+      (click)="setFilter(null)"
+    >
+      Toutes
+    </button>
+    @for (status of filterStatuses; track status) {
+      <button
+        type="button"
+        class="filter-chip"
+        [class.filter-chip--active]="statusFilter() === status"
+        (click)="setFilter(status)"
+      >
+        {{ labelFor(status) }}
+      </button>
+    }
+  </div>
+
+  @if (orders.isLoading()) {
+    <p class="state">Chargement de vos commandes…</p>
+  } @else if (orders.error()) {
+    <p class="state state-error" role="alert">Impossible de charger vos commandes.</p>
+  } @else if (orders.hasValue()) {
+    @if (orders.value().length === 0) {
+      <p class="state">
+        @if (statusFilter() === null) {
+          Vous n'avez pas encore passé de commande.
+        } @else {
+          Aucune commande avec ce statut.
+        }
+      </p>
+      <p class="back-link"><a routerLink="/tarifs">Voir les tarifs</a></p>
+    } @else {
+      <ul class="order-list">
+        @for (order of orders.value(); track order.id) {
+          <li class="order-row">
+            <a [routerLink]="['/commandes', order.id]" class="order-row__link">
+              <div class="order-row__main">
+                <span class="order-row__reference">{{ order.reference }}</span>
+                <span class="order-row__date">{{ order.createdAt | date: 'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="order-row__side">
+                <span class="order-row__status">{{ labelFor(order.status) }}</span>
+                <span class="order-row__total">{{ order.totalXof | money }}</span>
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</main>
+
+<app-site-footer />
