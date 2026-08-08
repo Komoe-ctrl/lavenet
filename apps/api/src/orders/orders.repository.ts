@@ -18,6 +18,11 @@ type PickupModeData =
   | { pickupType: 'HOME'; agencyId: null; agencyDropoffDate: null }
   | { pickupType: 'AGENCY'; agencyId: string; agencyDropoffDate: Date };
 
+interface SlotsData {
+  pickupSlotId: string | null;
+  deliverySlotId: string;
+}
+
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -93,6 +98,10 @@ export class OrdersRepository {
   }
 
   setPickupMode(orderId: string, data: PickupModeData) {
+    return this.prisma.order.update({ where: { id: orderId }, data });
+  }
+
+  setSlots(orderId: string, data: SlotsData) {
     return this.prisma.order.update({ where: { id: orderId }, data });
   }
 }

@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SlotsModule } from '../slots/slots.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     CatalogModule,
     AddressesModule,
     AgenciesModule,
+    SlotsModule,
     OrdersModule,
     // Default rate limit for the whole API; the login route overrides it
     // with a stricter one (see AuthController) per CLAUDE.md §5.

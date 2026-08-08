@@ -32,6 +32,32 @@ describe('Cart (integration)', () => {
   const pieceServiceId = `svc-piece-cart-test-${runId}`;
   const inactiveServiceId = `svc-inactive-cart-test-${runId}`;
   const agencyId = `agy-cart-test-${runId}`;
+  const pickupSlotId = `slot-pickup-${runId}`;
+  const deliveryTooEarlyHomeId = `slot-delivery-early-home-${runId}`;
+  const deliveryValidHomeId = `slot-delivery-valid-home-${runId}`;
+  const deliveryTooEarlyAgencyId = `slot-delivery-early-agency-${runId}`;
+  const deliveryValidAgencyId = `slot-delivery-valid-agency-${runId}`;
+  const timeSlotIds = [
+    pickupSlotId,
+    deliveryTooEarlyHomeId,
+    deliveryValidHomeId,
+    deliveryTooEarlyAgencyId,
+    deliveryValidAgencyId,
+  ];
+
+  function daysFromNowAtUtc(days: number, hour: number): Date {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + days);
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour));
+  }
+
+  function dateOnly(date: Date): Date {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+
+  function isoDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
 
   function signToken(userId: string): string {
     return jwt.sign(
@@ -138,6 +164,62 @@ describe('Cart (integration)', () => {
         openingHours: 'Lundi - Samedi, 8h - 18h',
       },
     });
+
+    // Hours deliberately off the demo seed's grid (prisma/timeslot-data.ts
+    // uses 8/10/14/16) so these throwaway fixtures never collide with the
+    // rolling window's own (date, startsAt) unique constraint.
+    //
+    // HOME: pickup day+3 06h-07h; "too early" delivery is 2h after pickup
+    // ends (needs >= 48h, the slowest item's processingHours); "valid"
+    // delivery is ~74h after.
+    await prisma.timeSlot.create({
+      data: {
+        id: pickupSlotId,
+        date: dateOnly(daysFromNowAtUtc(3, 6)),
+        startsAt: daysFromNowAtUtc(3, 6),
+        endsAt: daysFromNowAtUtc(3, 7),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: deliveryTooEarlyHomeId,
+        date: dateOnly(daysFromNowAtUtc(3, 9)),
+        startsAt: daysFromNowAtUtc(3, 9),
+        endsAt: daysFromNowAtUtc(3, 11),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: deliveryValidHomeId,
+        date: dateOnly(daysFromNowAtUtc(6, 9)),
+        startsAt: daysFromNowAtUtc(6, 9),
+        endsAt: daysFromNowAtUtc(6, 11),
+        capacity: 5,
+      },
+    });
+    // AGENCY: dropoff date+2 (anchor = end of that UTC day); "too early"
+    // delivery day+4 09h (~33h after anchor, still under 48h); "valid"
+    // delivery day+6 13h (~85h after anchor).
+    await prisma.timeSlot.create({
+      data: {
+        id: deliveryTooEarlyAgencyId,
+        date: dateOnly(daysFromNowAtUtc(4, 9)),
+        startsAt: daysFromNowAtUtc(4, 9),
+        endsAt: daysFromNowAtUtc(4, 11),
+        capacity: 5,
+      },
+    });
+    await prisma.timeSlot.create({
+      data: {
+        id: deliveryValidAgencyId,
+        date: dateOnly(daysFromNowAtUtc(6, 13)),
+        startsAt: daysFromNowAtUtc(6, 13),
+        endsAt: daysFromNowAtUtc(6, 15),
+        capacity: 5,
+      },
+    });
   }, 30_000);
 
   afterAll(async () => {
@@ -145,6 +227,7 @@ describe('Cart (integration)', () => {
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: userIds } } } });
     await prisma.order.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.agency.delete({ where: { id: agencyId } });
+    await prisma.timeSlot.deleteMany({ where: { id: { in: timeSlotIds } } });
     await prisma.priceRule.deleteMany({
       where: { serviceId: { in: [kgServiceId, pieceServiceId, inactiveServiceId] } },
     });
@@ -184,6 +267,8 @@ describe('Cart (integration)', () => {
       pickupType: null,
       agencyId: null,
       agencyDropoffDate: null,
+      pickupSlotId: null,
+      deliverySlotId: null,
     });
   });
 
@@ -459,6 +544,8 @@ describe('Cart (integration)', () => {
       pickupType: null,
       agencyId: null,
       agencyDropoffDate: null,
+      pickupSlotId: null,
+      deliverySlotId: null,
     });
   });
 
@@ -617,5 +704,221 @@ describe('Cart (integration)', () => {
         .set('Authorization', `Bearer ${tokenB}`);
       expect(bCart.body.cart.pickupType).toBe('HOME');
     });
+  });
+
+  describe('slots (F-CMD-04)', () => {
+    // Known-empty cart, both a KG (24h) and a PIECE (48h) item -- the
+    // slowest, 48h, is what the min-delivery rule must use. `pickup`
+    // is either { pickupType: 'HOME' } or an AGENCY body; passed straight
+    // through to PATCH /cart/pickup.
+    async function resetCartWithPickup(token: string, pickup: Record<string, unknown>) {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ serviceId: kgServiceId, quantity: 1 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ serviceId: pieceServiceId, articleTypeId, quantity: 1 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(pickup)
+        .expect(200);
+    }
+
+    it('rejects every slots route with no token', async () => {
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .send({ deliverySlotId: deliveryValidHomeId })
+        .expect(401);
+    });
+
+    it('rejects setting slots before a pickup mode is chosen', async () => {
+      // tokenA/tokenB both already have a pickup mode set by earlier tests
+      // in this file, and DELETE /cart only clears items, never pickup
+      // state (by design -- see clearCart) -- so a fresh, never-touched
+      // user is the only way to exercise "no pickup mode chosen yet".
+      const freshUser = await prisma.user.create({
+        data: {
+          fullName: 'Sans Créneau',
+          email: `cart-noslot-${runId}@lavenet.test`,
+          phone: `+22534${phoneDigits}`,
+          passwordHash: await hash(PASSWORD),
+          phoneVerifiedAt: new Date(),
+        },
+      });
+      const freshToken = signToken(freshUser.id);
+      await request(app.getHttpServer())
+        .post(`/${API_GLOBAL_PREFIX}/cart/items`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ serviceId: kgServiceId, quantity: 1 })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ deliverySlotId: deliveryValidHomeId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Choisissez d'abord un mode de retrait.");
+
+      await prisma.orderItem.deleteMany({ where: { order: { userId: freshUser.id } } });
+      await prisma.order.deleteMany({ where: { userId: freshUser.id } });
+      await prisma.user.delete({ where: { id: freshUser.id } });
+    });
+
+    it('rejects setting slots on an empty cart', async () => {
+      await request(app.getHttpServer())
+        .delete(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/pickup`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupType: 'HOME' })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ deliverySlotId: deliveryValidHomeId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Le panier est vide.');
+    });
+
+    it('rejects HOME pickup with no pickupSlotId', async () => {
+      await resetCartWithPickup(tokenA, { pickupType: 'HOME' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ deliverySlotId: deliveryValidHomeId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Créneau de retrait requis.');
+    });
+
+    it('rejects a delivery slot earlier than pickup + the slowest processing time (HOME)', async () => {
+      await resetCartWithPickup(tokenA, { pickupType: 'HOME' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId, deliverySlotId: deliveryTooEarlyHomeId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe(
+        'Le créneau de livraison choisi est trop proche du retrait pour le temps de traitement requis.',
+      );
+    });
+
+    it('sets a HOME pickup/delivery slot pair that satisfies the minimum delay', async () => {
+      await resetCartWithPickup(tokenA, { pickupType: 'HOME' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId, deliverySlotId: deliveryValidHomeId });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.pickupSlotId).toBe(pickupSlotId);
+      expect(res.body.cart.deliverySlotId).toBe(deliveryValidHomeId);
+    });
+
+    it('rejects an AGENCY body carrying a pickupSlotId', async () => {
+      await resetCartWithPickup(tokenA, {
+        pickupType: 'AGENCY',
+        agencyId,
+        agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId, deliverySlotId: deliveryValidAgencyId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Un dépôt en agence n'utilise pas de créneau de retrait.");
+    });
+
+    it('rejects a delivery slot earlier than the drop-off date + the slowest processing time (AGENCY)', async () => {
+      await resetCartWithPickup(tokenA, {
+        pickupType: 'AGENCY',
+        agencyId,
+        agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ deliverySlotId: deliveryTooEarlyAgencyId });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe(
+        'Le créneau de livraison choisi est trop proche du retrait pour le temps de traitement requis.',
+      );
+    });
+
+    it('sets an AGENCY delivery slot that satisfies the minimum delay anchored on the drop-off date', async () => {
+      await resetCartWithPickup(tokenA, {
+        pickupType: 'AGENCY',
+        agencyId,
+        agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ deliverySlotId: deliveryValidAgencyId });
+      expect(res.status).toBe(200);
+      expect(res.body.cart.pickupSlotId).toBeNull();
+      expect(res.body.cart.deliverySlotId).toBe(deliveryValidAgencyId);
+    });
+
+    it('rejects an unknown delivery slot id', async () => {
+      await resetCartWithPickup(tokenA, { pickupType: 'HOME' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId, deliverySlotId: 'does-not-exist' });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Créneau de livraison introuvable.');
+    });
+
+    it("keeps each user's slot selection isolated from the other's cart (IDOR)", async () => {
+      // Nine sequential DB-touching requests (two full resetCartWithPickup
+      // calls plus four more) -- comfortably needs more than the file's
+      // default 15s testTimeout even without any DB latency degradation.
+      await resetCartWithPickup(tokenA, { pickupType: 'HOME' });
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ pickupSlotId, deliverySlotId: deliveryValidHomeId })
+        .expect(200);
+
+      await resetCartWithPickup(tokenB, {
+        pickupType: 'AGENCY',
+        agencyId,
+        agencyDropoffDate: isoDate(daysFromNowAtUtc(2, 0)),
+      });
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/cart/slots`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ deliverySlotId: deliveryValidAgencyId })
+        .expect(200);
+
+      const aCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenA}`);
+      expect(aCart.body.cart.deliverySlotId).toBe(deliveryValidHomeId);
+
+      const bCart = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/cart`)
+        .set('Authorization', `Bearer ${tokenB}`);
+      expect(bCart.body.cart.deliverySlotId).toBe(deliveryValidAgencyId);
+      expect(bCart.body.cart.pickupSlotId).toBeNull();
+    }, 45_000);
   });
 });
