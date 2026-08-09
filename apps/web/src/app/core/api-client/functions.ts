@@ -67,3 +67,9 @@ export type { OrdersControllerDetail$Params as OrdersControllerDetail$Params } f
 export { ordersControllerDetail as ordersControllerDetail } from './fn/orders/orders-controller-detail';
 export type { OrdersControllerCancel$Params as OrdersControllerCancel$Params } from './fn/orders/orders-controller-cancel';
 export { ordersControllerCancel as ordersControllerCancel } from './fn/orders/orders-controller-cancel';
+export type { AdminOrdersControllerList$Params as AdminOrdersControllerList$Params } from './fn/admin-orders/admin-orders-controller-list';
+export { adminOrdersControllerList as adminOrdersControllerList } from './fn/admin-orders/admin-orders-controller-list';
+export type { AdminOrdersControllerDetail$Params as AdminOrdersControllerDetail$Params } from './fn/admin-orders/admin-orders-controller-detail';
+export { adminOrdersControllerDetail as adminOrdersControllerDetail } from './fn/admin-orders/admin-orders-controller-detail';
+export type { AdminOrdersControllerUpdateStatus$Params as AdminOrdersControllerUpdateStatus$Params } from './fn/admin-orders/admin-orders-controller-update-status';
+export { adminOrdersControllerUpdateStatus as adminOrdersControllerUpdateStatus } from './fn/admin-orders/admin-orders-controller-update-status';

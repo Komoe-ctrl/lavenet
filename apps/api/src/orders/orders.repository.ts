@@ -4,6 +4,13 @@ import { formatOrderReference } from '@lavenet/shared-domain';
 import type { PlacedOrderStatus } from '@lavenet/shared-schemas';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface AdminOrderFilters {
+  status?: PlacedOrderStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  reference?: string;
+}
+
 interface AddItemData {
   orderId: string;
   serviceId: string;
@@ -63,10 +70,14 @@ const checkoutOrderInclude = {
 export type CheckoutOrderRecord = Prisma.OrderGetPayload<{ include: typeof checkoutOrderInclude }>;
 
 // F-CMD-09. Same items shape as checkoutOrderInclude, plus the transition
-// history the detail endpoint's frise needs.
+// history the detail endpoint's frise needs. `user` is only read by the
+// admin detail endpoint (OrdersService's own mapper picks just the fields
+// the client-facing shape wants, so including it here doesn't leak
+// anything to the client-facing response).
 const orderDetailInclude = {
   items: { include: { service: true, articleType: true }, orderBy: { createdAt: 'asc' } },
   statusHistory: { orderBy: { createdAt: 'asc' } },
+  user: { select: { fullName: true, phone: true, email: true } },
 } satisfies Prisma.OrderInclude;
 
 export type OrderDetailRecord = Prisma.OrderGetPayload<{ include: typeof orderDetailInclude }>;
@@ -222,6 +233,44 @@ export class OrdersRepository {
     return this.prisma.order.findUnique({ where: { id: orderId }, include: orderDetailInclude });
   }
 
+  // F-ADM-02. DRAFT excluded unconditionally, same reason as
+  // findPlacedOrdersForUser -- an admin manages placed orders, not other
+  // people's in-progress carts.
+  private adminOrdersWhere(filters: AdminOrderFilters): Prisma.OrderWhereInput {
+    return {
+      status: filters.status ?? { not: 'DRAFT' },
+      createdAt: {
+        gte: filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00.000Z`) : undefined,
+        lte: filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999Z`) : undefined,
+      },
+      reference: filters.reference
+        ? { contains: filters.reference, mode: 'insensitive' }
+        : undefined,
+    };
+  }
+
+  countAdminOrders(filters: AdminOrderFilters) {
+    return this.prisma.order.count({ where: this.adminOrdersWhere(filters) });
+  }
+
+  findAdminOrders(filters: AdminOrderFilters, skip: number, take: number) {
+    return this.prisma.order.findMany({
+      where: this.adminOrdersWhere(filters),
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        totalXof: true,
+        createdAt: true,
+        _count: { select: { items: true } },
+        user: { select: { fullName: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    });
+  }
+
   // F-CMD-05/07/CLAUDE.md §4 rule 4. One atomic transaction: books the
   // delivery seat (and the pickup seat too, for HOME), consumes the next
   // reference number, freezes every item's price and every order total,
@@ -331,14 +380,44 @@ export class OrdersRepository {
       await tx.orderStatusHistory.create({
         data: { orderId, fromStatus, toStatus: 'CANCELLED', actorId: userId },
       });
+      await this.releaseSlotBookings(tx, orderId);
 
-      const bookings = await tx.slotBooking.findMany({ where: { orderId } });
-      for (const booking of bookings) {
-        await tx.slotBooking.delete({ where: { id: booking.id } });
-        await tx.timeSlot.update({
-          where: { id: booking.slotId },
-          data: { bookedCount: { decrement: 1 } },
-        });
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: orderDetailInclude,
+      });
+      return { ok: true, order } as const;
+    });
+  }
+
+  // F-ADM-02/F-STA-02. General-purpose staff-driven transition -- same
+  // optimistic-lock shape as cancelOrder above (an updateMany guarded on
+  // the caller-observed fromStatus, not a plain update), because a second
+  // near-simultaneous admin action on the same order is just as possible
+  // as a second client cancel request. Only releases slot bookings when
+  // the target is CANCELLED (the one target this state machine allows
+  // that also needs it -- every other transition keeps the order's slots).
+  async transitionOrder(
+    orderId: string,
+    fromStatus: OrderStatus,
+    toStatus: OrderStatus,
+    actorId: string,
+    reason?: string,
+  ): Promise<CancelResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: { id: orderId, status: fromStatus },
+        data: { status: toStatus },
+      });
+      if (updated.count === 0) {
+        return { ok: false, reason: 'ALREADY_TRANSITIONED' } as const;
+      }
+
+      await tx.orderStatusHistory.create({
+        data: { orderId, fromStatus, toStatus, actorId, reason: reason ?? null },
+      });
+      if (toStatus === 'CANCELLED') {
+        await this.releaseSlotBookings(tx, orderId);
       }
 
       const order = await tx.order.findUniqueOrThrow({
@@ -347,6 +426,17 @@ export class OrdersRepository {
       });
       return { ok: true, order } as const;
     });
+  }
+
+  private async releaseSlotBookings(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+    const bookings = await tx.slotBooking.findMany({ where: { orderId } });
+    for (const booking of bookings) {
+      await tx.slotBooking.delete({ where: { id: booking.id } });
+      await tx.timeSlot.update({
+        where: { id: booking.slotId },
+        data: { bookedCount: { decrement: 1 } },
+      });
+    }
   }
 
   // Insert-then-verify, not read-then-insert-if-capacity: the unique

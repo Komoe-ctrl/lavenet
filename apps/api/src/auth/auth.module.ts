@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './roles.guard';
 
 @Module({
   // No global secret/expiry here: AuthService passes them explicitly per
@@ -12,7 +13,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
   // for config, not duplicated into JwtModule.register().
   imports: [JwtModule.register({}), NotificationsModule],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository, JwtAuthGuard],
-  exports: [AuthService, JwtAuthGuard],
+  providers: [AuthService, AuthRepository, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}
