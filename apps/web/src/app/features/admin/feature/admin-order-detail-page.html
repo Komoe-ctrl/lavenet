@@ -1,0 +1,132 @@
+<app-site-header />
+
+<main class="admin-order-detail-page">
+  @if (order.isLoading()) {
+    <p class="state">Chargement de la commande…</p>
+  } @else if (order.error()) {
+    <p class="state state-error" role="alert">Commande introuvable.</p>
+  } @else if (order.hasValue()) {
+    @let data = order.value();
+    <a routerLink="/admin/commandes" class="back-link">← Retour aux commandes</a>
+
+    <h1>Commande {{ data.reference }}</h1>
+    <p class="order-date">Passée le {{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
+    <p class="client-info">
+      Client : <strong>{{ data.clientName ?? '—' }}</strong> -- {{ data.clientPhone }}
+      @if (data.clientEmail) {
+        -- {{ data.clientEmail }}
+      }
+    </p>
+
+    <p class="status-banner" [class.status-banner--cancelled]="data.status === 'CANCELLED'">
+      Statut actuel : {{ statusLabels[data.status] }}
+    </p>
+
+    <section class="transitions">
+      <h2>Changer le statut</h2>
+
+      @if (availableTransitions().length === 0) {
+        <p class="state">Aucune transition possible depuis ce statut.</p>
+      } @else {
+        <div class="transitions__buttons">
+          @for (target of availableTransitions(); track target) {
+            <button
+              type="button"
+              class="transition-button"
+              [disabled]="isSubmitting()"
+              (click)="selectTransition(target)"
+            >
+              {{ statusLabels[target] }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (pendingTarget(); as target) {
+        <div class="reason-form">
+          <label for="reason-input">Motif ({{ statusLabels[target] }}, obligatoire)</label>
+          <textarea
+            id="reason-input"
+            rows="2"
+            [value]="reason()"
+            (input)="reason.set($any($event.target).value)"
+          ></textarea>
+          <div class="reason-form__actions">
+            <button type="button" (click)="cancelPending()">Annuler</button>
+            <button
+              type="button"
+              class="reason-form__confirm"
+              [disabled]="reason().trim().length === 0 || isSubmitting()"
+              (click)="confirmPending()"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (actionError()) {
+        <p class="state state-error" role="alert">{{ actionError() }}</p>
+      }
+    </section>
+
+    <ul class="cart-list">
+      @for (item of data.items; track item.id) {
+        <li class="cart-item">
+          <div class="cart-item__info">
+            <h3>{{ item.serviceName }}</h3>
+            @if (item.articleTypeName) {
+              <p class="cart-item__article">{{ item.articleTypeName }}</p>
+            }
+          </div>
+          <div class="cart-item__controls">
+            <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
+            <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
+          </div>
+        </li>
+      }
+    </ul>
+
+    <section class="order-summary">
+      <p>
+        Sous-total <strong>{{ data.subtotalXof | money }}</strong>
+      </p>
+      <p>
+        Remise <strong>{{ data.discountXof | money }}</strong>
+      </p>
+      <p>
+        Frais de livraison
+        <strong>{{ data.deliveryFeeXof === 0 ? 'Offerts' : (data.deliveryFeeXof | money) }}</strong>
+      </p>
+      <p class="order-summary__total">
+        Total TTC <strong>{{ data.totalXof | money }}</strong>
+      </p>
+    </section>
+
+    <p class="order-delivery">
+      Livraison : {{ data.deliveryCommune }}, {{ data.deliveryQuartier }} --
+      {{ data.deliveryDetails }}
+    </p>
+
+    @if (data.statusHistory.length > 0) {
+      <section class="history">
+        <h2>Historique</h2>
+        <ul class="history-list">
+          @for (entry of data.statusHistory; track entry.createdAt) {
+            <li>
+              <span class="history-list__date">{{
+                entry.createdAt | date: 'dd/MM/yyyy HH:mm'
+              }}</span>
+              <span>{{ statusLabels[entry.toStatus] }}</span>
+              @if (entry.reason) {
+                <span class="history-list__reason">« {{ entry.reason }} »</span>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</main>
+
+<app-site-footer />
