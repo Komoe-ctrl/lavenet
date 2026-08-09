@@ -63,6 +63,34 @@ describe('AccountPage', () => {
     expect(text).not.toContain('non vérifié');
   });
 
+  it('hides the back-office link for a CLIENT', () => {
+    configureWith({ user: signal(SAMPLE_USER), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('a[href="/admin/commandes"]')).toBeNull();
+  });
+
+  it('shows the back-office link for an ADMIN', () => {
+    configureWith({ user: signal({ ...SAMPLE_USER, role: 'ADMIN' }), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector(
+      'a[href="/admin/commandes"]',
+    );
+    expect(link).not.toBeNull();
+    expect(link.textContent).toContain('Back-office');
+  });
+
+  it('shows the back-office link for STAFF too', () => {
+    configureWith({ user: signal({ ...SAMPLE_USER, role: 'STAFF' }), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('a[href="/admin/commandes"]')).not.toBeNull();
+  });
+
   it('nudges an unverified phone toward /otp-verify', () => {
     configureWith({ user: signal({ ...SAMPLE_USER, phoneVerified: false }), logout: vi.fn() });
     const fixture = TestBed.createComponent(AccountPage);

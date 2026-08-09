@@ -30,6 +30,9 @@
         <a routerLink="/compte/modifier" class="edit-link">Modifier le profil</a>
         <a routerLink="/compte/adresses" class="edit-link">Carnet d'adresses</a>
         <a routerLink="/commandes" class="edit-link">Mes commandes</a>
+        @if (u.role === 'ADMIN' || u.role === 'STAFF') {
+          <a routerLink="/admin/commandes" class="edit-link">Back-office</a>
+        }
         <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
       </div>
     </section>

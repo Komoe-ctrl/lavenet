@@ -1,0 +1,100 @@
+<app-site-header />
+
+<main class="admin-orders-page">
+  <h1>Commandes -- back-office</h1>
+
+  <div class="filters" role="group" aria-label="Filtrer par statut">
+    <button
+      type="button"
+      class="filter-chip"
+      [class.filter-chip--active]="statusFilter() === null"
+      (click)="setFilter(null)"
+    >
+      Toutes
+    </button>
+    @for (status of filterStatuses; track status) {
+      <button
+        type="button"
+        class="filter-chip"
+        [class.filter-chip--active]="statusFilter() === status"
+        (click)="setFilter(status)"
+      >
+        {{ labelFor(status) }}
+      </button>
+    }
+  </div>
+
+  <div class="date-filters">
+    <label>
+      Du
+      <input
+        type="date"
+        [value]="dateFrom() ?? ''"
+        (change)="setDateFrom($any($event.target).value)"
+      />
+    </label>
+    <label>
+      Au
+      <input type="date" [value]="dateTo() ?? ''" (change)="setDateTo($any($event.target).value)" />
+    </label>
+  </div>
+
+  <form class="reference-search" (submit)="submitSearch($event)">
+    <label for="reference-search-input">Rechercher par référence</label>
+    <div class="reference-search__row">
+      <input
+        id="reference-search-input"
+        type="search"
+        placeholder="LN-2026-000142"
+        [value]="referenceInput()"
+        (input)="referenceInput.set($any($event.target).value)"
+      />
+      <button type="submit">Rechercher</button>
+    </div>
+  </form>
+
+  @if (result.isLoading()) {
+    <p class="state">Chargement des commandes…</p>
+  } @else if (result.error()) {
+    <p class="state state-error" role="alert">Impossible de charger les commandes.</p>
+  } @else if (result.hasValue()) {
+    @let data = result.value();
+    @if (data.orders.length === 0) {
+      <p class="state">Aucune commande ne correspond à ces filtres.</p>
+    } @else {
+      <ul class="order-list">
+        @for (order of data.orders; track order.id) {
+          <li class="order-row">
+            <a [routerLink]="['/admin/commandes', order.id]" class="order-row__link">
+              <div class="order-row__main">
+                <span class="order-row__reference">{{ order.reference }}</span>
+                <span class="order-row__client">{{ order.clientName ?? order.clientPhone }}</span>
+                <span class="order-row__date">{{ order.createdAt | date: 'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="order-row__side">
+                <span class="order-row__status">{{ labelFor(order.status) }}</span>
+                <span class="order-row__total">{{ order.totalXof | money }}</span>
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+
+      <div class="pagination">
+        <button type="button" [disabled]="data.page <= 1" (click)="goToPage(data.page - 1)">
+          ← Précédent
+        </button>
+        <span>Page {{ data.page }} / {{ totalPages() }}</span>
+        <button
+          type="button"
+          [disabled]="data.page >= totalPages()"
+          (click)="goToPage(data.page + 1)"
+        >
+          Suivant →
+        </button>
+      </div>
+    }
+  }
+</main>
+
+<app-site-footer />
