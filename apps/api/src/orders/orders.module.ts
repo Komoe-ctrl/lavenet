@@ -22,5 +22,8 @@ import { OrdersService } from './orders.service';
   imports: [AuthModule, AgenciesModule, SlotsModule, AddressesModule],
   controllers: [CartController, OrdersController],
   providers: [CartService, CheckoutService, OrdersService, OrdersRepository],
+  // OrdersRepository exported for AdminModule -- the admin orders module
+  // reuses it rather than forking a second repository for the same table.
+  exports: [OrdersRepository],
 })
 export class OrdersModule {}

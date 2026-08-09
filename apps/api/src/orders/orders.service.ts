@@ -73,7 +73,10 @@ export class OrdersService {
   }
 }
 
-function toOrderDetail(order: OrderDetailRecord): OrderDetail {
+// Exported for AdminModule's admin-orders.service.ts, which reuses this
+// exact mapping and only adds the client-identity fields the client-facing
+// shape has no use for (it's always "my own order").
+export function toOrderDetail(order: OrderDetailRecord): OrderDetail {
   return {
     id: order.id,
     reference: order.reference as string,

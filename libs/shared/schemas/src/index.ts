@@ -6,3 +6,4 @@ export * from './lib/agency.schemas';
 export * from './lib/pickup.schemas';
 export * from './lib/slot.schemas';
 export * from './lib/order.schemas';
+export * from './lib/admin-order.schemas';
