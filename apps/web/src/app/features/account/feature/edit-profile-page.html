@@ -1,6 +1,7 @@
 <app-site-header />
 
 <main class="edit-profile-page">
+  <a routerLink="/compte" class="back-link">← Mon compte</a>
   @if (user(); as u) {
     <h1>Modifier le profil</h1>
     <p class="lede">Chaque section ci-dessous s'enregistre indépendamment.</p>
@@ -186,10 +187,13 @@
         </button>
       </form>
     </section>
-
-    <p class="back-link"><a routerLink="/compte">Retour au compte</a></p>
   } @else {
-    <p class="state">Chargement du profil…</p>
+    <h1>Modifier le profil</h1>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--wide"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement du profil…</p>
   }
 </main>
 

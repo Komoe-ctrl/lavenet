@@ -1,160 +1,299 @@
 <app-site-header />
 
 <main class="cart-page">
-  <h1>Mon panier</h1>
-
   @if (checkoutResult(); as order) {
-    <section class="checkout-confirmation">
-      <h2>Commande validée</h2>
-      <p class="checkout-confirmation__reference">
-        Référence <strong>{{ order.reference }}</strong>
+    <section class="confirmation checkout-confirmation">
+      <div class="confirmation__seal" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="m5 13 4 4L19 7" />
+        </svg>
+      </div>
+      <h1>Commande validée</h1>
+      <p class="confirmation__lede">
+        Nous avons bien enregistré votre commande. Vous pouvez suivre son avancement à tout moment.
+      </p>
+      <p class="confirmation__reference">
+        <span>Référence</span>
+        <strong>{{ order.reference }}</strong>
       </p>
 
-      <ul class="cart-list">
-        @for (item of order.items; track item.id) {
-          <li class="cart-item">
-            <div class="cart-item__info">
-              <h3>{{ item.serviceName }}</h3>
-              @if (item.articleTypeName) {
-                <p class="cart-item__article">{{ item.articleTypeName }}</p>
-              }
-            </div>
-            <div class="cart-item__controls">
-              <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
-              <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
-            </div>
-          </li>
-        }
-      </ul>
+      <section class="panel">
+        <h2 class="panel__title">Articles</h2>
+        <ul class="cart-list cart-list--recap">
+          @for (item of order.items; track item.id) {
+            <li class="recap-item">
+              <span class="recap-item__info">
+                <span class="recap-item__name">{{ item.serviceName }}</span>
+                @if (item.articleTypeName) {
+                  <span class="recap-item__article">{{ item.articleTypeName }}</span>
+                }
+              </span>
+              <span class="recap-item__qty"
+                >{{ item.quantity }} × {{ item.unitPriceXof | money }}</span
+              >
+              <span class="recap-item__total">{{ item.lineTotalXof | money }}</span>
+            </li>
+          }
+        </ul>
+      </section>
 
-      <section class="cart-summary">
+      <section class="panel cart-summary">
+        <h2 class="panel__title">Récapitulatif</h2>
         <p>
-          Sous-total <strong>{{ order.subtotalXof | money }}</strong>
+          <span>Sous-total</span><strong>{{ order.subtotalXof | money }}</strong>
         </p>
         <p>
-          Remise <strong>{{ order.discountXof | money }}</strong>
+          <span>Remise</span><strong>{{ order.discountXof | money }}</strong>
         </p>
         <p>
-          Frais de livraison
+          <span>Frais de livraison</span>
           <strong>{{
             order.deliveryFeeXof === 0 ? 'Offerts' : (order.deliveryFeeXof | money)
           }}</strong>
         </p>
         <p class="cart-summary__total">
-          Total TTC <strong>{{ order.totalXof | money }}</strong>
+          <span>Total TTC</span><strong>{{ order.totalXof | money }}</strong>
         </p>
       </section>
 
-      <p class="checkout-confirmation__delivery">
-        Livraison : {{ order.deliveryCommune }}, {{ order.deliveryQuartier }} --
-        {{ order.deliveryDetails }}
+      <p class="confirmation__delivery">
+        <strong>Livraison à {{ order.deliveryCommune }}, {{ order.deliveryQuartier }}</strong>
+        <span>{{ order.deliveryDetails }}</span>
       </p>
       <p class="cart-summary__note">Le paiement arrive bientôt.</p>
-      <p class="back-link"><a routerLink="/tarifs">Retour aux tarifs</a></p>
+
+      <div class="confirmation__actions">
+        <a routerLink="/commandes" class="confirmation__primary">Suivre ma commande</a>
+        <a routerLink="/tarifs" class="confirmation__secondary">Commander à nouveau</a>
+      </div>
     </section>
   } @else if (cart.isLoading()) {
-    <p class="state">Chargement de votre panier…</p>
+    <h1>Mon panier</h1>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--short"></p>
+    </div>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line"></p>
+      <p class="skeleton skeleton-line skeleton-line--wide"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement de votre panier…</p>
   } @else if (cart.error()) {
-    <p class="state state-error" role="alert">Impossible de charger votre panier.</p>
+    <h1>Mon panier</h1>
+    <p class="state-error" role="alert">
+      Impossible de charger votre panier. Vérifiez votre connexion et réessayez.
+    </p>
   } @else if (cart.hasValue()) {
     @let data = cart.value().cart;
     @if (data.items.length === 0) {
-      <p class="state">Votre panier est vide.</p>
-      <p class="back-link"><a routerLink="/tarifs">Voir les tarifs</a></p>
-    } @else {
-      <ul class="cart-list">
-        @for (item of data.items; track item.id) {
-          <li class="cart-item">
-            <div class="cart-item__info">
-              <h2>{{ item.serviceName }}</h2>
-              @if (item.articleTypeName) {
-                <p class="cart-item__article">{{ item.articleTypeName }}</p>
-              }
-              @if (item.instructions) {
-                <p class="cart-item__instructions">« {{ item.instructions }} »</p>
-              }
-              @if (item.unitPriceXof === null) {
-                <p class="cart-item__unavailable" role="alert">
-                  Ce service n'est plus disponible pour le moment.
-                </p>
-              }
-            </div>
-
-            <div class="cart-item__controls">
-              <label class="cart-item__quantity">
-                <span class="sr-only">Quantité</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="99"
-                  [value]="item.quantity"
-                  [disabled]="updatingItemId() === item.id"
-                  (change)="updateQuantity(item.id, +$any($event.target).value)"
-                />
-              </label>
-              <span class="cart-item__total">
-                {{ item.lineTotalXof !== null ? (item.lineTotalXof | money) : '—' }}
-              </span>
-              <button
-                type="button"
-                class="cart-item__remove"
-                [disabled]="removingItemId() === item.id"
-                (click)="removeItem(item.id)"
-              >
-                {{ removingItemId() === item.id ? 'Suppression…' : 'Supprimer' }}
-              </button>
-            </div>
-          </li>
-        }
-      </ul>
-
-      @if (actionError()) {
-        <p class="field-error" role="alert">{{ actionError() }}</p>
-      }
-
-      @if (data.hasUnavailablePricing) {
-        <p class="cart-summary__warning" role="alert">
-          Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
+      <h1>Mon panier</h1>
+      <div class="empty-state">
+        <svg
+          class="empty-state__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16l-1.2 12.1a2 2 0 0 1-2 1.9H7.2a2 2 0 0 1-2-1.9L4 7Z" />
+          <path d="M9 7V5.5a3 3 0 0 1 6 0V7" />
+        </svg>
+        <p class="empty-state__title">Votre panier est vide</p>
+        <p class="empty-state__hint">
+          Choisissez un service et une quantité dans nos tarifs pour démarrer une commande.
         </p>
-      }
+        <a routerLink="/tarifs" class="empty-state__action">Voir les tarifs</a>
+      </div>
+    } @else {
+      <!-- Every flag below is read straight from the *saved* cart, so the
+           funnel's progress shows what the server has actually recorded --
+           never an unsaved local choice. -->
+      @let doneItems = data.items.length > 0;
+      @let donePickup = data.pickupType !== null;
+      @let doneSlots = data.deliverySlotId !== null;
+      @let doneAddress = data.deliveryAddressId !== null;
 
-      <button
-        type="button"
-        class="cart-summary__clear"
-        [disabled]="clearing()"
-        (click)="clearCart()"
-      >
-        {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
-      </button>
+      <h1>Mon panier</h1>
 
-      <section class="pickup-mode">
-        <h2>Mode de retrait</h2>
-        <label class="pickup-mode__option">
-          <input
-            type="radio"
-            name="pickupType"
-            [checked]="pickupTypeChoice() === 'HOME'"
-            (change)="choosePickupType('HOME')"
-          />
-          Enlèvement à domicile
-        </label>
-        <label class="pickup-mode__option">
-          <input
-            type="radio"
-            name="pickupType"
-            [checked]="pickupTypeChoice() === 'AGENCY'"
-            (change)="choosePickupType('AGENCY')"
-          />
-          Dépôt en agence
-        </label>
+      <ol class="funnel" aria-label="Étapes de la commande">
+        <li
+          class="funnel__step"
+          [class.funnel__step--done]="doneItems"
+          [class.funnel__step--current]="!doneItems"
+          [attr.aria-current]="!doneItems ? 'step' : null"
+        >
+          <span class="funnel__marker">1</span>
+          <span class="funnel__label">Articles</span>
+        </li>
+        <li
+          class="funnel__step"
+          [class.funnel__step--done]="donePickup"
+          [class.funnel__step--current]="doneItems && !donePickup"
+          [attr.aria-current]="doneItems && !donePickup ? 'step' : null"
+        >
+          <span class="funnel__marker">2</span>
+          <span class="funnel__label">Retrait</span>
+        </li>
+        <li
+          class="funnel__step"
+          [class.funnel__step--done]="doneSlots"
+          [class.funnel__step--current]="donePickup && !doneSlots"
+          [attr.aria-current]="donePickup && !doneSlots ? 'step' : null"
+        >
+          <span class="funnel__marker">3</span>
+          <span class="funnel__label">Créneaux</span>
+        </li>
+        <li
+          class="funnel__step"
+          [class.funnel__step--done]="doneAddress"
+          [class.funnel__step--current]="doneSlots && !doneAddress"
+          [attr.aria-current]="doneSlots && !doneAddress ? 'step' : null"
+        >
+          <span class="funnel__marker">4</span>
+          <span class="funnel__label">Adresse</span>
+        </li>
+        <li
+          class="funnel__step"
+          [class.funnel__step--current]="doneAddress"
+          [attr.aria-current]="doneAddress ? 'step' : null"
+        >
+          <span class="funnel__marker">5</span>
+          <span class="funnel__label">Validation</span>
+        </li>
+      </ol>
+
+      <section class="step-card" [class.step-card--done]="doneItems">
+        <header class="step-card__head">
+          <span class="step-card__index">1</span>
+          <h2>Articles</h2>
+        </header>
+
+        <ul class="cart-list">
+          @for (item of data.items; track item.id) {
+            <li class="cart-item">
+              <div class="cart-item__info">
+                <h3>{{ item.serviceName }}</h3>
+                @if (item.articleTypeName) {
+                  <p class="cart-item__article">{{ item.articleTypeName }}</p>
+                }
+                @if (item.instructions) {
+                  <p class="cart-item__instructions">« {{ item.instructions }} »</p>
+                }
+                @if (item.unitPriceXof === null) {
+                  <p class="cart-item__unavailable" role="alert">
+                    Ce service n'est plus disponible pour le moment.
+                  </p>
+                }
+              </div>
+
+              <div class="cart-item__controls">
+                <label class="cart-item__quantity">
+                  <span class="sr-only">Quantité</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    [value]="item.quantity"
+                    [disabled]="updatingItemId() === item.id"
+                    (change)="updateQuantity(item.id, +$any($event.target).value)"
+                  />
+                </label>
+                <span class="cart-item__total">
+                  {{ item.lineTotalXof !== null ? (item.lineTotalXof | money) : '—' }}
+                </span>
+                <button
+                  type="button"
+                  class="cart-item__remove"
+                  [disabled]="removingItemId() === item.id"
+                  (click)="removeItem(item.id)"
+                >
+                  {{ removingItemId() === item.id ? 'Suppression…' : 'Supprimer' }}
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+
+        @if (actionError()) {
+          <p class="field-error" role="alert">{{ actionError() }}</p>
+        }
+
+        @if (data.hasUnavailablePricing) {
+          <p class="state-error" role="alert">
+            Certains articles ne sont plus disponibles -- retirez-les pour voir le total.
+          </p>
+        }
+
+        <div class="step-card__footer">
+          <a routerLink="/tarifs" class="ghost-link">+ Ajouter un article</a>
+          <button
+            type="button"
+            class="ghost-button cart-clear"
+            [disabled]="clearing()"
+            (click)="clearCart()"
+          >
+            {{ clearing() ? 'Vidage…' : 'Vider le panier' }}
+          </button>
+        </div>
+      </section>
+
+      <section class="step-card" [class.step-card--done]="donePickup">
+        <header class="step-card__head">
+          <span class="step-card__index">2</span>
+          <h2>Mode de retrait</h2>
+        </header>
+        <p class="step-card__hint">Comment souhaitez-vous nous confier votre linge ?</p>
+
+        <div class="choice-group">
+          <label
+            class="choice pickup-mode__option"
+            [class.choice--selected]="pickupTypeChoice() === 'HOME'"
+          >
+            <input
+              type="radio"
+              name="pickupType"
+              [checked]="pickupTypeChoice() === 'HOME'"
+              (change)="choosePickupType('HOME')"
+            />
+            <span class="choice__body">
+              <span class="choice__title">Enlèvement à domicile</span>
+              <span class="choice__hint">Un livreur passe récupérer votre linge chez vous.</span>
+            </span>
+          </label>
+          <label
+            class="choice pickup-mode__option"
+            [class.choice--selected]="pickupTypeChoice() === 'AGENCY'"
+          >
+            <input
+              type="radio"
+              name="pickupType"
+              [checked]="pickupTypeChoice() === 'AGENCY'"
+              (change)="choosePickupType('AGENCY')"
+            />
+            <span class="choice__body">
+              <span class="choice__title">Dépôt en agence</span>
+              <span class="choice__hint">Vous déposez votre linge à l'agence de votre choix.</span>
+            </span>
+          </label>
+        </div>
 
         @if (pickupTypeChoice() === 'AGENCY') {
           @if (agencies.isLoading()) {
             <p class="state">Chargement des agences…</p>
           } @else if (agencies.error()) {
-            <p class="state state-error" role="alert">Impossible de charger les agences.</p>
+            <p class="state-error" role="alert">Impossible de charger les agences.</p>
           } @else if (agencies.hasValue()) {
-            <label class="pickup-mode__field">
+            <label class="field pickup-mode__field">
               Agence
               <select (change)="chooseAgency($any($event.target).value)">
                 <option value="" [selected]="selectedAgencyId() === null">
@@ -168,9 +307,9 @@
               </select>
             </label>
             @if (selectedAgency(); as agency) {
-              <p class="pickup-mode__hours">Horaires : {{ agency.openingHours }}</p>
+              <p class="field-hint">Horaires : {{ agency.openingHours }}</p>
             }
-            <label class="pickup-mode__field">
+            <label class="field pickup-mode__field">
               Date de dépôt prévue
               <input
                 type="date"
@@ -188,7 +327,7 @@
 
         <button
           type="button"
-          class="pickup-mode__save"
+          class="step-action pickup-mode__save"
           [disabled]="savingPickup() || !canSavePickup()"
           (click)="savePickupMode()"
         >
@@ -197,16 +336,19 @@
       </section>
 
       @if (data.pickupType !== null) {
-        <section class="pickup-mode slots-section">
-          <h2>Créneaux</h2>
+        <section class="step-card slots-section" [class.step-card--done]="doneSlots">
+          <header class="step-card__head">
+            <span class="step-card__index">3</span>
+            <h2>Créneaux</h2>
+          </header>
 
           @if (slots.isLoading()) {
             <p class="state">Chargement des créneaux…</p>
           } @else if (slots.error()) {
-            <p class="state state-error" role="alert">Impossible de charger les créneaux.</p>
+            <p class="state-error" role="alert">Impossible de charger les créneaux.</p>
           } @else if (slots.hasValue()) {
             @if (data.pickupType === 'HOME') {
-              <label class="pickup-mode__field slots-section__field">
+              <label class="field slots-section__field">
                 Créneau de retrait
                 <select (change)="choosePickupSlot($any($event.target).value)">
                   <option value="" [selected]="selectedPickupSlotId() === null">
@@ -220,7 +362,7 @@
                 </select>
               </label>
             }
-            <label class="pickup-mode__field slots-section__field">
+            <label class="field slots-section__field">
               Créneau de livraison
               <select (change)="chooseDeliverySlot($any($event.target).value)">
                 <option value="" [selected]="selectedDeliverySlotId() === null">
@@ -233,7 +375,7 @@
                 }
               </select>
             </label>
-            <p class="pickup-mode__hours">
+            <p class="field-hint">
               Le créneau de livraison doit laisser le temps de traitement nécessaire après le
               retrait.
             </p>
@@ -245,7 +387,7 @@
 
           <button
             type="button"
-            class="pickup-mode__save slots-section__save"
+            class="step-action slots-section__save"
             [disabled]="savingSlots() || !canSaveSlots()"
             (click)="saveSlots()"
           >
@@ -253,13 +395,16 @@
           </button>
         </section>
 
-        <section class="pickup-mode address-section">
-          <h2>Adresse de livraison</h2>
+        <section class="step-card address-section" [class.step-card--done]="doneAddress">
+          <header class="step-card__head">
+            <span class="step-card__index">4</span>
+            <h2>Adresse de livraison</h2>
+          </header>
 
           @if (addresses.isLoading()) {
             <p class="state">Chargement de vos adresses…</p>
           } @else if (addresses.error()) {
-            <p class="state state-error" role="alert">Impossible de charger vos adresses.</p>
+            <p class="state-error" role="alert">Impossible de charger vos adresses.</p>
           } @else if (addresses.hasValue()) {
             @if (addresses.value().addresses.length === 0) {
               <p class="state">
@@ -267,7 +412,7 @@
                 <a routerLink="/compte/adresses">ajoutez-en une</a> pour valider votre commande.
               </p>
             } @else {
-              <label class="pickup-mode__field address-section__field">
+              <label class="field address-section__field">
                 Adresse
                 <select (change)="chooseAddress($any($event.target).value)">
                   <option value="" [selected]="selectedAddressId() === null">
@@ -281,7 +426,7 @@
                 </select>
               </label>
               @if (selectedAddress(); as address) {
-                <p class="pickup-mode__hours">{{ address.details }}</p>
+                <p class="field-hint">{{ address.details }}</p>
               }
             }
           }
@@ -292,7 +437,7 @@
 
           <button
             type="button"
-            class="pickup-mode__save address-section__save"
+            class="step-action address-section__save"
             [disabled]="savingAddress() || !canSaveAddress()"
             (click)="saveAddress()"
           >
@@ -300,39 +445,49 @@
           </button>
         </section>
 
-        <section class="cart-summary">
-          @if (totalsPreview(); as totals) {
-            <p>
-              Sous-total <strong>{{ totals.subtotalXof | money }}</strong>
-            </p>
-            <p>
-              Remise <strong>{{ totals.discountXof | money }}</strong>
-            </p>
-            <p>
-              Frais de livraison
-              <strong>{{
-                totals.deliveryFeeXof === 0 ? 'Offerts' : (totals.deliveryFeeXof | money)
-              }}</strong>
-            </p>
-            <p class="cart-summary__total">
-              Total TTC <strong>{{ totals.totalXof | money }}</strong>
-            </p>
-          }
-          <p class="cart-summary__note">Le paiement arrive bientôt.</p>
-        </section>
+        <section class="step-card step-card--final checkout-section">
+          <header class="step-card__head">
+            <span class="step-card__index">5</span>
+            <h2>Récapitulatif</h2>
+          </header>
 
-        <section class="checkout-section">
+          <div class="cart-summary">
+            @if (totalsPreview(); as totals) {
+              <p>
+                <span>Sous-total</span><strong>{{ totals.subtotalXof | money }}</strong>
+              </p>
+              <p>
+                <span>Remise</span><strong>{{ totals.discountXof | money }}</strong>
+              </p>
+              <p>
+                <span>Frais de livraison</span>
+                <strong>{{
+                  totals.deliveryFeeXof === 0 ? 'Offerts' : (totals.deliveryFeeXof | money)
+                }}</strong>
+              </p>
+              <p class="cart-summary__total">
+                <span>Total TTC</span><strong>{{ totals.totalXof | money }}</strong>
+              </p>
+            }
+            <p class="cart-summary__note">Le paiement arrive bientôt.</p>
+          </div>
+
           @if (checkoutError()) {
-            <p class="field-error" role="alert">{{ checkoutError() }}</p>
+            <p class="state-error" role="alert">{{ checkoutError() }}</p>
           }
           <button
             type="button"
-            class="checkout-section__submit"
+            class="checkout-submit checkout-section__submit"
             [disabled]="checkingOut() || !canCheckout()"
             (click)="checkout()"
           >
             {{ checkingOut() ? 'Validation…' : 'Valider la commande' }}
           </button>
+          @if (!canCheckout() && !checkingOut()) {
+            <p class="field-hint field-hint--center">
+              Complétez les étapes ci-dessus pour valider votre commande.
+            </p>
+          }
         </section>
       }
     }

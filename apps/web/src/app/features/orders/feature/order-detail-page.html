@@ -1,87 +1,177 @@
 <app-site-header />
 
 <main class="order-detail-page">
+  <a routerLink="/commandes" class="back-link">← Mes commandes</a>
+
   @if (order.isLoading()) {
-    <p class="state">Chargement de la commande…</p>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--short"></p>
+    </div>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line"></p>
+      <p class="skeleton skeleton-line skeleton-line--wide"></p>
+      <p class="skeleton skeleton-line skeleton-line--short"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement de la commande…</p>
   } @else if (order.error()) {
-    <p class="state state-error" role="alert">Commande introuvable.</p>
+    <p class="state-error" role="alert">
+      Commande introuvable. Elle a peut-être été supprimée, ou ce lien ne vous appartient pas.
+    </p>
   } @else if (order.hasValue()) {
     @let data = order.value();
-    <a routerLink="/commandes" class="back-link">← Mes commandes</a>
 
-    <h1>Commande {{ data.reference }}</h1>
-    <p class="order-date">Passée le {{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
+    <header class="order-head">
+      <div class="order-head__top">
+        <h1>{{ data.reference }}</h1>
+        <span [class]="'status-badge status-badge--lg status-badge--' + data.status">
+          {{ statusLabels[data.status] }}
+        </span>
+      </div>
+      <p class="order-head__date">Passée le {{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
+    </header>
 
-    @if (isInterrupted(data.status)) {
-      <p class="status-banner" [class.status-banner--cancelled]="data.status === 'CANCELLED'">
-        {{ statusLabels[data.status] }}
-      </p>
-    } @else {
-      <ol class="progress-frise">
-        @for (step of progressSteps; track step; let i = $index) {
-          <li
-            class="progress-frise__step"
-            [class.progress-frise__step--done]="i <= currentStepIndex()"
-            [class.progress-frise__step--current]="i === currentStepIndex()"
+    <section class="tracking" aria-label="Suivi de la commande">
+      @if (isInterrupted(data.status)) {
+        <p
+          class="status-banner"
+          [class.status-banner--cancelled]="data.status === 'CANCELLED'"
+          role="status"
+        >
+          <svg
+            class="status-banner__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
           >
-            <span class="progress-frise__dot" aria-hidden="true"></span>
-            <span class="progress-frise__label">{{ statusLabels[step] }}</span>
+            @if (data.status === 'CANCELLED') {
+              <circle cx="12" cy="12" r="9" />
+              <path d="m15 9-6 6M9 9l6 6" />
+            } @else {
+              <circle cx="12" cy="12" r="9" />
+              <path d="M10 9v6M14 9v6" />
+            }
+          </svg>
+          <span>
+            <span class="status-banner__label">{{ statusLabels[data.status] }}</span>
+            <span class="status-banner__hint">
+              @if (data.status === 'CANCELLED') {
+                Cette commande a été annulée. Le suivi s'arrête ici.
+              } @else {
+                Le traitement est momentanément suspendu. Le motif est indiqué dans l'historique
+                ci-dessous.
+              }
+            </span>
+          </span>
+        </p>
+      } @else {
+        <ol class="progress-frise">
+          @for (step of progressSteps; track step; let i = $index) {
+            <li
+              class="progress-frise__step"
+              [class.progress-frise__step--past]="i < currentStepIndex()"
+              [class.progress-frise__step--current]="i === currentStepIndex()"
+              [attr.aria-current]="i === currentStepIndex() ? 'step' : null"
+            >
+              <span class="progress-frise__marker">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m5 13 4 4L19 7" />
+                </svg>
+              </span>
+              <span class="progress-frise__body">
+                <span class="progress-frise__label">{{ statusLabels[step] }}</span>
+                <!-- The moment this step actually happened, read straight from
+                     the transition history rather than projected: a step with no
+                     matching row simply shows no date. -->
+                @for (entry of data.statusHistory; track entry.createdAt) {
+                  @if (entry.toStatus === step) {
+                    <span class="progress-frise__at">{{
+                      entry.createdAt | date: 'dd/MM à HH:mm'
+                    }}</span>
+                  }
+                }
+              </span>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__title">Articles</h2>
+      <ul class="cart-list">
+        @for (item of data.items; track item.id) {
+          <li class="cart-item">
+            <div class="cart-item__info">
+              <h3>{{ item.serviceName }}</h3>
+              @if (item.articleTypeName) {
+                <p class="cart-item__article">{{ item.articleTypeName }}</p>
+              }
+            </div>
+            <div class="cart-item__controls">
+              <span class="cart-item__qty"
+                >{{ item.quantity }} × {{ item.unitPriceXof | money }}</span
+              >
+              <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
+            </div>
           </li>
         }
-      </ol>
-    }
+      </ul>
+    </section>
 
-    <ul class="cart-list">
-      @for (item of data.items; track item.id) {
-        <li class="cart-item">
-          <div class="cart-item__info">
-            <h3>{{ item.serviceName }}</h3>
-            @if (item.articleTypeName) {
-              <p class="cart-item__article">{{ item.articleTypeName }}</p>
-            }
-          </div>
-          <div class="cart-item__controls">
-            <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
-            <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
-          </div>
-        </li>
-      }
-    </ul>
-
-    <section class="order-summary">
+    <section class="panel order-summary">
+      <h2 class="panel__title">Récapitulatif</h2>
       <p>
-        Sous-total <strong>{{ data.subtotalXof | money }}</strong>
+        <span>Sous-total</span><strong>{{ data.subtotalXof | money }}</strong>
       </p>
       <p>
-        Remise <strong>{{ data.discountXof | money }}</strong>
+        <span>Remise</span><strong>{{ data.discountXof | money }}</strong>
       </p>
       <p>
-        Frais de livraison
+        <span>Frais de livraison</span>
         <strong>{{ data.deliveryFeeXof === 0 ? 'Offerts' : (data.deliveryFeeXof | money) }}</strong>
       </p>
       <p class="order-summary__total">
-        Total TTC <strong>{{ data.totalXof | money }}</strong>
+        <span>Total TTC</span><strong>{{ data.totalXof | money }}</strong>
       </p>
     </section>
 
-    <p class="order-delivery">
-      Livraison : {{ data.deliveryCommune }}, {{ data.deliveryQuartier }} --
-      {{ data.deliveryDetails }}
-    </p>
+    <section class="panel">
+      <h2 class="panel__title">Livraison</h2>
+      <p class="order-delivery">
+        <strong>{{ data.deliveryCommune }}, {{ data.deliveryQuartier }}</strong>
+        <span>{{ data.deliveryDetails }}</span>
+      </p>
+    </section>
 
     @if (data.statusHistory.length > 0) {
-      <section class="history">
-        <h2>Historique</h2>
+      <section class="panel history">
+        <h2 class="panel__title">Historique</h2>
         <ul class="history-list">
           @for (entry of data.statusHistory; track entry.createdAt) {
-            <li>
-              <span class="history-list__date">{{
-                entry.createdAt | date: 'dd/MM/yyyy HH:mm'
-              }}</span>
-              <span>{{ statusLabels[entry.toStatus] }}</span>
-              @if (entry.reason) {
-                <span class="history-list__reason">« {{ entry.reason }} »</span>
-              }
+            <li class="history-entry">
+              <span class="history-entry__dot" aria-hidden="true"></span>
+              <span class="history-entry__body">
+                <span class="history-entry__status">{{ statusLabels[entry.toStatus] }}</span>
+                <span class="history-entry__date">{{
+                  entry.createdAt | date: 'dd/MM/yyyy à HH:mm'
+                }}</span>
+                @if (entry.reason) {
+                  <span class="history-entry__reason">« {{ entry.reason }} »</span>
+                }
+              </span>
             </li>
           }
         </ul>
