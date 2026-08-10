@@ -124,11 +124,28 @@ describe('AdminOrderDetailPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
+    const labels = Array.from(
+      fixture.nativeElement.querySelectorAll('.transition-button__label'),
+    ).map((el) => (el as HTMLElement).textContent?.trim());
+    expect(labels).toEqual(['Prêt', 'Suspendu']);
+  });
+
+  it('flags up front which transitions will demand a motif', async () => {
+    // PROCESSING -> READY needs none, PROCESSING -> ON_HOLD does
+    // (requiresReason in order-state-machine.ts) -- staff should know
+    // before clicking, not after the form appears.
+    configureWith({});
+    const fixture = TestBed.createComponent(AdminOrderDetailPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('.transition-button'),
     ) as HTMLButtonElement[];
-    const labels = buttons.map((btn) => btn.textContent?.trim());
-    expect(labels).toEqual(['Prêt', 'Suspendu']);
+    const flagged = buttons
+      .filter((btn) => btn.querySelector('.transition-button__flag'))
+      .map((btn) => btn.querySelector('.transition-button__label')?.textContent?.trim());
+    expect(flagged).toEqual(['Suspendu']);
   });
 
   it('applies a non-ON_HOLD transition immediately on click', async () => {
@@ -159,7 +176,9 @@ describe('AdminOrderDetailPage', () => {
     const buttons = Array.from(
       fixture.nativeElement.querySelectorAll('.transition-button'),
     ) as HTMLButtonElement[];
-    const holdButton = buttons.find((btn) => btn.textContent?.trim() === 'Suspendu');
+    const holdButton = buttons.find(
+      (btn) => btn.querySelector('.transition-button__label')?.textContent?.trim() === 'Suspendu',
+    );
     holdButton?.click();
     fixture.detectChanges();
     await fixture.whenStable();

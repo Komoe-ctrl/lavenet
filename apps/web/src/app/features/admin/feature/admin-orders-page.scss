@@ -1,34 +1,66 @@
-.admin-orders-page {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-3) var(--space-6);
+@use '../../../shared/styles/states';
+@use '../../../shared/styles/status-badge';
+@use '../../../shared/styles/admin-console';
 
-  h1 {
-    font-size: var(--font-size-h2);
+// F-ADM-02. The back-office shares the client's palette, radii and
+// shadows, but not its rhythm: wider canvas, tighter rows, a real table
+// header, and figures set in tabular numerals -- this side of the app is
+// read in bulk, not one card at a time.
+
+// --- Column geometry ----------------------------------------------------
+
+// One definition for the header row and the data rows, so they can never
+// drift apart.
+$grid: 9.5rem 1fr 5rem 11rem 7rem;
+
+.table-head {
+  display: none;
+
+  @media (min-width: 52rem) {
+    display: grid;
+    grid-template-columns: $grid;
+    gap: var(--space-2);
+    padding: 0 var(--space-2) var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.6875rem;
     font-weight: 700;
-    margin-bottom: var(--space-3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-muted);
+  }
+
+  &__num {
+    text-align: right;
   }
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-bottom: var(--space-3);
+.order-rows {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+
+  @media (max-width: 51.99rem) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
 }
 
-.filter-chip {
-  min-height: 44px;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
+.order-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem var(--space-2);
+  padding: var(--space-2);
   background: var(--color-surface);
-  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
   font-size: var(--font-size-small);
-  font-weight: 600;
-  cursor: pointer;
 
   &:hover {
+    border-color: var(--color-primary);
     background: var(--color-surface-tint);
   }
 
@@ -37,164 +69,146 @@
     outline-offset: 2px;
   }
 
-  &--active {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: var(--color-primary-contrast);
-  }
-}
-
-.date-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: var(--font-size-small);
-    color: var(--color-text-muted);
-  }
-
-  input {
-    min-height: 44px;
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-  }
-}
-
-.reference-search {
-  margin-bottom: var(--space-4);
-
-  label {
-    display: block;
-    font-size: var(--font-size-small);
-    color: var(--color-text-muted);
-    margin-bottom: 0.25rem;
-  }
-
-  &__row {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  input {
-    flex: 1;
-    min-height: 44px;
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-  }
-
-  button {
-    min-height: 44px;
-    padding: 0 var(--space-3);
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--color-primary);
-    color: var(--color-primary-contrast);
-    font-weight: 600;
-    cursor: pointer;
-  }
-}
-
-.state {
-  color: var(--color-text-muted);
-}
-
-.state-error {
-  color: var(--color-error);
-}
-
-.order-list {
-  list-style: none;
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.order-row {
-  &__link {
-    display: flex;
+  // Phone: a compact card. Explicit areas rather than auto-flow, because a
+  // long status label ("En attente d'enlèvement") otherwise steals enough
+  // width to break a reference across two lines.
+  @media (max-width: 51.99rem) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'ref   total'
+      'client client'
+      'date  status';
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding: var(--space-3);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-    text-decoration: none;
-    color: inherit;
-    min-height: 44px;
+
+    // No "Client ·" / "Date ·" prefixes here: a name, a date and an amount
+    // are self-evident, and the labels cost the width that made the
+    // longest status badge push the date onto a second line.
+    &__ref {
+      grid-area: ref;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    &__total {
+      grid-area: total;
+      text-align: right;
+    }
+
+    &__client {
+      grid-area: client;
+      color: var(--color-text-muted);
+    }
+
+    &__date {
+      grid-area: date;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+
+    &__status {
+      grid-area: status;
+      justify-self: end;
+    }
+  }
+
+  // Desktop: a table row. Rows sit flush against each other with a single
+  // hairline between them -- the density the back-office is for.
+  @media (min-width: 52rem) {
+    grid-template-columns: $grid;
+    align-items: center;
+    border-radius: 0;
+    border-width: 0 0 1px;
+    padding: 0.625rem var(--space-2);
 
     &:hover {
-      background: var(--color-surface-tint);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--color-focus-ring);
-      outline-offset: 2px;
+      border-color: var(--color-border);
     }
   }
 
-  &__main {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  &__reference {
-    font-weight: 700;
-  }
-
-  &__client,
-  &__date {
-    font-size: var(--font-size-small);
-    color: var(--color-text-muted);
-  }
-
-  &__side {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.125rem;
-  }
-
-  &__status {
-    font-size: var(--font-size-small);
+  &__ref {
     font-weight: 600;
-    color: var(--color-primary-dark);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  &__client {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__date {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
   }
 
   &__total {
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
+
+    @media (min-width: 52rem) {
+      text-align: right;
+    }
   }
 }
+
+// --- Loading ------------------------------------------------------------
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0.75rem var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+// --- Pagination ---------------------------------------------------------
 
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   font-size: var(--font-size-small);
 
+  &__position {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+    min-width: 7rem;
+    text-align: center;
+  }
+
   button {
-    min-height: 44px;
-    padding: 0.4rem 0.9rem;
+    min-height: 40px;
+    padding: 0.375rem 0.875rem;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: var(--color-surface);
+    color: var(--color-text);
+
+    // See _admin-console.scss: compact for a mouse, 44px for a finger.
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
 
+    &:hover:not(:disabled) {
+      background: var(--color-surface-tint);
+      border-color: var(--color-primary);
+    }
+
     &:disabled {
-      opacity: 0.5;
+      opacity: 0.45;
       cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: 2px;
     }
   }
 }
