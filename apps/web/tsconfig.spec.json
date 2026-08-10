@@ -2,6 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    // See tsconfig.app.json -- spec files import libs/shared/* via the
+    // @lavenet/* path alias too, same reason, same fix.
+    "rootDir": "../..",
     "types": ["vitest/globals"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"]

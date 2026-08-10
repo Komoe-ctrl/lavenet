@@ -2,13 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc",
-    "types": [
-      "vitest/globals",
-      "vitest/importMeta",
-      "vite/client",
-      "node",
-      "vitest"
-    ]
+    // See tsconfig.lib.json -- spec files import @lavenet/shared-domain
+    // (auth.schemas.spec.ts -> auth.schemas.ts -> USER_ROLES) too, same
+    // reason, same fix.
+    "rootDir": "../../..",
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"]
   },
   "include": [
     "vite.config.ts",
