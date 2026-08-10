@@ -1,0 +1,274 @@
+// F-STA-03's progression frise. The screen a visitor is most likely to
+// judge the project on, so it gets the most care here.
+//
+// Layout: vertical on a phone (the reading direction that works at 375px
+// with real French status labels), horizontal from 48rem up (the shape
+// people expect from order tracking on a wide screen). Same markup for
+// both -- only the axis flips.
+//
+// Each step draws its own two half-segments rather than one line per step:
+//   &::before  the half leading INTO this node
+//   &::after   the half leading OUT of it
+// so the connector can go primary exactly up to the current node and
+// neutral after it, instead of overshooting into a step that hasn't
+// happened yet. Modifier classes come from order-state-machine.ts's
+// orderProgressStepIndex, never from a hardcoded list:
+//   --past     already happened   (filled node, check mark, both halves lit)
+//   --current  where the order is (filled node + halo, only the half in lit)
+//   neither    still to come      (hollow node, neutral halves)
+
+.progress-frise {
+  --frise-marker: 1.75rem;
+  --frise-line: 2px;
+
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+
+  @media (min-width: 48rem) {
+    flex-direction: row;
+  }
+}
+
+.progress-frise__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--frise-marker) 1fr;
+  align-items: start;
+  column-gap: var(--space-2);
+  // Room for the vertical connector to breathe between two nodes.
+  min-height: calc(var(--frise-marker) + var(--space-3));
+
+  @media (min-width: 48rem) {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-height: 0;
+    row-gap: var(--space-1);
+  }
+
+  // --- Connectors: vertical (phone) -----------------------------------
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--frise-marker) / 2 - var(--frise-line) / 2);
+    width: var(--frise-line);
+    background: var(--color-border);
+  }
+
+  // Into the node: from the top of the row down to the node's centre.
+  &::before {
+    top: 0;
+    height: calc(var(--frise-marker) / 2);
+  }
+
+  // Out of the node: from its centre down to the bottom of the row.
+  &::after {
+    top: calc(var(--frise-marker) / 2);
+    bottom: 0;
+  }
+
+  // Nothing arrives at the first node and nothing leaves the last one.
+  &:first-child::before,
+  &:last-child::after {
+    display: none;
+  }
+
+  // --- Connectors: horizontal (tablet and up) -------------------------
+
+  @media (min-width: 48rem) {
+    &::before,
+    &::after {
+      top: calc(var(--frise-marker) / 2 - var(--frise-line) / 2);
+      left: auto;
+      width: auto;
+      height: var(--frise-line);
+    }
+
+    &::before {
+      right: 50%;
+      left: 0;
+    }
+
+    &::after {
+      left: 50%;
+      right: 0;
+      bottom: auto;
+      height: var(--frise-line);
+    }
+  }
+
+  // --- Reached / current ----------------------------------------------
+
+  &--past {
+    &::before,
+    &::after {
+      background: var(--color-primary);
+    }
+  }
+
+  // Only the incoming half is lit: the order has arrived here, it has not
+  // moved on yet.
+  &--current::before {
+    background: var(--color-primary);
+  }
+}
+
+.progress-frise__marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--frise-marker);
+  height: var(--frise-marker);
+  border: var(--frise-line) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  // Opaque: the marker sits on top of the connector it interrupts.
+  background: var(--color-bg);
+  color: var(--color-primary-contrast);
+
+  svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    // Hidden until the step is reached -- kept in the DOM so the node
+    // never changes size when a status advances.
+    opacity: 0;
+    transition: opacity 160ms ease-out;
+  }
+
+  .progress-frise__step--past & {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+
+    svg {
+      opacity: 1;
+    }
+  }
+
+  .progress-frise__step--current & {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+    // Static halo that says "the order is here right now". The motion on
+    // top of it lives in ::after, not here -- an animated box-shadow
+    // repaints every frame, a transformed pseudo-element doesn't.
+    box-shadow: 0 0 0 4px var(--color-surface-tint);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border: 2px solid var(--color-primary);
+      border-radius: var(--radius-pill);
+      animation: frise-ping 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+  }
+}
+
+// A slow outward ping: it should read as "live", not as something
+// demanding to be clicked. transform + opacity only, so it stays on the
+// compositor. Disabled wholesale by the prefers-reduced-motion rule in
+// styles.scss.
+@keyframes frise-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.progress-frise__body {
+  padding-bottom: var(--space-3);
+
+  @media (min-width: 48rem) {
+    padding-bottom: 0;
+    padding-inline: 0.25rem;
+  }
+}
+
+.progress-frise__label {
+  display: block;
+  font-size: var(--font-size-small);
+  line-height: 1.35;
+  color: var(--color-text-muted);
+
+  // Horizontal layout only: "En attente d'enlèvement" wraps to two lines
+  // while its neighbours don't, which would drop its timestamp a line
+  // below all the others. Reserving two lines for every label keeps the
+  // dates on one baseline across the whole frise.
+  @media (min-width: 48rem) {
+    min-height: 2.7em;
+  }
+
+  .progress-frise__step--past & {
+    color: var(--color-text);
+  }
+
+  .progress-frise__step--current & {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+  }
+}
+
+// The timestamp of the transition that produced this step, when there is
+// one. Absent for steps still to come, which is the point: the frise shows
+// what actually happened, not a projection.
+.progress-frise__at {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+// --- Interrupted orders -------------------------------------------------
+
+// CANCELLED / ON_HOLD don't occupy a position in the sequence
+// (orderProgressStepIndex returns -1), so they replace the frise with a
+// banner rather than being squeezed into it.
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-tint);
+  border: 1px solid var(--color-primary);
+
+  &__icon {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--color-primary-dark);
+  }
+
+  &__label {
+    font-weight: 700;
+    color: var(--color-primary-dark);
+  }
+
+  &__hint {
+    display: block;
+    font-size: var(--font-size-small);
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  &--cancelled {
+    background: var(--color-error-tint);
+    border-color: var(--color-error);
+
+    .status-banner__icon,
+    .status-banner__label {
+      color: var(--color-error);
+    }
+  }
+}

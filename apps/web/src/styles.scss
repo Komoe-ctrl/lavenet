@@ -13,6 +13,11 @@
   --color-primary-dark: #155e75;
   --color-primary-contrast: #ffffff;
   --color-error: #b91c1c;
+  // The error counterpart of --color-surface-tint. Not a new hue: this
+  // exact value was already hardcoded in order-detail-page.scss's cancelled
+  // banner -- named here so every "quelque chose ne va pas" surface across
+  // the authenticated screens uses the same one.
+  --color-error-tint: #fef2f2;
   --color-focus-ring: #155e75;
 
   --font-sans:
@@ -36,10 +41,29 @@
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
+  // Already written as a literal 999px in four places before being named.
+  --radius-pill: 999px;
 
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.06);
+  // One step above --shadow-card, for the single element on a screen that
+  // has to sit above the rest (the checkout call to action, the frise's
+  // current step). Same ink colour, deliberately not a second palette.
+  --shadow-raised: 0 2px 4px rgba(15, 23, 42, 0.08), 0 12px 24px rgba(15, 23, 42, 0.1);
 
   --content-width: 72rem;
+}
+
+// Every transition in the app is opt-in through these, so honouring the
+// OS-level "reduce motion" setting is a single global rule rather than a
+// per-component afterthought.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 *,
