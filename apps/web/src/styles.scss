@@ -1,3 +1,20 @@
+// The shared design vocabulary, emitted once here rather than @use'd from
+// each component's SCSS. Sass inlines a @use'd partial into every file
+// that pulls it in, so _states.scss alone was being compiled into eight
+// component stylesheets -- seven copies of the same bytes in the bundle,
+// and four components pushed past Angular's per-component style budget.
+//
+// Global is also where these belong on their own merits: they are one
+// vocabulary (a status pill, a skeleton, an empty state, the frise) that
+// several features render identically, exactly like the tokens below.
+// Encapsulation doesn't shield elements from global rules, so they apply
+// inside components all the same, and a component that needs to override
+// one still wins on specificity via its own [_ngcontent] attribute.
+@use 'app/shared/styles/states';
+@use 'app/shared/styles/status-badge';
+@use 'app/shared/styles/order-frise';
+@use 'app/shared/styles/admin-console';
+
 // Design tokens shared by every component's own SCSS (Angular's ViewEncapsulation
 // means these custom properties need to live somewhere global to cross component
 // boundaries -- component :host blocks consume them via var()).
@@ -95,4 +112,17 @@ img {
 
 a {
   color: inherit;
+}
+
+// Was copy-pasted identically into six component stylesheets.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
