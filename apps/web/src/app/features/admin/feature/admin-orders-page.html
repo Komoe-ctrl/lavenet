@@ -1,90 +1,145 @@
 <app-site-header />
 
-<main class="admin-orders-page">
-  <h1>Commandes -- back-office</h1>
+<main class="console">
+  <header class="console__head">
+    <div class="console__title">
+      <span class="console__tag">Back-office</span>
+      <h1>Commandes -- back-office</h1>
+    </div>
+    @if (result.hasValue()) {
+      <p class="console__count">
+        <strong>{{ result.value().total }}</strong>
+        commande{{ result.value().total > 1 ? 's' : '' }}
+      </p>
+    }
+  </header>
 
-  <div class="filters" role="group" aria-label="Filtrer par statut">
-    <button
-      type="button"
-      class="filter-chip"
-      [class.filter-chip--active]="statusFilter() === null"
-      (click)="setFilter(null)"
-    >
-      Toutes
-    </button>
-    @for (status of filterStatuses; track status) {
+  <section class="toolbar" aria-label="Filtres">
+    <div class="filters" role="group" aria-label="Filtrer par statut">
       <button
         type="button"
         class="filter-chip"
-        [class.filter-chip--active]="statusFilter() === status"
-        (click)="setFilter(status)"
+        [class.filter-chip--active]="statusFilter() === null"
+        [attr.aria-pressed]="statusFilter() === null"
+        (click)="setFilter(null)"
       >
-        {{ labelFor(status) }}
+        Toutes
       </button>
-    }
-  </div>
-
-  <div class="date-filters">
-    <label>
-      Du
-      <input
-        type="date"
-        [value]="dateFrom() ?? ''"
-        (change)="setDateFrom($any($event.target).value)"
-      />
-    </label>
-    <label>
-      Au
-      <input type="date" [value]="dateTo() ?? ''" (change)="setDateTo($any($event.target).value)" />
-    </label>
-  </div>
-
-  <form class="reference-search" (submit)="submitSearch($event)">
-    <label for="reference-search-input">Rechercher par référence</label>
-    <div class="reference-search__row">
-      <input
-        id="reference-search-input"
-        type="search"
-        placeholder="LN-2026-000142"
-        [value]="referenceInput()"
-        (input)="referenceInput.set($any($event.target).value)"
-      />
-      <button type="submit">Rechercher</button>
+      @for (status of filterStatuses; track status) {
+        <button
+          type="button"
+          class="filter-chip"
+          [class.filter-chip--active]="statusFilter() === status"
+          [attr.aria-pressed]="statusFilter() === status"
+          (click)="setFilter(status)"
+        >
+          {{ labelFor(status) }}
+        </button>
+      }
     </div>
-  </form>
+
+    <div class="toolbar__row">
+      <form class="reference-search" (submit)="submitSearch($event)">
+        <label for="reference-search-input">Référence</label>
+        <div class="reference-search__row">
+          <input
+            id="reference-search-input"
+            type="search"
+            placeholder="LN-2026-000142"
+            [value]="referenceInput()"
+            (input)="referenceInput.set($any($event.target).value)"
+          />
+          <button type="submit">Rechercher</button>
+        </div>
+      </form>
+
+      <div class="date-filters">
+        <label>
+          Du
+          <input
+            type="date"
+            [value]="dateFrom() ?? ''"
+            (change)="setDateFrom($any($event.target).value)"
+          />
+        </label>
+        <label>
+          Au
+          <input
+            type="date"
+            [value]="dateTo() ?? ''"
+            (change)="setDateTo($any($event.target).value)"
+          />
+        </label>
+      </div>
+    </div>
+  </section>
 
   @if (result.isLoading()) {
-    <p class="state">Chargement des commandes…</p>
+    @for (placeholder of [1, 2, 3, 4, 5]; track placeholder) {
+      <div class="skeleton-row" aria-hidden="true">
+        <span class="skeleton skeleton-line skeleton-line--short"></span>
+        <span class="skeleton skeleton-line skeleton-line--wide"></span>
+      </div>
+    }
+    <p class="sr-only" role="status">Chargement des commandes…</p>
   } @else if (result.error()) {
-    <p class="state state-error" role="alert">Impossible de charger les commandes.</p>
+    <p class="state-error" role="alert">
+      Impossible de charger les commandes. Vérifiez votre connexion et réessayez.
+    </p>
   } @else if (result.hasValue()) {
     @let data = result.value();
     @if (data.orders.length === 0) {
-      <p class="state">Aucune commande ne correspond à ces filtres.</p>
+      <div class="empty-state">
+        <svg
+          class="empty-state__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.6-3.6" />
+        </svg>
+        <p class="empty-state__title">Aucune commande ne correspond</p>
+        <p class="empty-state__hint">
+          Élargissez la période, changez de statut ou videz la recherche par référence.
+        </p>
+      </div>
     } @else {
-      <ul class="order-list">
+      <div class="table-head" aria-hidden="true">
+        <span>Référence</span>
+        <span>Client</span>
+        <span>Date</span>
+        <span>Statut</span>
+        <span class="table-head__num">Total</span>
+      </div>
+
+      <ul class="order-rows">
         @for (order of data.orders; track order.id) {
-          <li class="order-row">
-            <a [routerLink]="['/admin/commandes', order.id]" class="order-row__link">
-              <div class="order-row__main">
-                <span class="order-row__reference">{{ order.reference }}</span>
-                <span class="order-row__client">{{ order.clientName ?? order.clientPhone }}</span>
-                <span class="order-row__date">{{ order.createdAt | date: 'dd/MM/yyyy' }}</span>
-              </div>
-              <div class="order-row__side">
-                <span class="order-row__status">{{ labelFor(order.status) }}</span>
-                <span class="order-row__total">{{ order.totalXof | money }}</span>
-              </div>
+          <li>
+            <a [routerLink]="['/admin/commandes', order.id]" class="order-row">
+              <span class="order-row__ref">{{ order.reference }}</span>
+              <span class="order-row__client">{{ order.clientName ?? order.clientPhone }}</span>
+              <span class="order-row__date">{{ order.createdAt | date: 'dd/MM/yy' }}</span>
+              <span class="order-row__status">
+                <span [class]="'status-badge status-badge--' + order.status">
+                  {{ labelFor(order.status) }}
+                </span>
+              </span>
+              <span class="order-row__total">{{ order.totalXof | money }}</span>
             </a>
           </li>
         }
       </ul>
 
-      <div class="pagination">
+      <nav class="pagination" aria-label="Pagination">
         <button type="button" [disabled]="data.page <= 1" (click)="goToPage(data.page - 1)">
           ← Précédent
         </button>
-        <span>Page {{ data.page }} / {{ totalPages() }}</span>
+        <span class="pagination__position">Page {{ data.page }} / {{ totalPages() }}</span>
         <button
           type="button"
           [disabled]="data.page >= totalPages()"
@@ -92,7 +147,7 @@
         >
           Suivant →
         </button>
-      </div>
+      </nav>
     }
   }
 </main>

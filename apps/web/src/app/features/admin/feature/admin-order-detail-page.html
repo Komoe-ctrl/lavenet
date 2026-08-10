@@ -1,131 +1,176 @@
 <app-site-header />
 
-<main class="admin-order-detail-page">
+<main class="console">
+  <a routerLink="/admin/commandes" class="console__back">← Retour aux commandes</a>
+
   @if (order.isLoading()) {
-    <p class="state">Chargement de la commande…</p>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--short"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement de la commande…</p>
   } @else if (order.error()) {
-    <p class="state state-error" role="alert">Commande introuvable.</p>
+    <p class="state-error" role="alert">Commande introuvable.</p>
   } @else if (order.hasValue()) {
     @let data = order.value();
-    <a routerLink="/admin/commandes" class="back-link">← Retour aux commandes</a>
 
-    <h1>Commande {{ data.reference }}</h1>
-    <p class="order-date">Passée le {{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
-    <p class="client-info">
-      Client : <strong>{{ data.clientName ?? '—' }}</strong> -- {{ data.clientPhone }}
-      @if (data.clientEmail) {
-        -- {{ data.clientEmail }}
-      }
-    </p>
+    <header class="console__head">
+      <div class="console__title">
+        <span class="console__tag">Back-office</span>
+        <h1>{{ data.reference }}</h1>
+      </div>
+      <!-- One element, one occurrence of the status label: the colour comes
+           from the modifier class, never from a second copy of the text. -->
+      <p [class]="'current-status current-status--' + data.status">
+        Statut actuel : {{ statusLabels[data.status] }}
+      </p>
+    </header>
 
-    <p class="status-banner" [class.status-banner--cancelled]="data.status === 'CANCELLED'">
-      Statut actuel : {{ statusLabels[data.status] }}
-    </p>
+    <div class="console__grid">
+      <div class="console__main">
+        <section class="panel">
+          <h2 class="panel__title">Client</h2>
+          <dl class="data-list">
+            <dt>Nom</dt>
+            <dd>{{ data.clientName ?? '—' }}</dd>
+            <dt>Téléphone</dt>
+            <dd>{{ data.clientPhone }}</dd>
+            <dt>Email</dt>
+            <dd>{{ data.clientEmail ?? '—' }}</dd>
+            <dt>Passée le</dt>
+            <dd>{{ data.createdAt | date: 'dd/MM/yyyy à HH:mm' }}</dd>
+          </dl>
+        </section>
 
-    <section class="transitions">
-      <h2>Changer le statut</h2>
-
-      @if (availableTransitions().length === 0) {
-        <p class="state">Aucune transition possible depuis ce statut.</p>
-      } @else {
-        <div class="transitions__buttons">
-          @for (target of availableTransitions(); track target) {
-            <button
-              type="button"
-              class="transition-button"
-              [disabled]="isSubmitting()"
-              (click)="selectTransition(target)"
-            >
-              {{ statusLabels[target] }}
-            </button>
-          }
-        </div>
-      }
-
-      @if (pendingTarget(); as target) {
-        <div class="reason-form">
-          <label for="reason-input">Motif ({{ statusLabels[target] }}, obligatoire)</label>
-          <textarea
-            id="reason-input"
-            rows="2"
-            [value]="reason()"
-            (input)="reason.set($any($event.target).value)"
-          ></textarea>
-          <div class="reason-form__actions">
-            <button type="button" (click)="cancelPending()">Annuler</button>
-            <button
-              type="button"
-              class="reason-form__confirm"
-              [disabled]="reason().trim().length === 0 || isSubmitting()"
-              (click)="confirmPending()"
-            >
-              Confirmer
-            </button>
-          </div>
-        </div>
-      }
-
-      @if (actionError()) {
-        <p class="state state-error" role="alert">{{ actionError() }}</p>
-      }
-    </section>
-
-    <ul class="cart-list">
-      @for (item of data.items; track item.id) {
-        <li class="cart-item">
-          <div class="cart-item__info">
-            <h3>{{ item.serviceName }}</h3>
-            @if (item.articleTypeName) {
-              <p class="cart-item__article">{{ item.articleTypeName }}</p>
+        <section class="panel">
+          <h2 class="panel__title">Articles</h2>
+          <ul class="line-items">
+            @for (item of data.items; track item.id) {
+              <li class="line-item">
+                <span class="line-item__name">
+                  {{ item.serviceName }}
+                  @if (item.articleTypeName) {
+                    <span class="line-item__article">{{ item.articleTypeName }}</span>
+                  }
+                </span>
+                <span class="line-item__qty"
+                  >{{ item.quantity }} × {{ item.unitPriceXof | money }}</span
+                >
+                <span class="line-item__total">{{ item.lineTotalXof | money }}</span>
+              </li>
             }
-          </div>
-          <div class="cart-item__controls">
-            <span>{{ item.quantity }} × {{ item.unitPriceXof | money }}</span>
-            <span class="cart-item__total">{{ item.lineTotalXof | money }}</span>
-          </div>
-        </li>
-      }
-    </ul>
+          </ul>
+        </section>
 
-    <section class="order-summary">
-      <p>
-        Sous-total <strong>{{ data.subtotalXof | money }}</strong>
-      </p>
-      <p>
-        Remise <strong>{{ data.discountXof | money }}</strong>
-      </p>
-      <p>
-        Frais de livraison
-        <strong>{{ data.deliveryFeeXof === 0 ? 'Offerts' : (data.deliveryFeeXof | money) }}</strong>
-      </p>
-      <p class="order-summary__total">
-        Total TTC <strong>{{ data.totalXof | money }}</strong>
-      </p>
-    </section>
+        <section class="panel">
+          <h2 class="panel__title">Montants</h2>
+          <dl class="totals">
+            <dt>Sous-total</dt>
+            <dd>{{ data.subtotalXof | money }}</dd>
+            <dt>Remise</dt>
+            <dd>{{ data.discountXof | money }}</dd>
+            <dt>Frais de livraison</dt>
+            <dd>{{ data.deliveryFeeXof === 0 ? 'Offerts' : (data.deliveryFeeXof | money) }}</dd>
+            <dt class="totals__grand">Total TTC</dt>
+            <dd class="totals__grand">{{ data.totalXof | money }}</dd>
+          </dl>
+        </section>
 
-    <p class="order-delivery">
-      Livraison : {{ data.deliveryCommune }}, {{ data.deliveryQuartier }} --
-      {{ data.deliveryDetails }}
-    </p>
+        <section class="panel">
+          <h2 class="panel__title">Livraison</h2>
+          <p class="delivery">
+            <strong>{{ data.deliveryCommune }}, {{ data.deliveryQuartier }}</strong>
+            <span>{{ data.deliveryDetails }}</span>
+          </p>
+        </section>
 
-    @if (data.statusHistory.length > 0) {
-      <section class="history">
-        <h2>Historique</h2>
-        <ul class="history-list">
-          @for (entry of data.statusHistory; track entry.createdAt) {
-            <li>
-              <span class="history-list__date">{{
-                entry.createdAt | date: 'dd/MM/yyyy HH:mm'
-              }}</span>
-              <span>{{ statusLabels[entry.toStatus] }}</span>
-              @if (entry.reason) {
-                <span class="history-list__reason">« {{ entry.reason }} »</span>
+        @if (data.statusHistory.length > 0) {
+          <section class="panel">
+            <h2 class="panel__title">Historique</h2>
+            <ul class="history-list">
+              @for (entry of data.statusHistory; track entry.createdAt) {
+                <li class="history-entry">
+                  <span class="history-entry__date">{{
+                    entry.createdAt | date: 'dd/MM/yy HH:mm'
+                  }}</span>
+                  <span class="history-entry__transition">
+                    {{ statusLabels[entry.fromStatus] }} → {{ statusLabels[entry.toStatus] }}
+                  </span>
+                  @if (entry.reason) {
+                    <span class="history-entry__reason">« {{ entry.reason }} »</span>
+                  }
+                </li>
               }
-            </li>
+            </ul>
+          </section>
+        }
+      </div>
+
+      <aside class="console__aside">
+        <section class="panel panel--action transitions">
+          <h2 class="panel__title">Changer le statut</h2>
+
+          @if (availableTransitions().length === 0) {
+            <p class="state">
+              Aucune transition possible depuis ce statut -- la commande est dans un état terminal.
+            </p>
+          } @else {
+            <p class="transitions__hint">
+              Seules les transitions autorisées par la machine à états sont proposées.
+            </p>
+            <div class="transitions__buttons">
+              @for (target of availableTransitions(); track target) {
+                <button
+                  type="button"
+                  class="transition-button"
+                  [class.transition-button--needs-reason]="requiresReason(target)"
+                  [disabled]="isSubmitting()"
+                  (click)="selectTransition(target)"
+                >
+                  <span class="transition-button__label">{{ statusLabels[target] }}</span>
+                  @if (requiresReason(target)) {
+                    <span class="transition-button__flag">motif requis</span>
+                  }
+                </button>
+              }
+            </div>
           }
-        </ul>
-      </section>
-    }
+
+          @if (pendingTarget(); as target) {
+            <div class="reason-form">
+              <label for="reason-input">
+                Motif <span class="reason-form__target">{{ statusLabels[target] }}</span>
+              </label>
+              <textarea
+                id="reason-input"
+                rows="3"
+                placeholder="Vêtement taché, en attente de confirmation du client…"
+                [value]="reason()"
+                (input)="reason.set($any($event.target).value)"
+              ></textarea>
+              <p class="reason-form__note">Obligatoire : il apparaîtra dans l'historique client.</p>
+              <div class="reason-form__actions">
+                <button type="button" class="reason-form__cancel" (click)="cancelPending()">
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  class="reason-form__confirm"
+                  [disabled]="reason().trim().length === 0 || isSubmitting()"
+                  (click)="confirmPending()"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (actionError()) {
+            <p class="state-error" role="alert">{{ actionError() }}</p>
+          }
+        </section>
+      </aside>
+    </div>
   }
 </main>
 

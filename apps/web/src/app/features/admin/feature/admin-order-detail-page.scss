@@ -1,82 +1,294 @@
-.admin-order-detail-page {
-  max-width: 32rem;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-3) var(--space-6);
+@use '../../../shared/styles/states';
+@use '../../../shared/styles/admin-console';
 
-  h1 {
-    font-size: var(--font-size-h2);
-    font-weight: 700;
-    margin: var(--space-2) 0 0.125rem;
+// Two columns from 56rem up: everything that describes the order on the
+// left, everything that *acts* on it on the right. The action panel is
+// what a staff member came here for, so on a wide screen it stays in view
+// beside the record rather than below it.
+.console__grid {
+  display: grid;
+  gap: var(--space-2);
+
+  @media (min-width: 56rem) {
+    grid-template-columns: 1fr 20rem;
+    align-items: start;
   }
 }
 
-.state {
-  color: var(--color-text-muted);
+.console__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
-.state-error {
-  color: var(--color-error);
+.console__aside {
+  @media (min-width: 56rem) {
+    position: sticky;
+    top: var(--space-2);
+  }
 }
 
-.back-link {
-  font-size: var(--font-size-small);
-  color: var(--color-primary-dark);
-  font-weight: 600;
-}
+// --- Current status -----------------------------------------------------
 
-.order-date {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.client-info {
-  font-size: var(--font-size-small);
-  margin-bottom: var(--space-3);
-}
-
-.status-banner {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+// Deliberately carries the whole "Statut actuel : X" string in one element
+// rather than wrapping a status-badge: the label must appear exactly once
+// on the page, both for screen readers and for the e2e that reads it.
+.current-status {
+  align-self: center;
+  padding: 0.3125rem 0.875rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-pill);
   background: var(--color-surface-tint);
   color: var(--color-primary-dark);
+  font-size: var(--font-size-small);
   font-weight: 700;
-  margin-bottom: var(--space-3);
+  white-space: nowrap;
 
-  &--cancelled {
-    background: #fef2f2;
+  // Same three semantic groups as the status badge, kept in step with it.
+  &--DELIVERED {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+  }
+
+  &--CANCELLED {
+    background: var(--color-error-tint);
+    border-color: var(--color-error);
     color: var(--color-error);
+  }
+
+  &--ON_HOLD {
+    background: var(--color-bg);
+    border-style: dashed;
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
   }
 }
 
-.transitions {
-  padding: var(--space-3);
+// --- Panels -------------------------------------------------------------
+
+.panel {
+  padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
 
-  h2 {
-    font-size: var(--font-size-h3);
+  &__title {
+    font-size: 0.6875rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  // The one panel that changes the record, marked as such.
+  &--action {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+// --- Data lists ---------------------------------------------------------
+
+.data-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-small);
+
+  dt {
+    color: var(--color-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    word-break: break-word;
+  }
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-small);
+
+  dt {
+    color: var(--color-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__grand {
+    padding-top: var(--space-1);
+    margin-top: var(--space-1);
+    border-top: 1px solid var(--color-border);
+    font-weight: 700;
+    color: var(--color-text) !important;
+
+    &:last-child {
+      color: var(--color-primary-dark) !important;
+    }
+  }
+}
+
+// --- Line items ---------------------------------------------------------
+
+.line-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.line-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 0.125rem var(--space-2);
+  padding: 0.375rem 0;
+  font-size: var(--font-size-small);
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  // Three columns don't fit a French service name plus its article type in
+  // a 20rem-wide panel: below that, the name takes the full width and the
+  // figures line up underneath.
+  @media (max-width: 30rem) {
+    grid-template-columns: 1fr auto;
+
+    &__name {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__name {
+    font-weight: 600;
+    min-width: 0;
+  }
+
+  &__article {
+    display: block;
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  &__qty {
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__total {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 4.5rem;
+    text-align: right;
+  }
+}
+
+.delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: var(--font-size-small);
+
+  span {
+    color: var(--color-text-muted);
+  }
+}
+
+// --- History ------------------------------------------------------------
+
+// Staff read the full transition (from → to), unlike the client, who only
+// needs to know where the order got to.
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--font-size-small);
+}
+
+.history-entry {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.125rem var(--space-2);
+  padding: 0.3125rem 0;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  &__date {
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__transition {
+    font-weight: 600;
+  }
+
+  &__reason {
+    grid-column: 2;
+    font-style: italic;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 30rem) {
+    grid-template-columns: 1fr;
+
+    &__reason {
+      grid-column: 1;
+    }
+  }
+}
+
+// --- Transitions --------------------------------------------------------
+
+.transitions {
+  &__hint {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
     margin-bottom: var(--space-2);
   }
 
   &__buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+    flex-direction: column;
+    gap: var(--space-1);
   }
 }
 
 .transition-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
   min-height: 44px;
-  padding: 0.4rem 0.9rem;
+  padding: 0.5rem 0.875rem;
   border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-primary);
   color: var(--color-primary-contrast);
+  font-size: var(--font-size-small);
   font-weight: 600;
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
 
   &:disabled {
     opacity: 0.5;
@@ -87,153 +299,126 @@
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
   }
+
+  // A transition that will demand a motif is not the same action as one
+  // that applies immediately -- it reads as an outlined, secondary button
+  // and says so on its face, before the click.
+  &--needs-reason {
+    background: var(--color-surface);
+    color: var(--color-primary-dark);
+
+    &:hover:not(:disabled) {
+      background: var(--color-surface-tint);
+      border-color: var(--color-primary);
+      color: var(--color-primary-dark);
+    }
+  }
+
+  &__flag {
+    flex-shrink: 0;
+    padding: 0.0625rem 0.375rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-tint);
+    color: var(--color-primary-dark);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
 .reason-form {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
 
   label {
     display: block;
-    font-size: var(--font-size-small);
-    font-weight: 600;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-muted);
     margin-bottom: 0.25rem;
+  }
+
+  &__target {
+    color: var(--color-primary-dark);
   }
 
   textarea {
     width: 100%;
-    padding: var(--space-2);
+    padding: var(--space-1);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
     font-family: inherit;
+    font-size: var(--font-size-small);
     resize: vertical;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: 1px;
+    }
+  }
+
+  &__note {
+    margin: 0.25rem 0 var(--space-1);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
   }
 
   &__actions {
     display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
+    gap: var(--space-1);
   }
 
+  &__cancel,
   &__confirm {
-    background: var(--color-primary);
-    color: var(--color-primary-contrast);
-    border-color: var(--color-primary);
-  }
+    flex: 1;
+    min-height: 40px;
 
-  button {
-    min-height: 44px;
-    padding: 0.4rem 0.9rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
+    // See _admin-console.scss: compact for a mouse, 44px for a finger.
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    font-family: inherit;
     cursor: pointer;
 
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-  }
-}
 
-.cart-list {
-  list-style: none;
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.cart-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-
-  &__info h3 {
-    font-size: var(--font-size-h3);
-    font-weight: 700;
+    &:focus-visible {
+      outline: 2px solid var(--color-focus-ring);
+      outline-offset: 2px;
+    }
   }
 
-  &__article {
+  &__cancel {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-muted);
-    font-size: var(--font-size-small);
+
+    &:hover {
+      background: var(--color-bg);
+    }
   }
 
-  &__controls {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
+  &__confirm {
+    border: 1px solid var(--color-primary-dark);
+    background: var(--color-primary-dark);
+    color: var(--color-primary-contrast);
 
-  &__total {
-    font-weight: 700;
-  }
-}
-
-.order-summary {
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
-
-  p {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.25rem;
-  }
-
-  &__total {
-    font-weight: 700;
-    font-size: var(--font-size-h3);
-    border-top: 1px solid var(--color-border);
-    padding-top: var(--space-2);
-    margin-top: var(--space-2);
-  }
-}
-
-.order-delivery {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-4);
-}
-
-.history {
-  h2 {
-    font-size: var(--font-size-h3);
-    font-weight: 700;
-    margin-bottom: var(--space-2);
-  }
-}
-
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--font-size-small);
-
-  li {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-
-  &__date {
-    color: var(--color-text-muted);
-  }
-
-  &__reason {
-    font-style: italic;
-    color: var(--color-text-muted);
+    &:hover:not(:disabled) {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
   }
 }
