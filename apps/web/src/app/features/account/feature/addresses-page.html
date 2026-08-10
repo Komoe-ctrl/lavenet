@@ -1,17 +1,42 @@
 <app-site-header />
 
 <main class="addresses-page">
+  <a routerLink="/compte" class="back-link">← Mon compte</a>
   <h1>Carnet d'adresses</h1>
   <p class="lede">Vos adresses de collecte et de livraison. Une seule est définie par défaut.</p>
 
   @if (addresses.isLoading()) {
-    <p class="state">Chargement de vos adresses…</p>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--wide"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement de vos adresses…</p>
   } @else if (addresses.error()) {
-    <p class="state state-error" role="alert">Impossible de charger vos adresses.</p>
+    <p class="state-error" role="alert">
+      Impossible de charger vos adresses. Vérifiez votre connexion et réessayez.
+    </p>
   } @else if (addresses.hasValue()) {
     @let list = addresses.value();
     @if (list.length === 0) {
-      <p class="state">Aucune adresse enregistrée pour le moment.</p>
+      <div class="empty-state">
+        <svg
+          class="empty-state__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </svg>
+        <p class="empty-state__title">Aucune adresse enregistrée</p>
+        <p class="empty-state__hint">
+          Ajoutez-en une ci-dessous : c'est elle qui permettra au livreur de vous trouver.
+        </p>
+      </div>
     } @else {
       <ul class="address-list">
         @for (address of list; track address.id) {
@@ -167,8 +192,6 @@
       </div>
     </form>
   </section>
-
-  <p class="back-link"><a routerLink="/compte">Retour au compte</a></p>
 </main>
 
 <app-site-footer />

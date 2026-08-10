@@ -124,7 +124,7 @@ describe('OrderDetailPage', () => {
     expect(text).toContain('Historique');
   });
 
-  it('marks the current step and every step up to it as done', async () => {
+  it('marks the current step, the ones before it as past, and none after', async () => {
     configureWith({});
     const fixture = TestBed.createComponent(OrderDetailPage);
     fixture.detectChanges();
@@ -132,9 +132,28 @@ describe('OrderDetailPage', () => {
 
     const steps = fixture.nativeElement.querySelectorAll('.progress-frise__step');
     // PROCESSING is index 2 (PENDING_PICKUP, PICKED_UP, PROCESSING, ...).
+    // --past and --current are mutually exclusive: the frise lights the
+    // connector *into* the current node but not the one out of it.
     expect(steps[2].classList.contains('progress-frise__step--current')).toBe(true);
-    expect(steps[0].classList.contains('progress-frise__step--done')).toBe(true);
-    expect(steps[5].classList.contains('progress-frise__step--done')).toBe(false);
+    expect(steps[2].classList.contains('progress-frise__step--past')).toBe(false);
+    expect(steps[0].classList.contains('progress-frise__step--past')).toBe(true);
+    expect(steps[5].classList.contains('progress-frise__step--past')).toBe(false);
+    expect(steps[5].classList.contains('progress-frise__step--current')).toBe(false);
+  });
+
+  it('dates each reached step from the real transition history', async () => {
+    configureWith({});
+    const fixture = TestBed.createComponent(OrderDetailPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const steps = fixture.nativeElement.querySelectorAll('.progress-frise__step');
+    // BASE_ORDER's history has rows for PENDING_PICKUP and PICKED_UP only.
+    expect(steps[0].querySelector('.progress-frise__at')?.textContent).toContain('08/08');
+    expect(steps[1].querySelector('.progress-frise__at')?.textContent).toContain('09/08');
+    // PROCESSING is the current status but has no history row in the
+    // fixture -- no date is invented for it.
+    expect(steps[2].querySelector('.progress-frise__at')).toBeNull();
   });
 
   it('shows a banner instead of the frise for a cancelled order', async () => {

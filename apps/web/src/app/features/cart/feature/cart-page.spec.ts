@@ -215,7 +215,7 @@ describe('CartPage', () => {
     await fixture.whenStable();
 
     expect(fixture.nativeElement.textContent).toContain('Votre panier est vide');
-    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.back-link a');
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('.empty-state__action');
     expect(link.getAttribute('href')).toBe('/tarifs');
   });
 
@@ -324,8 +324,7 @@ describe('CartPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const clearButton: HTMLButtonElement =
-      fixture.nativeElement.querySelector('.cart-summary__clear');
+    const clearButton: HTMLButtonElement = fixture.nativeElement.querySelector('.cart-clear');
     clearButton.click();
     await fixture.whenStable();
 

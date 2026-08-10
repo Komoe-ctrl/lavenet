@@ -4,7 +4,16 @@
   @if (user(); as u) {
     <h1>Mon compte</h1>
 
+    <section class="identity">
+      <span class="identity__avatar" aria-hidden="true">{{ (u.fullName ?? u.phone)[0] }}</span>
+      <div class="identity__text">
+        <p class="identity__name">{{ u.fullName ?? 'Profil à compléter' }}</p>
+        <p class="identity__role">{{ u.role }}</p>
+      </div>
+    </section>
+
     <section class="profile-card">
+      <h2 class="panel__title">Coordonnées</h2>
       <dl>
         <dt>Nom</dt>
         <dd>{{ u.fullName ?? '—' }}</dd>
@@ -17,25 +26,100 @@
             <span class="unverified">non vérifié</span>
           }
         </dd>
-        <dt>Rôle</dt>
-        <dd>{{ u.role }}</dd>
       </dl>
       @if (!u.phoneVerified) {
         <p class="verify-notice">
-          Votre téléphone n'est pas encore vérifié.
-          <a routerLink="/otp-verify">Vérifier maintenant</a>
+          <span>
+            Votre téléphone n'est pas encore vérifié.
+            <a routerLink="/otp-verify">Vérifier maintenant</a>
+          </span>
         </p>
       }
-      <div class="profile-actions">
-        <a routerLink="/compte/modifier" class="edit-link">Modifier le profil</a>
-        <a routerLink="/compte/adresses" class="edit-link">Carnet d'adresses</a>
-        <a routerLink="/commandes" class="edit-link">Mes commandes</a>
-        @if (u.role === 'ADMIN' || u.role === 'STAFF') {
-          <a routerLink="/admin/commandes" class="edit-link">Back-office</a>
-        }
-        <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
-      </div>
     </section>
+
+    <nav class="account-nav" aria-label="Sections du compte">
+      <a routerLink="/commandes" class="nav-card">
+        <svg
+          class="nav-card__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16l-1.2 12.1a2 2 0 0 1-2 1.9H7.2a2 2 0 0 1-2-1.9L4 7Z" />
+          <path d="M9 7V5.5a3 3 0 0 1 6 0V7" />
+        </svg>
+        <span class="nav-card__body">
+          <span class="nav-card__title">Mes commandes</span>
+          <span class="nav-card__hint">Suivi et historique</span>
+        </span>
+      </a>
+
+      <a routerLink="/compte/adresses" class="nav-card">
+        <svg
+          class="nav-card__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </svg>
+        <span class="nav-card__body">
+          <span class="nav-card__title">Carnet d'adresses</span>
+          <span class="nav-card__hint">Collecte et livraison</span>
+        </span>
+      </a>
+
+      <a routerLink="/compte/modifier" class="nav-card">
+        <svg
+          class="nav-card__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
+        </svg>
+        <span class="nav-card__body">
+          <span class="nav-card__title">Modifier le profil</span>
+          <span class="nav-card__hint">Nom, téléphone, email, mot de passe</span>
+        </span>
+      </a>
+
+      @if (u.role === 'ADMIN' || u.role === 'STAFF') {
+        <a routerLink="/admin/commandes" class="nav-card nav-card--staff">
+          <svg
+            class="nav-card__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 9h18M8 13h8M8 16h5" />
+          </svg>
+          <span class="nav-card__body">
+            <span class="nav-card__title">Back-office</span>
+            <span class="nav-card__hint">Gestion des commandes</span>
+          </span>
+        </a>
+      }
+    </nav>
 
     <section class="roadmap">
       <h2>Bientôt disponible</h2>
@@ -56,8 +140,16 @@
         </li>
       </ul>
     </section>
+
+    <button type="button" class="logout" (click)="logout()">Se déconnecter</button>
   } @else {
-    <p class="state">Chargement du profil…</p>
+    <h1>Mon compte</h1>
+    <div class="skeleton-card" aria-hidden="true">
+      <p class="skeleton skeleton-line skeleton-line--title"></p>
+      <p class="skeleton skeleton-line skeleton-line--wide"></p>
+      <p class="skeleton skeleton-line skeleton-line--short"></p>
+    </div>
+    <p class="sr-only" role="status">Chargement du profil…</p>
   }
 </main>
 

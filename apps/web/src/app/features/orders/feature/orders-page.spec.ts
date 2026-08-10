@@ -65,7 +65,11 @@ describe('OrdersPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(fixture.nativeElement.textContent).toContain("n'avez pas encore passé de commande");
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain("Aucune commande pour l'instant");
+    // The empty state points somewhere rather than just stating a fact.
+    const action: HTMLAnchorElement = fixture.nativeElement.querySelector('.empty-state__action');
+    expect(action.getAttribute('href')).toBe('/tarifs');
   });
 
   it('shows an error state when the list fails to load', async () => {
