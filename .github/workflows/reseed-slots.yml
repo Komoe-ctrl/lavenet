@@ -18,6 +18,20 @@ permissions:
 jobs:
   reseed:
     runs-on: ubuntu-latest
+    # prisma.config.ts resolves env('DIRECT_URL') the moment any Prisma CLI
+    # command loads it -- `prisma generate` included, which is what actually
+    # failed here (PrismaConfigEnvError). So it has to be present for the
+    # whole job, not written into a file partway through it.
+    #
+    # Both names point at the same secret on purpose, and no second secret
+    # is needed: `prisma generate` never opens a connection (verified -- it
+    # generates fine against an unreachable host, it only needs the variable
+    # to resolve), and this workflow only upserts rows, it never runs a
+    # migration. The pooled/direct distinction exists for `migrate deploy`,
+    # which Render runs at deploy time, not here.
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.PROD_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v7
 
@@ -42,12 +56,10 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: pnpm exec prisma generate
-
+      # Before anything Prisma-related runs, not after: the previous order
+      # generated the client first and only wrote the environment
+      # afterwards, so the generate step ran with nothing set at all.
+      #
       # Same file-argument convention as every other prod seed script
       # (CLAUDE.md §10: env file passed as a CLI arg, never a shell
       # variable) -- written here from the repo secret instead of existing
@@ -55,10 +67,50 @@ jobs:
       - name: Write production env file
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-        run: printf 'DATABASE_URL=%s\n' "$PROD_DATABASE_URL" > .env.production.local
+        run: |
+          printf 'DATABASE_URL=%s\nDIRECT_URL=%s\n' \
+            "$PROD_DATABASE_URL" "$PROD_DATABASE_URL" > .env.production.local
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
 
       - name: Reseed the rolling slot window
         run: pnpm db:seed:slots:prod
+
+      # The other half of the failure issue below: without this, a run that
+      # fixes the problem leaves its own alarm ringing, and the Issues tab
+      # stops meaning anything. A green run closes the open alert itself.
+      - name: Close the failure issue once a run succeeds
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'slots-reseed-failure';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: label,
+            });
+            for (const issue of open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Le renouvellement a de nouveau réussi : ${runUrl}`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
 
       # Visibility on failure: a scheduled workflow that silently stops
       # succeeding is exactly the failure mode this workflow exists to
