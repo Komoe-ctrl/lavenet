@@ -319,6 +319,14 @@ migration relue, pas de secret, doc et spec OpenAPI à jour).
 - [ ] Tests écrits pour la logique métier introduite
 - [ ] Commits propres et conventionnels
 - [ ] README / `docs/` à jour si le comportement public change
+- [ ] **Un workflow planifié n'est «&nbsp;fait&nbsp;» qu'après une exécution réelle
+      réussie** (`workflow_dispatch`, lien du run à l'appui), jamais après avoir
+      seulement été écrit et relu. Un job qui n'a jamais tourné une fois en vert
+      n'est pas livré : la CI ne l'exécute pas, les tests ne le couvrent pas, et
+      il ne s'exprime que le jour où le cron se déclenche tout seul. C'est
+      exactement ce qui a laissé `reseed-slots.yml` échouer en silence sur un
+      `DIRECT_URL` manquant, annoncé comme livré, découvert par une issue
+      automatique plusieurs jours plus tard.
 
 ---
 

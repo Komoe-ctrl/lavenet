@@ -188,10 +188,16 @@ que la fenêtre glissante de 21 jours ne s'épuise même si un ou plusieurs jour
 - Un échec ouvre (ou commente, si déjà ouverte) une issue GitHub étiquetée
   `slots-reseed-failure` avec le lien du run — visible dans l'onglet Issues, pas
   seulement dans l'historique Actions qu'il faudrait penser à aller consulter.
-- **Nécessite un secret de dépôt** : `PROD_DATABASE_URL`, la même chaîne de connexion
-  que la ligne `DATABASE_URL` de votre `.env.production.local` local. À ajouter dans
-  Settings → Secrets and variables → Actions → New repository secret. C'est la seule
-  étape que je ne peux pas faire moi-même.
+- **Nécessite un seul secret de dépôt** : `PROD_DATABASE_URL`, la même chaîne de
+  connexion que la ligne `DATABASE_URL` de votre `.env.production.local` local. À
+  ajouter dans Settings → Secrets and variables → Actions → New repository secret.
+  C'est la seule étape que je ne peux pas faire moi-même.
+- Le workflow expose cette même valeur sous `DATABASE_URL` **et** `DIRECT_URL` :
+  `prisma.config.ts` résout `env('DIRECT_URL')` dès qu'une commande Prisma charge la
+  config, `prisma generate` compris. Aucun second secret n'est nécessaire pour autant —
+  `prisma generate` n'ouvre aucune connexion, et ce workflow ne fait que des upserts,
+  jamais de migration : la distinction poolée / directe ne concerne que
+  `prisma migrate deploy`, exécuté par Render au déploiement.
 
 Écarté : une régénération "paresseuse" déclenchée par l'API elle-même (ex. dans
 `GET /slots`) mélangerait une route de lecture publique avec une écriture en base, et
