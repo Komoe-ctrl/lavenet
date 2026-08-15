@@ -26,6 +26,7 @@ env:
   # CI-only, not real secrets — safe to commit, never used outside this job.
   JWT_ACCESS_SECRET: 9c2bb7136a1a6c2f3594573708067171d2bc0c18e53aadc0d9c1b4b9df97f3bf
   JWT_REFRESH_SECRET: 7e546bf4ad1f9b9d7a49a4add89f727314a03037df4083fc5bcbec52130e314f
+  PAYMENT_WEBHOOK_SECRET: 3a1d9e6f8c2b5047a9e3d6c1f4b8072e5d9a3c6f1b4e8072d5a9c3f6e1b4d807
   CORS_ORIGIN: http://localhost:4200
 
 jobs:
