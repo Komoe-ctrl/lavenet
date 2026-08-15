@@ -18,6 +18,8 @@ export type { ChangePhoneResponseDtoOutput } from './models/change-phone-respons
 export type { CheckoutResponseDtoOutput } from './models/checkout-response-dto-output';
 export type { CreateAddressDto } from './models/create-address-dto';
 export type { CreateAddressResponseDtoOutput } from './models/create-address-response-dto-output';
+export type { CreatePaymentDto } from './models/create-payment-dto';
+export type { CreatePaymentResponseDtoOutput } from './models/create-payment-response-dto-output';
 export type { ListAddressesResponseDtoOutput } from './models/list-addresses-response-dto-output';
 export type { LoginDto } from './models/login-dto';
 export type { LoginResponseDtoOutput } from './models/login-response-dto-output';
