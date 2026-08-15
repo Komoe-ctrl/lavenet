@@ -83,3 +83,22 @@ Contourné localement en démarrant `nx serve web` à la main avant de lancer le
 configuration Nx/Playwright n'est pas corrigée.
 **Déclencheur** : avant le câblage CI ci-dessus — une CI ne peut pas compter sur un
 contournement manuel.
+
+## Émission de facture sérialisée par un verrou de ligne (`invoice_counters`)
+
+**Où** : `apps/api/src/orders/orders.repository.ts` (`transitionToDelivered` /
+`createInvoice`), `prisma/schema.prisma` (`InvoiceCounter`).
+**État actuel** : la numérotation sans trou (CLAUDE.md §4 règle 5) est garantie par un
+`SELECT ... FOR UPDATE` sur l'unique ligne du compteur, tenu jusqu'au `COMMIT` de la
+transaction qui livre la commande et mint la facture. Correct et suffisant à l'échelle
+d'une démo, mais sérialise strictement toute paire de livraisons dont les transactions
+se chevauchent — la seconde attend que la première relâche le verrou, ce qui a déjà
+nécessité de porter le timeout de transaction Prisma de 5 s (défaut) à 15 s pour laisser
+la marge nécessaire aux allers-retours réseau vers une base distante (Neon) sous ce
+verrou (voir le test de concurrence dans `orders-invoice-numbering.integration.spec.ts`,
+qui reproduisait l'expiration à 5 s de façon déterministe).
+**Déclencheur** : montée en charge réelle (volume de livraisons concurrentes qui rend la
+sérialisation elle-même le goulot, pas seulement son timeout) — remplacer par une
+stratégie moins strictement séquentielle (ex. plage de numéros pré-allouée par
+transaction, ou file d'attente dédiée) seulement si mesuré comme un vrai goulot, pas par
+anticipation.

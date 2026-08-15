@@ -85,6 +85,27 @@ export class AdminOrdersService {
       throw new BadRequestException('Un motif est obligatoire pour ce changement de statut.');
     }
 
+    // F-PAY-01/04/06. DELIVERED is the one target that also touches
+    // Payment/Invoice, inside its own transaction (transitionToDelivered) --
+    // everything else keeps using the general-purpose transitionOrder.
+    if (toStatus === 'DELIVERED') {
+      const result = await this.repo.transitionToDelivered(
+        orderId,
+        existing.status,
+        actorId,
+        new Date().getFullYear(),
+      );
+      if (!result.ok) {
+        if (result.reason === 'NO_PAYMENT' || result.reason === 'PAYMENT_NOT_SETTLED') {
+          throw new BadRequestException(
+            'Cette commande ne peut pas être livrée sans paiement encaissé.',
+          );
+        }
+        throw new ConflictException('Le statut de la commande a changé entre-temps -- réessayez.');
+      }
+      return { order: toAdminOrderDetail(result.order) };
+    }
+
     const result = await this.repo.transitionOrder(
       orderId,
       existing.status,

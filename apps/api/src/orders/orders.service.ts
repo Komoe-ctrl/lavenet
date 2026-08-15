@@ -105,5 +105,22 @@ export function toOrderDetail(order: OrderDetailRecord): OrderDetail {
       reason: entry.reason,
       createdAt: entry.createdAt.toISOString(),
     })),
+    payment: order.payment
+      ? {
+          id: order.payment.id,
+          orderId: order.payment.orderId,
+          provider: order.payment.provider,
+          status: order.payment.status,
+          amountXof: order.payment.amountXof,
+          createdAt: order.payment.createdAt.toISOString(),
+        }
+      : null,
+    invoice: order.invoice
+      ? {
+          id: order.invoice.id,
+          number: order.invoice.number,
+          issuedAt: order.invoice.issuedAt.toISOString(),
+        }
+      : null,
   };
 }

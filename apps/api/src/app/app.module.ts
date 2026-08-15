@@ -9,6 +9,7 @@ import { AdminModule } from '../admin/admin.module';
 import { AgenciesModule } from '../agencies/agencies.module';
 import { AuthModule } from '../auth/auth.module';
 import { CatalogModule } from '../catalog/catalog.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SlotsModule } from '../slots/slots.module';
@@ -23,6 +24,7 @@ import { SlotsModule } from '../slots/slots.module';
     SlotsModule,
     OrdersModule,
     AdminModule,
+    InvoicesModule,
     // Default rate limit for the whole API; the login route overrides it
     // with a stricter one (see AuthController) per CLAUDE.md §5.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),

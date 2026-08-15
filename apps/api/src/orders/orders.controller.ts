@@ -1,7 +1,9 @@
-import { Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ZodResponse } from 'nestjs-zod';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreatePaymentDto, CreatePaymentResponseDto } from '../payments/payments.dto';
+import { PaymentsService } from '../payments/payments.service';
 import { ListOrdersQueryDto, OrderDetailResponseDto, OrderListResponseDto } from './orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -12,7 +14,10 @@ import { OrdersService } from './orders.service';
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly paymentsService: PaymentsService,
+  ) {}
 
   @Get()
   @ZodResponse({ type: OrderListResponseDto })
@@ -32,5 +37,16 @@ export class OrdersController {
   @ZodResponse({ type: OrderDetailResponseDto })
   cancel(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.ordersService.cancel(userId, id);
+  }
+
+  // F-PAY-01/02.
+  @Post(':id/payment')
+  @ZodResponse({ type: CreatePaymentResponseDto })
+  initiatePayment(
+    @CurrentUser() userId: string,
+    @Param('id') id: string,
+    @Body() body: CreatePaymentDto,
+  ) {
+    return this.paymentsService.initiate(userId, id, body.provider);
   }
 }
