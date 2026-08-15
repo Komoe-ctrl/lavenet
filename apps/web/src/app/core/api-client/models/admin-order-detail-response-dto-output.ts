@@ -41,6 +41,19 @@ export interface AdminOrderDetailResponseDtoOutput {
 'reason': string | null;
 'createdAt': string;
 }>;
+'payment': ({
+'id': string;
+'orderId': string;
+'provider': 'CASH' | 'MOBILE_MONEY';
+'status': 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+'amountXof': number;
+'createdAt': string;
+}) | null;
+'invoice': ({
+'id': string;
+'number': string;
+'issuedAt': string;
+}) | null;
 'clientName': string | null;
 'clientPhone': string;
 'clientEmail': string | null;
