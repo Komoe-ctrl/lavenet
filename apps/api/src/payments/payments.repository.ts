@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PaymentProvider } from '@prisma/client';
+import { PaymentProvider, PaymentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Deliberately not a dependency on OrdersRepository: this module is
@@ -39,7 +39,25 @@ export class PaymentsRepository {
     return this.prisma.payment.findUnique({ where: { orderId } });
   }
 
+  findById(id: string) {
+    return this.prisma.payment.findUnique({ where: { id } });
+  }
+
+  // F-PAY-03. The webhook's entire replay guard: idempotencyKey is unique,
+  // so this is a single indexed lookup, never a scan.
+  findByIdempotencyKey(idempotencyKey: string) {
+    return this.prisma.payment.findUnique({ where: { idempotencyKey } });
+  }
+
   create(data: CreatePaymentData) {
     return this.prisma.payment.create({ data: { ...data, status: 'PENDING' } });
+  }
+
+  // Single-row update, no transaction needed -- PAID/FAILED never touches
+  // anything else (unlike the CASH auto-settle in
+  // OrdersRepository.transitionToDelivered, which happens inside the
+  // delivery transaction because it's paired with a status change there).
+  settleFromWebhook(paymentId: string, status: Extract<PaymentStatus, 'PAID' | 'FAILED'>) {
+    return this.prisma.payment.update({ where: { id: paymentId }, data: { status } });
   }
 }

@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PAYMENT_PROVIDER } from './payment-provider.interface';
+import { PaymentsController } from './payments.controller';
 import { PaymentsRepository } from './payments.repository';
 import { PaymentsService } from './payments.service';
 import { SandboxMobileMoneyProvider } from './sandbox-mobile-money.provider';
 
 @Module({
+  controllers: [PaymentsController],
   providers: [
     PaymentsRepository,
     PaymentsService,

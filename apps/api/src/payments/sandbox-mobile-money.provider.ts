@@ -54,4 +54,16 @@ export class SandboxMobileMoneyProvider implements PaymentProviderPort {
   sign(rawBody: string): string {
     return createHmac('sha256', env.PAYMENT_WEBHOOK_SECRET).update(rawBody).digest('hex');
   }
+
+  // Same JSON shape and same sign() the real webhook handler verifies
+  // against -- PaymentsService.simulateWebhook hands the result straight to
+  // handleWebhook, so this only ever supplies the payload, it never
+  // touches the verification itself.
+  simulateWebhookCallback(input: {
+    idempotencyKey: string;
+    outcome: 'PAID' | 'FAILED';
+  }): { rawBody: string; signatureHeader: string } {
+    const rawBody = JSON.stringify({ idempotencyKey: input.idempotencyKey, status: input.outcome });
+    return { rawBody, signatureHeader: this.sign(rawBody) };
+  }
 }

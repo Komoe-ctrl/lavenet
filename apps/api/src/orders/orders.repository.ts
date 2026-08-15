@@ -400,6 +400,17 @@ export class OrdersRepository {
       });
       await this.releaseSlotBookings(tx, orderId);
 
+      // F-PAY-04/06. A Mobile Money payment already settled before the
+      // client cancelled (PENDING_PICKUP is still cancellable, and payment
+      // can be initiated as soon as the order is placed) must not be left
+      // PAID against a cancelled order -- refunded in the same transaction
+      // as the cancellation itself, never a separate step that could run
+      // only one of the two.
+      const payment = await tx.payment.findUnique({ where: { orderId } });
+      if (payment?.status === 'PAID') {
+        await tx.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED' } });
+      }
+
       const order = await tx.order.findUniqueOrThrow({
         where: { id: orderId },
         include: orderDetailInclude,
