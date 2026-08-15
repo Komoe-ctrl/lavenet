@@ -36,6 +36,7 @@ export type { RegisterResponseDtoOutput } from './models/register-response-dto-o
 export type { SetDeliveryAddressDto } from './models/set-delivery-address-dto';
 export type { SetPickupModeDto } from './models/set-pickup-mode-dto';
 export type { SetSlotsDto } from './models/set-slots-dto';
+export type { SimulatePaymentDto } from './models/simulate-payment-dto';
 export type { SlotsResponseDtoOutput } from './models/slots-response-dto-output';
 export type { UpdateAddressDto } from './models/update-address-dto';
 export type { UpdateAddressResponseDtoOutput } from './models/update-address-response-dto-output';
