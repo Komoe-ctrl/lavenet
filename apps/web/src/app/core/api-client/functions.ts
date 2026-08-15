@@ -69,6 +69,10 @@ export type { OrdersControllerCancel$Params as OrdersControllerCancel$Params } f
 export { ordersControllerCancel as ordersControllerCancel } from './fn/orders/orders-controller-cancel';
 export type { OrdersControllerInitiatePayment$Params as OrdersControllerInitiatePayment$Params } from './fn/orders/orders-controller-initiate-payment';
 export { ordersControllerInitiatePayment as ordersControllerInitiatePayment } from './fn/orders/orders-controller-initiate-payment';
+export type { PaymentsControllerWebhook$Params as PaymentsControllerWebhook$Params } from './fn/payments/payments-controller-webhook';
+export { paymentsControllerWebhook as paymentsControllerWebhook } from './fn/payments/payments-controller-webhook';
+export type { PaymentsControllerSimulate$Params as PaymentsControllerSimulate$Params } from './fn/payments/payments-controller-simulate';
+export { paymentsControllerSimulate as paymentsControllerSimulate } from './fn/payments/payments-controller-simulate';
 export type { AdminOrdersControllerList$Params as AdminOrdersControllerList$Params } from './fn/admin-orders/admin-orders-controller-list';
 export { adminOrdersControllerList as adminOrdersControllerList } from './fn/admin-orders/admin-orders-controller-list';
 export type { AdminOrdersControllerDetail$Params as AdminOrdersControllerDetail$Params } from './fn/admin-orders/admin-orders-controller-detail';
