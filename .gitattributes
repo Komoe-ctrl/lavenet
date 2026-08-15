@@ -1,0 +1,10 @@
+# Prisma computes each migration's checksum against its committed bytes,
+# then verifies it again on every `migrate dev`/`migrate deploy` run. With
+# no rule here, Windows checkouts (core.autocrlf=true) silently convert
+# these files to CRLF, which changes that checksum without changing
+# anything git itself reports as a diff -- "migration modified after
+# applied" false positives that block every future migration from a
+# Windows machine once the drift compounds. Migration files are also never
+# meant to be edited by hand after being applied, so forcing LF here is
+# free: nothing legitimately needs CRLF in a generated migration.sql.
+prisma/migrations/**/*.sql text eol=lf
