@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, resource } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, resource, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -12,6 +12,7 @@ import {
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
+import { InvoicesService } from '../data-access/invoices.service';
 import { OrdersService } from '../data-access/orders.service';
 
 // F-STA-03. Detail + French progression frise. CANCELLED/ON_HOLD show a
@@ -27,6 +28,7 @@ import { OrdersService } from '../data-access/orders.service';
 })
 export class OrderDetailPage {
   private readonly ordersService = inject(OrdersService);
+  private readonly invoicesService = inject(InvoicesService);
   private readonly route = inject(ActivatedRoute);
 
   private readonly orderId = toSignal(
@@ -51,5 +53,30 @@ export class OrderDetailPage {
 
   protected isInterrupted(status: string): boolean {
     return status === 'CANCELLED' || status === 'ON_HOLD';
+  }
+
+  protected readonly downloadingInvoice = signal(false);
+  protected readonly invoiceError = signal<string | null>(null);
+
+  // F-PAY-05. Fetched as a Blob (InvoicesService, not the generated client
+  // -- see its own comment on why) and handed to the browser via a
+  // throwaway object URL: the only way to trigger a save dialog for
+  // content already in memory, no server-rendered download link involved.
+  protected async downloadInvoice(invoiceId: string, invoiceNumber: string): Promise<void> {
+    this.downloadingInvoice.set(true);
+    this.invoiceError.set(null);
+    try {
+      const blob = await this.invoicesService.downloadPdf(invoiceId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${invoiceNumber}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      this.invoiceError.set('Impossible de télécharger la facture. Réessayez.');
+    } finally {
+      this.downloadingInvoice.set(false);
+    }
   }
 }

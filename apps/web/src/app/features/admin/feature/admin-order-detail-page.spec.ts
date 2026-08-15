@@ -46,6 +46,8 @@ const BASE_ORDER = {
   clientName: 'Aya Kouassi',
   clientPhone: '+2250700000001',
   clientEmail: 'aya@example.com',
+  payment: null,
+  invoice: null,
   statusHistory: [
     {
       fromStatus: 'DRAFT' as const,
