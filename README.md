@@ -175,33 +175,33 @@ au lieu de mettre à jour les mêmes 25).
 
 ## Renouvellement automatique
 
-Un compte manuel n'est pas fiable dans la durée — `.github/workflows/reseed-slots.yml`
-rejoue `pnpm db:seed:slots:prod` **tous les jours à 06:00 UTC**, une marge large avant
-que la fenêtre glissante de 21 jours ne s'épuise même si un ou plusieurs jours d'affilée
-échouent avant que quelqu'un ne réagisse.
+`SlotsRepository.findUpcoming()` (`apps/api/src/slots/slots.repository.ts`) complète la
+fenêtre glissante de 21 jours à la demande, à chaque appel à `GET /slots` : une lecture
+bon marché (`findFirst` sur l'index `(date, startsAt)`) vérifie qu'au moins 14 jours de
+couverture restent, et ne déclenche l'écriture (`createMany` idempotent) que si ce n'est
+plus le cas. En régime normal, l'écriture ne s'exécute donc qu'une fois par jour environ,
+au premier visiteur — jamais sur une horloge externe.
 
-- Gratuit (minutes GitHub Actions incluses), ne dépend pas du réveil de l'API Render
-  (contrairement à un cron interne à l'app, peu fiable vu `docs/ADR/0003` — l'API peut
-  dormir des jours sans visite).
-- Déclenchement manuel possible à tout moment (`workflow_dispatch`, onglet Actions du
-  dépôt), en plus du calendrier.
-- Un échec ouvre (ou commente, si déjà ouverte) une issue GitHub étiquetée
-  `slots-reseed-failure` avec le lien du run — visible dans l'onglet Issues, pas
-  seulement dans l'historique Actions qu'il faudrait penser à aller consulter.
-- **Nécessite un seul secret de dépôt** : `PROD_DATABASE_URL`, la même chaîne de
-  connexion que la ligne `DATABASE_URL` de votre `.env.production.local` local. À
-  ajouter dans Settings → Secrets and variables → Actions → New repository secret.
-  C'est la seule étape que je ne peux pas faire moi-même.
-- Le workflow expose cette même valeur sous `DATABASE_URL` **et** `DIRECT_URL` :
-  `prisma.config.ts` résout `env('DIRECT_URL')` dès qu'une commande Prisma charge la
-  config, `prisma generate` compris. Aucun second secret n'est nécessaire pour autant —
-  `prisma generate` n'ouvre aucune connexion, et ce workflow ne fait que des upserts,
-  jamais de migration : la distinction poolée / directe ne concerne que
-  `prisma migrate deploy`, exécuté par Render au déploiement.
+Remplace l'ancien `.github/workflows/reseed-slots.yml` (cron GitHub Actions quotidien),
+retiré : les cinq exécutions programmées et manuelles ont toutes échoué sur dix jours,
+`PROD_DATABASE_URL` n'ayant jamais été renseigné dans les secrets du dépôt — la seule
+étape qu'un agent ne peut pas faire lui-même s'est révélée être le point de défaillance
+à 100 %. Plus de workflow, plus de secret, plus de cron à surveiller : la fenêtre ne peut
+plus se vider par oubli d'une étape manuelle, puisque c'est la visite elle-même qui
+déclenche le remplissage.
 
-Écarté : une régénération "paresseuse" déclenchée par l'API elle-même (ex. dans
-`GET /slots`) mélangerait une route de lecture publique avec une écriture en base, et
-resterait sujette au même problème de sommeil de l'API que le cron interne.
+Cette version révise une décision précédente qui écartait la génération à la demande au
+motif qu'elle « mélangerait une route de lecture publique avec une écriture en base » et
+« resterait sujette au même problème de sommeil de l'API qu'un cron interne ». Le premier
+point est un compromis de style assumé consciemment ici, pas ignoré. Le second ne
+s'applique pas à ce mécanisme : un cron _interne à l'app_ (ex. `@Cron` NestJS) ne se
+déclenche que si le process tourne déjà, donc jamais si l'API dort faute de visite — alors
+qu'ici, l'écriture ne se produit que dans la gestion d'une requête réelle qui, par
+construction, vient déjà de réveiller l'API (voir `docs/ADR/0003`, déjà géré côté UX). Les
+deux mécanismes ne partagent pas ce problème.
+
+Script `pnpm db:seed:slots:prod` conservé pour un rejeu manuel ponctuel (ex. pré-chauffer
+la fenêtre avant une démo), mais n'est plus nécessaire au fonctionnement normal.
 
 ## Développement
 
