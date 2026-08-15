@@ -14,6 +14,7 @@ import { CheckoutResponseDtoOutput } from '../../../core/api-client/models/check
 import { AddressesService } from '../data-access/addresses.service';
 import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
+import { type Payment, type PaymentProviderChoice, PaymentsService } from '../data-access/payments.service';
 import { SlotsService } from '../data-access/slots.service';
 import { SiteFooter } from '../../../shared/layout/site-footer';
 import { SiteHeader } from '../../../shared/layout/site-header';
@@ -65,6 +66,7 @@ export class CartPage {
   private readonly agenciesService = inject(AgenciesService);
   private readonly slotsService = inject(SlotsService);
   private readonly addressesService = inject(AddressesService);
+  private readonly paymentsService = inject(PaymentsService);
 
   protected readonly cart = resource({ loader: () => this.cartService.getCart() });
   protected readonly agencies = resource({ loader: () => this.agenciesService.listAgencies() });
@@ -107,6 +109,15 @@ export class CartPage {
   protected readonly checkingOut = signal(false);
   protected readonly checkoutError = signal<string | null>(null);
   protected readonly checkoutResult = signal<Order | null>(null);
+
+  // F-PAY-01/02. Local UI choice before the payment is actually created --
+  // seeded fresh (never from the saved cart) since a payment only ever
+  // exists after checkout has just happened, in this same page load.
+  protected readonly paymentProviderChoice = signal<PaymentProviderChoice | null>(null);
+  protected readonly payment = signal<Payment | null>(null);
+  protected readonly initiatingPayment = signal(false);
+  protected readonly paymentError = signal<string | null>(null);
+  protected readonly simulatingPayment = signal(false);
 
   constructor() {
     effect(() => {
@@ -367,6 +378,53 @@ export class CartPage {
       this.checkoutError.set(extractErrorMessage(err));
     } finally {
       this.checkingOut.set(false);
+    }
+  }
+
+  protected choosePaymentProvider(provider: PaymentProviderChoice): void {
+    this.paymentProviderChoice.set(provider);
+  }
+
+  // F-PAY-01/02. Runs once the order this.checkoutResult() just produced
+  // exists -- amountXof is never sent here (createPaymentInputSchema is
+  // provider-only, CLAUDE.md §4 rule 6: the API re-reads it from
+  // Order.totalXof itself).
+  protected async confirmPaymentChoice(): Promise<void> {
+    const order = this.checkoutResult();
+    const provider = this.paymentProviderChoice();
+    if (!order || !provider) {
+      return;
+    }
+    this.initiatingPayment.set(true);
+    this.paymentError.set(null);
+    try {
+      const { payment } = await this.paymentsService.initiate(order.id, provider);
+      this.payment.set(payment);
+    } catch (err) {
+      this.paymentError.set(extractErrorMessage(err));
+    } finally {
+      this.initiatingPayment.set(false);
+    }
+  }
+
+  // Demo-only (F-PAY-03): stands in for the real Mobile Money confirmation
+  // this sandbox can't produce on its own. Reloads the payment's own
+  // status from the response rather than assuming the requested outcome
+  // landed, in case a stale click resolves an already-settled payment.
+  protected async simulatePaymentOutcome(outcome: 'PAID' | 'FAILED'): Promise<void> {
+    const current = this.payment();
+    if (!current) {
+      return;
+    }
+    this.simulatingPayment.set(true);
+    this.paymentError.set(null);
+    try {
+      await this.paymentsService.simulate(current.id, outcome);
+      this.payment.set({ ...current, status: outcome });
+    } catch (err) {
+      this.paymentError.set(extractErrorMessage(err));
+    } finally {
+      this.simulatingPayment.set(false);
     }
   }
 }

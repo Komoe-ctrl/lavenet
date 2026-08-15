@@ -12,6 +12,8 @@ import { SessionStore } from '../../../core/auth/session.store';
 import { AddressesService } from '../data-access/addresses.service';
 import { AgenciesService } from '../data-access/agencies.service';
 import { CartService } from '../data-access/cart.service';
+import type { Payment } from '../data-access/payments.service';
+import { PaymentsService } from '../data-access/payments.service';
 import { SlotsService } from '../data-access/slots.service';
 import { CartPage } from './cart-page';
 
@@ -127,6 +129,11 @@ type FakeAddressesService = {
   list: () => Promise<ListAddressesResponseDtoOutput>;
 };
 
+type FakePaymentsService = {
+  initiate: (orderId: string, provider: 'CASH' | 'MOBILE_MONEY') => Promise<{ payment: Payment }>;
+  simulate: (paymentId: string, outcome: 'PAID' | 'FAILED') => Promise<void>;
+};
+
 const ADDRESSES: ListAddressesResponseDtoOutput = {
   addresses: [
     {
@@ -149,6 +156,7 @@ function configureWith(
   agenciesService: Partial<FakeAgenciesService> = {},
   slotsService: Partial<FakeSlotsService> = {},
   addressesService: Partial<FakeAddressesService> = {},
+  paymentsService: Partial<FakePaymentsService> = {},
 ) {
   TestBed.configureTestingModule({
     providers: [
@@ -187,6 +195,14 @@ function configureWith(
         useValue: {
           list: vi.fn().mockResolvedValue(ADDRESSES),
           ...addressesService,
+        },
+      },
+      {
+        provide: PaymentsService,
+        useValue: {
+          initiate: vi.fn(),
+          simulate: vi.fn(),
+          ...paymentsService,
         },
       },
       { provide: SessionStore, useValue: { isAuthenticated: () => true, user: () => null } },

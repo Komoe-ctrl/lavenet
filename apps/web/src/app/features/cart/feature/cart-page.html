@@ -67,7 +67,77 @@
         <strong>Livraison à {{ order.deliveryCommune }}, {{ order.deliveryQuartier }}</strong>
         <span>{{ order.deliveryDetails }}</span>
       </p>
-      <p class="cart-summary__note">Le paiement arrive bientôt.</p>
+
+      @if (payment(); as p) {
+        <section class="panel">
+          <h2 class="panel__title">Paiement</h2>
+          @if (p.status === 'PENDING' && p.provider === 'CASH') {
+            <p class="state">
+              Vous réglerez <strong>{{ p.amountXof | money }}</strong> en espèces à la livraison.
+            </p>
+          } @else if (p.status === 'PENDING' && p.provider === 'MOBILE_MONEY') {
+            <p class="state">
+              En attente de confirmation Mobile Money pour <strong>{{ p.amountXof | money }}</strong>.
+            </p>
+            <button
+              type="button"
+              class="confirmation__secondary"
+              [disabled]="simulatingPayment()"
+              (click)="simulatePaymentOutcome('PAID')"
+            >
+              {{ simulatingPayment() ? 'Simulation…' : 'Simuler la confirmation (démo)' }}
+            </button>
+          } @else if (p.status === 'PAID') {
+            <p class="state">Paiement confirmé — reçu pour {{ p.amountXof | money }}.</p>
+          } @else if (p.status === 'FAILED') {
+            <p class="state-error" role="alert">Le paiement a échoué. Contactez le support.</p>
+          }
+          @if (paymentError()) {
+            <p class="state-error" role="alert">{{ paymentError() }}</p>
+          }
+        </section>
+      } @else {
+        <section class="panel">
+          <h2 class="panel__title">Mode de paiement</h2>
+          <div class="choice-group">
+            <label class="choice" [class.choice--selected]="paymentProviderChoice() === 'CASH'">
+              <input
+                type="radio"
+                name="paymentProvider"
+                [checked]="paymentProviderChoice() === 'CASH'"
+                (change)="choosePaymentProvider('CASH')"
+              />
+              <span class="choice__body">
+                <span class="choice__title">Espèces</span>
+                <span class="choice__hint">Réglez directement au livreur.</span>
+              </span>
+            </label>
+            <label class="choice" [class.choice--selected]="paymentProviderChoice() === 'MOBILE_MONEY'">
+              <input
+                type="radio"
+                name="paymentProvider"
+                [checked]="paymentProviderChoice() === 'MOBILE_MONEY'"
+                (change)="choosePaymentProvider('MOBILE_MONEY')"
+              />
+              <span class="choice__body">
+                <span class="choice__title">Mobile Money</span>
+                <span class="choice__hint">Paiement en ligne (démo, sans compte réel requis).</span>
+              </span>
+            </label>
+          </div>
+          @if (paymentError()) {
+            <p class="state-error" role="alert">{{ paymentError() }}</p>
+          }
+          <button
+            type="button"
+            class="confirmation__primary"
+            [disabled]="!paymentProviderChoice() || initiatingPayment()"
+            (click)="confirmPaymentChoice()"
+          >
+            {{ initiatingPayment() ? 'Confirmation…' : 'Choisir ce mode de paiement' }}
+          </button>
+        </section>
+      }
 
       <div class="confirmation__actions">
         <a routerLink="/commandes" class="confirmation__primary">Suivre ma commande</a>

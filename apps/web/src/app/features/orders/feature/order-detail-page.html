@@ -156,6 +156,45 @@
       </p>
     </section>
 
+    @if (data.payment; as payment) {
+      <section class="panel">
+        <h2 class="panel__title">Paiement</h2>
+        @if (payment.provider === 'CASH') {
+          <p class="state">
+            Espèces à la livraison —
+            {{
+              payment.status === 'PAID' ? 'encaissé à la livraison.' : 'à régler au livreur.'
+            }}
+          </p>
+        } @else if (payment.status === 'PAID') {
+          <p class="state">Mobile Money — paiement confirmé.</p>
+        } @else if (payment.status === 'PENDING') {
+          <p class="state">Mobile Money — en attente de confirmation.</p>
+        } @else if (payment.status === 'FAILED') {
+          <p class="state-error" role="alert">Mobile Money — le paiement a échoué.</p>
+        } @else if (payment.status === 'REFUNDED') {
+          <p class="state">Mobile Money — remboursé suite à l'annulation.</p>
+        }
+
+        @if (data.invoice; as invoice) {
+          <p class="order-invoice">
+            <span>Facture {{ invoice.number }}</span>
+            <button
+              type="button"
+              class="confirmation__secondary"
+              [disabled]="downloadingInvoice()"
+              (click)="downloadInvoice(invoice.id, invoice.number)"
+            >
+              {{ downloadingInvoice() ? 'Téléchargement…' : 'Télécharger la facture (PDF)' }}
+            </button>
+          </p>
+          @if (invoiceError()) {
+            <p class="state-error" role="alert">{{ invoiceError() }}</p>
+          }
+        }
+      </section>
+    }
+
     @if (data.statusHistory.length > 0) {
       <section class="panel history">
         <h2 class="panel__title">Historique</h2>

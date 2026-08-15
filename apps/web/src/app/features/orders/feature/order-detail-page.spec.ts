@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
+import { InvoicesService } from '../data-access/invoices.service';
 import { OrdersService } from '../data-access/orders.service';
 import { SessionStore } from '../../../core/auth/session.store';
 import { OrderDetailResponseDtoOutput } from '../../../core/api-client/models/order-detail-response-dto-output';
@@ -43,6 +44,8 @@ const BASE_ORDER = {
   deliveryGeoLat: null,
   deliveryGeoLng: null,
   createdAt: '2026-08-08T10:00:00.000Z',
+  payment: null,
+  invoice: null,
   statusHistory: [
     {
       fromStatus: 'DRAFT' as const,
@@ -60,10 +63,14 @@ const BASE_ORDER = {
 };
 
 type FakeOrdersService = { detail: (id: string) => Promise<OrderDetailResponseDtoOutput> };
+type FakeInvoicesService = { downloadPdf: (id: string) => Promise<Blob> };
 
 // SiteHeader (rendered by OrderDetailPage) reads isAuthenticated()/user()
 // -- a user viewing an order's detail is always logged in already.
-function configureWith(service: Partial<FakeOrdersService>) {
+function configureWith(
+  service: Partial<FakeOrdersService>,
+  invoicesService: Partial<FakeInvoicesService> = {},
+) {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
@@ -75,6 +82,13 @@ function configureWith(service: Partial<FakeOrdersService>) {
       {
         provide: OrdersService,
         useValue: { detail: vi.fn().mockResolvedValue({ order: BASE_ORDER }), ...service },
+      },
+      {
+        provide: InvoicesService,
+        useValue: {
+          downloadPdf: vi.fn().mockResolvedValue(new Blob(['%PDF-'], { type: 'application/pdf' })),
+          ...invoicesService,
+        },
       },
       { provide: SessionStore, useValue: { isAuthenticated: () => true, user: () => null } },
     ],
@@ -169,5 +183,97 @@ describe('OrderDetailPage', () => {
 
     expect(fixture.nativeElement.querySelector('.progress-frise')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Annulé');
+  });
+
+  describe('payment and invoice (F-PAY-01/05)', () => {
+    it('shows no payment/invoice panel when neither exists yet', async () => {
+      configureWith({});
+      const fixture = TestBed.createComponent(OrderDetailPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Paiement');
+      expect(fixture.nativeElement.querySelector('.order-invoice')).toBeNull();
+    });
+
+    it('shows the cash payment note without an invoice before delivery', async () => {
+      configureWith({
+        detail: () =>
+          Promise.resolve({
+            order: {
+              ...BASE_ORDER,
+              payment: {
+                id: 'pay_1',
+                orderId: 'ord_1',
+                provider: 'CASH' as const,
+                status: 'PENDING' as const,
+                amountXof: 3400,
+                createdAt: '2026-08-08T10:00:00.000Z',
+              },
+            },
+          }),
+      });
+      const fixture = TestBed.createComponent(OrderDetailPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('à régler au livreur');
+      expect(fixture.nativeElement.querySelector('.order-invoice')).toBeNull();
+    });
+
+    it('shows the invoice number and downloads the PDF on click, once DELIVERED', async () => {
+      // jsdom has no real object URL implementation. Overwriting only these
+      // two static methods (not the whole URL global via vi.stubGlobal, which
+      // replaces the constructor itself and breaks `new URL(...)` for every
+      // other test file sharing this environment) keeps URL itself intact.
+      const createObjectURL = vi.fn().mockReturnValue('blob:fake');
+      const revokeObjectURL = vi.fn();
+      const originalCreateObjectURL = URL.createObjectURL;
+      const originalRevokeObjectURL = URL.revokeObjectURL;
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = revokeObjectURL;
+      const downloadPdf = vi
+        .fn()
+        .mockResolvedValue(new Blob(['%PDF-'], { type: 'application/pdf' }));
+
+      configureWith(
+        {
+          detail: () =>
+            Promise.resolve({
+              order: {
+                ...BASE_ORDER,
+                status: 'DELIVERED' as const,
+                payment: {
+                  id: 'pay_1',
+                  orderId: 'ord_1',
+                  provider: 'MOBILE_MONEY' as const,
+                  status: 'PAID' as const,
+                  amountXof: 3400,
+                  createdAt: '2026-08-08T10:00:00.000Z',
+                },
+                invoice: { id: 'inv_1', number: 'LN-FAC-2026-000001', issuedAt: '2026-08-10T10:00:00.000Z' },
+              },
+            }),
+        },
+        { downloadPdf },
+      );
+      const fixture = TestBed.createComponent(OrderDetailPage);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('LN-FAC-2026-000001');
+      expect(fixture.nativeElement.textContent).toContain('paiement confirmé');
+
+      const button: HTMLButtonElement = fixture.nativeElement.querySelector('.order-invoice button');
+      button.click();
+      await fixture.whenStable();
+
+      expect(downloadPdf).toHaveBeenCalledWith('inv_1');
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:fake');
+
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    });
   });
 });
