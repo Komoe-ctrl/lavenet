@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
-import { formatOrderReference } from '@lavenet/shared-domain';
+import {
+  COMPANY_ADDRESS,
+  COMPANY_CONTACT,
+  COMPANY_NAME,
+  formatInvoiceNumber,
+  formatOrderReference,
+} from '@lavenet/shared-domain';
 import type { PlacedOrderStatus } from '@lavenet/shared-schemas';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -78,6 +84,8 @@ const orderDetailInclude = {
   items: { include: { service: true, articleType: true }, orderBy: { createdAt: 'asc' } },
   statusHistory: { orderBy: { createdAt: 'asc' } },
   user: { select: { fullName: true, phone: true, email: true } },
+  payment: true,
+  invoice: true,
 } satisfies Prisma.OrderInclude;
 
 export type OrderDetailRecord = Prisma.OrderGetPayload<{ include: typeof orderDetailInclude }>;
@@ -87,6 +95,16 @@ export type CheckoutResult =
 
 export type CancelResult =
   { ok: true; order: OrderDetailRecord } | { ok: false; reason: 'ALREADY_TRANSITIONED' };
+
+// F-PAY-01/04/06.
+export type DeliveredTransitionFailureReason =
+  | 'ALREADY_TRANSITIONED'
+  | 'NO_PAYMENT'
+  | 'PAYMENT_NOT_SETTLED';
+
+export type DeliveredTransitionResult =
+  | { ok: true; order: OrderDetailRecord }
+  | { ok: false; reason: DeliveredTransitionFailureReason };
 
 // Thrown only inside commitCheckout's own transaction, to force a rollback
 // of a partial booking (e.g. pickup slot seat taken, then delivery slot
@@ -425,6 +443,104 @@ export class OrdersRepository {
         include: orderDetailInclude,
       });
       return { ok: true, order } as const;
+    });
+  }
+
+  // F-PAY-01/04/06. The one transition that also touches Payment/Invoice --
+  // kept separate from the general-purpose transitionOrder above rather
+  // than branching that method, since "gate on payment, maybe settle cash,
+  // mint an invoice" is real complexity specific to this one target, not a
+  // detail every other transition needs to carry.
+  //
+  // No separate "mark cash collected" step exists anywhere in this API: a
+  // courier delivering an order *is* the act of collecting cash on it, so
+  // both happen in this one transaction, in that order (Payment.status is
+  // only ever flipped after the order.updateMany guard below succeeds --
+  // never before a caller-observed status race is confirmed to have won).
+  async transitionToDelivered(
+    orderId: string,
+    fromStatus: OrderStatus,
+    actorId: string,
+    issuanceYear: number,
+  ): Promise<DeliveredTransitionResult> {
+    // Prisma's 5s default interactive-transaction timeout is a wall clock
+    // for the whole BEGIN..COMMIT span, not just query time. A second
+    // delivery blocked on createInvoice's row lock while the first is still
+    // making its own round trips to a remote Postgres (Neon) can plausibly
+    // exceed 5s under real concurrent deliveries, aborting a request that
+    // was never actually in conflict -- reproduced directly by this
+    // method's own concurrency test.
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({ where: { orderId } });
+      if (!payment) {
+        return { ok: false, reason: 'NO_PAYMENT' } as const;
+      }
+      if (payment.status === 'FAILED' || payment.status === 'REFUNDED') {
+        return { ok: false, reason: 'PAYMENT_NOT_SETTLED' } as const;
+      }
+      if (payment.provider === 'MOBILE_MONEY' && payment.status !== 'PAID') {
+        // Paid in advance only -- nothing to settle here, unlike CASH below.
+        return { ok: false, reason: 'PAYMENT_NOT_SETTLED' } as const;
+      }
+
+      const updated = await tx.order.updateMany({
+        where: { id: orderId, status: fromStatus },
+        data: { status: 'DELIVERED' },
+      });
+      if (updated.count === 0) {
+        return { ok: false, reason: 'ALREADY_TRANSITIONED' } as const;
+      }
+
+      // Only a CASH payment can still be PENDING at this point (MOBILE_MONEY
+      // PENDING already rejected above) -- delivering it is what settles it.
+      if (payment.status === 'PENDING') {
+        await tx.payment.update({ where: { id: payment.id }, data: { status: 'PAID' } });
+      }
+
+      await tx.orderStatusHistory.create({
+        data: { orderId, fromStatus, toStatus: 'DELIVERED', actorId },
+      });
+
+      const { vatRateBps } = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        select: { vatRateBps: true },
+      });
+      await this.createInvoice(tx, orderId, vatRateBps, issuanceYear);
+
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: orderDetailInclude,
+      });
+      return { ok: true, order } as const;
+    }, { timeout: 15_000 });
+  }
+
+  // F-PAY-05/CLAUDE.md §4 rule 5. Row-locked counter, not a SEQUENCE --
+  // see InvoiceCounter's schema comment for why nextval() doesn't satisfy
+  // "zero gaps" the way a lock held for the rest of this transaction does.
+  private async createInvoice(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    vatRateBps: number | null,
+    issuanceYear: number,
+  ): Promise<void> {
+    const [{ lastNumber }] = await tx.$queryRaw<{ lastNumber: number }[]>(
+      Prisma.sql`SELECT "lastNumber" FROM "invoice_counters" WHERE id = 1 FOR UPDATE`,
+    );
+    const nextNumber = lastNumber + 1;
+    await tx.$executeRaw(
+      Prisma.sql`UPDATE "invoice_counters" SET "lastNumber" = ${nextNumber} WHERE id = 1`,
+    );
+
+    await tx.invoice.create({
+      data: {
+        orderId,
+        number: formatInvoiceNumber(nextNumber, issuanceYear),
+        issuerName: COMPANY_NAME,
+        issuerAddress: COMPANY_ADDRESS,
+        issuerContact: COMPANY_CONTACT,
+        vatRateBps: vatRateBps ?? 0,
+      },
     });
   }
 
