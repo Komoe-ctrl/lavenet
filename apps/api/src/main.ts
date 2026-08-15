@@ -12,7 +12,12 @@ import { AppModule } from './app/app.module';
 import { API_GLOBAL_PREFIX, buildSwaggerConfig } from './swagger.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true -- F-PAY-03's webhook signature check needs the exact
+  // bytes the provider signed, not a re-serialized copy of the parsed JSON
+  // (key order/whitespace can differ and would break the HMAC comparison).
+  // Every route still gets its normal parsed req.body; only the webhook
+  // handler reads req.rawBody.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix(API_GLOBAL_PREFIX);
   app.use(cookieParser());
   app.enableCors({

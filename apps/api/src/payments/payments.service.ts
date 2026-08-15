@@ -1,9 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Payment as PaymentRecord } from '@prisma/client';
 import type { CreatePaymentResponse, PaymentProviderValue } from '@lavenet/shared-schemas';
+import { env } from '../config/env';
 import { PAYMENT_PROVIDER, PaymentProviderPort } from './payment-provider.interface';
 import { PaymentsRepository } from './payments.repository';
+import { webhookPayloadSchema } from './payments.dto';
 
 // A placed order that hasn't reached a terminal state yet -- DRAFT (still a
 // cart) and CANCELLED/DELIVERED (nothing left to collect) can't accept a
@@ -68,6 +76,66 @@ export class PaymentsService {
       providerRef,
     });
     return { payment: toPaymentDto(payment) };
+  }
+
+  // F-PAY-03. Order matters: the signature is checked against the raw
+  // bytes before anything else runs, including parsing the payload as
+  // JSON -- an unsigned or forged request never reaches the database, or
+  // even gets its shape validated.
+  async handleWebhook(rawBody: string, signatureHeader: string | undefined): Promise<void> {
+    if (!this.paymentProvider.verifyWebhookSignature(rawBody, signatureHeader)) {
+      throw new UnauthorizedException('Signature invalide.');
+    }
+
+    const parsed = webhookPayloadSchema.safeParse(safeJsonParse(rawBody));
+    if (!parsed.success) {
+      throw new BadRequestException('Payload de webhook invalide.');
+    }
+    const payload = parsed.data;
+
+    const payment = await this.repo.findByIdempotencyKey(payload.idempotencyKey);
+    if (!payment) {
+      throw new NotFoundException('Paiement introuvable.');
+    }
+    if (payment.status !== 'PENDING') {
+      // Replay of an already-resolved callback (or two concurrent
+      // deliveries of the same event): idempotencyKey's whole reason for
+      // existing is that this is a no-op, not a second write.
+      return;
+    }
+
+    await this.repo.settleFromWebhook(payment.id, payload.status);
+  }
+
+  // Demo-only trigger for POST /payments/:id/sandbox/simulate. Builds a
+  // genuinely signed payload via the provider (SandboxMobileMoneyProvider's
+  // simulateWebhookCallback) and hands it to the exact same handleWebhook
+  // above -- there is no second, unverified path to PAID/FAILED.
+  async simulateWebhook(paymentId: string, outcome: 'PAID' | 'FAILED'): Promise<void> {
+    if (!env.DEMO_MODE) {
+      throw new NotFoundException();
+    }
+    const payment = await this.repo.findById(paymentId);
+    if (!payment) {
+      throw new NotFoundException('Paiement introuvable.');
+    }
+    if (!this.paymentProvider.simulateWebhookCallback) {
+      throw new NotFoundException();
+    }
+
+    const { rawBody, signatureHeader } = this.paymentProvider.simulateWebhookCallback({
+      idempotencyKey: payment.idempotencyKey,
+      outcome,
+    });
+    await this.handleWebhook(rawBody, signatureHeader);
+  }
+}
+
+function safeJsonParse(rawBody: string): unknown {
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    return undefined;
   }
 }
 
