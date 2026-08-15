@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { invoiceSummarySchema } from './invoice.schemas';
+import { paymentSchema } from './payment.schemas';
 
 // F-STA-01/F-CMD-09. All 9 states, for OrderStatusHistory.fromStatus --
 // the very first row's "from" is legitimately DRAFT (the checkout
@@ -106,6 +108,12 @@ export const orderDetailSchema = z.object({
   ...orderCoreShape,
   status: placedOrderStatusSchema,
   statusHistory: z.array(orderStatusHistoryEntrySchema),
+  // Both null until the client initiates a payment / the order reaches
+  // DELIVERED (F-PAY-01/05) -- never present on orderSchema (the checkout
+  // response), which is always the very first instant of a placed order,
+  // before either can exist.
+  payment: paymentSchema.nullable(),
+  invoice: invoiceSummarySchema.nullable(),
 });
 export type OrderDetail = z.infer<typeof orderDetailSchema>;
 

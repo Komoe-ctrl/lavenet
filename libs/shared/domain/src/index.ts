@@ -7,3 +7,4 @@ export * from './lib/pickup';
 export * from './lib/delivery-slot';
 export * from './lib/order-reference';
 export * from './lib/order-state-machine';
+export * from './lib/invoice-number';
