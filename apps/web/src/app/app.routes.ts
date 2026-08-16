@@ -71,6 +71,12 @@ export const appRoutes: Route[] = [
       import('./features/orders/feature/order-detail-page').then((m) => m.OrderDetailPage),
   },
   {
+    path: 'admin/tableau-de-bord',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/feature/admin-dashboard-page').then((m) => m.AdminDashboardPage),
+  },
+  {
     path: 'admin/commandes',
     canActivate: [adminGuard],
     loadComponent: () =>

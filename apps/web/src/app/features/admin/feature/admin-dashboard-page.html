@@ -1,0 +1,161 @@
+<app-site-header />
+
+<main class="console">
+  <a routerLink="/admin/commandes" class="console__back">→ Commandes</a>
+
+  <header class="console__head">
+    <div class="console__title">
+      <span class="console__tag">Back-office</span>
+      <h1>Tableau de bord</h1>
+    </div>
+  </header>
+
+  @if (result.isLoading()) {
+    <div class="tiles" aria-hidden="true">
+      @for (placeholder of [1, 2, 3, 4]; track placeholder) {
+        <div class="tile tile--loading">
+          <span class="skeleton skeleton-line skeleton-line--short"></span>
+          <span class="skeleton skeleton-line skeleton-line--wide"></span>
+        </div>
+      }
+    </div>
+    <p class="sr-only" role="status">Chargement du tableau de bord…</p>
+  } @else if (result.error()) {
+    <p class="state-error" role="alert">
+      Impossible de charger le tableau de bord. Vérifiez votre connexion et réessayez.
+    </p>
+  } @else if (result.hasValue()) {
+    @let data = result.value();
+
+    @if (isEmpty()) {
+      <div class="empty-state">
+        <svg
+          class="empty-state__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 19h16" />
+          <path d="M7 19v-6M12 19V9M17 19v-3" />
+        </svg>
+        <p class="empty-state__title">Aucune commande enregistrée pour l'instant</p>
+        <p class="empty-state__hint">
+          Le tableau de bord se remplira dès les premières commandes passées.
+        </p>
+      </div>
+    } @else {
+      <section class="tiles" aria-label="Chiffres clés">
+        <div class="tile">
+          <span class="tile__label">CA du jour</span>
+          <span class="tile__value">{{ data.revenue.todayXof | money }}</span>
+        </div>
+        <div class="tile">
+          <span class="tile__label">CA sur 7 jours</span>
+          <span class="tile__value">{{ data.revenue.last7DaysXof | money }}</span>
+        </div>
+        <div class="tile">
+          <span class="tile__label">CA sur 30 jours</span>
+          <span class="tile__value">{{ data.revenue.last30DaysXof | money }}</span>
+        </div>
+        <div class="tile">
+          <span class="tile__label">Panier moyen (30 j)</span>
+          <span class="tile__value">{{ data.averageBasketXof | money }}</span>
+        </div>
+      </section>
+
+      <div class="panels">
+        <section class="panel">
+          <h2 class="panel__title">Commandes par statut</h2>
+          <ul class="status-bars">
+            @for (bar of statusBars(); track bar.status) {
+              <li class="status-bar">
+                <span [class]="'status-badge status-badge--' + bar.status">
+                  {{ labelFor(bar.status) }}
+                </span>
+                <span class="status-bar__track">
+                  <span
+                    [class]="'status-bar__fill status-bar__fill--' + bar.status"
+                    [style.width.%]="bar.percent"
+                  ></span>
+                </span>
+                <span class="status-bar__count">{{ bar.count }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel__title">Services les plus vendus (30 j)</h2>
+          @if (data.topServices.length === 0) {
+            <p class="panel__empty">Aucune commande sur les 30 derniers jours.</p>
+          } @else {
+            <ol class="top-services">
+              @for (service of data.topServices; track service.serviceId) {
+                <li class="top-service">
+                  <span class="top-service__name">{{ service.serviceName }}</span>
+                  <span class="top-service__quantity">{{ service.quantity }}×</span>
+                  <span class="top-service__revenue">{{ service.revenueXof | money }}</span>
+                </li>
+              }
+            </ol>
+          }
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2 class="panel__title">Chiffre d'affaires -- 60 derniers jours</h2>
+        <svg
+          class="chart"
+          [attr.viewBox]="chartViewBox"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label="Courbe du chiffre d'affaires quotidien sur les 60 derniers jours"
+        >
+          <path class="chart__area" [attr.d]="chartAreaPath()" />
+          <polyline class="chart__line" [attr.points]="chartPoints()" />
+        </svg>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel__title">Export CSV</h2>
+        <div class="export">
+          <div class="date-filters">
+            <label>
+              Du
+              <input
+                type="date"
+                [value]="exportFrom()"
+                (change)="setExportFrom($any($event.target).value)"
+              />
+            </label>
+            <label>
+              Au
+              <input
+                type="date"
+                [value]="exportTo()"
+                (change)="setExportTo($any($event.target).value)"
+              />
+            </label>
+          </div>
+          <div class="export__actions">
+            <button type="button" [disabled]="exportingOrders()" (click)="exportOrders()">
+              {{ exportingOrders() ? 'Génération…' : 'Exporter les commandes' }}
+            </button>
+            <button type="button" [disabled]="exportingPayments()" (click)="exportPayments()">
+              {{ exportingPayments() ? 'Génération…' : 'Exporter les paiements' }}
+            </button>
+          </div>
+          @if (exportError()) {
+            <p class="state-error" role="alert">{{ exportError() }}</p>
+          }
+        </div>
+      </section>
+    }
+  }
+</main>
+
+<app-site-footer />
