@@ -9,3 +9,4 @@ export * from './lib/order.schemas';
 export * from './lib/admin-order.schemas';
 export * from './lib/payment.schemas';
 export * from './lib/invoice.schemas';
+export * from './lib/admin-dashboard.schemas';
