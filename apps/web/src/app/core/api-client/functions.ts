@@ -79,5 +79,11 @@ export type { AdminOrdersControllerDetail$Params as AdminOrdersControllerDetail$
 export { adminOrdersControllerDetail as adminOrdersControllerDetail } from './fn/admin-orders/admin-orders-controller-detail';
 export type { AdminOrdersControllerUpdateStatus$Params as AdminOrdersControllerUpdateStatus$Params } from './fn/admin-orders/admin-orders-controller-update-status';
 export { adminOrdersControllerUpdateStatus as adminOrdersControllerUpdateStatus } from './fn/admin-orders/admin-orders-controller-update-status';
+export type { AdminDashboardControllerGet$Params as AdminDashboardControllerGet$Params } from './fn/admin-dashboard/admin-dashboard-controller-get';
+export { adminDashboardControllerGet as adminDashboardControllerGet } from './fn/admin-dashboard/admin-dashboard-controller-get';
+export type { AdminExportControllerOrders$Params as AdminExportControllerOrders$Params } from './fn/admin-export/admin-export-controller-orders';
+export { adminExportControllerOrders as adminExportControllerOrders } from './fn/admin-export/admin-export-controller-orders';
+export type { AdminExportControllerPayments$Params as AdminExportControllerPayments$Params } from './fn/admin-export/admin-export-controller-payments';
+export { adminExportControllerPayments as adminExportControllerPayments } from './fn/admin-export/admin-export-controller-payments';
 export type { InvoicesControllerDownloadPdf$Params as InvoicesControllerDownloadPdf$Params } from './fn/invoices/invoices-controller-download-pdf';
 export { invoicesControllerDownloadPdf as invoicesControllerDownloadPdf } from './fn/invoices/invoices-controller-download-pdf';
