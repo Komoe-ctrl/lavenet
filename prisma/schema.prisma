@@ -378,6 +378,11 @@ model Order {
   @@index([pickupSlotId])
   @@index([deliverySlotId])
   @@index([deliveryAddressId])
+  // F-ADM-01. CLAUDE.md §4 rule 10 already documented this index as
+  // required; it was never actually added until the dashboard's own
+  // status+date-range aggregates (admin-dashboard.repository.ts) gave it a
+  // real query to serve.
+  @@index([status, createdAt])
   @@map("orders")
 }
 
