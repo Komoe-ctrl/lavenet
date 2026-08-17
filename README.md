@@ -58,12 +58,13 @@ pnpm nx serve web          # http://localhost:4200
 
 ## Comptes de démo
 
-Créés par `pnpm db:seed` (mot de passe identique pour les deux) :
+Créés par `pnpm db:seed` (mot de passe identique pour tous) :
 
-| Rôle   | Email             | Mot de passe |
-| ------ | ----------------- | ------------ |
-| ADMIN  | admin@lavenet.ci  | `Demo1234!`  |
-| CLIENT | client@lavenet.ci | `Demo1234!`  |
+| Rôle    | Email              | Mot de passe |
+| ------- | ------------------ | ------------ |
+| ADMIN   | admin@lavenet.ci   | `Demo1234!`  |
+| CLIENT  | client@lavenet.ci  | `Demo1234!`  |
+| COURIER | livreur@lavenet.ci | `Demo1234!`  |
 
 ## Mise en service
 

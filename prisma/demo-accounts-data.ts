@@ -20,6 +20,14 @@ export const DEMO_USERS = [
     fullName: 'Client Démo',
     role: 'CLIENT' as const,
   },
+  // F-LIV. First real use of role=COURIER -- previously declared in
+  // UserRole but never assigned to any account.
+  {
+    phone: '+2250700000003',
+    email: 'livreur@lavenet.ci',
+    fullName: 'Livreur Démo',
+    role: 'COURIER' as const,
+  },
 ];
 
 export interface SeedDemoAccountsResult {

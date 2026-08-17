@@ -388,6 +388,7 @@ export interface SeedDemoOrdersResult {
 export async function seedDemoOrders(
   prisma: PrismaClient,
   clientUserId: string,
+  courierUserId?: string,
 ): Promise<SeedDemoOrdersResult> {
   const agency = await prisma.agency.findFirst();
   if (!agency) {
@@ -433,6 +434,14 @@ export async function seedDemoOrders(
 
     const createdAt = daysAgoAt(spec.daysAgo, 7);
 
+    // F-LIV-02. A courier only ever gets to see an order once it's out for
+    // delivery -- assigning one to every earlier status would be a demo
+    // that doesn't reflect a real back-office workflow.
+    const courierId =
+      courierUserId && (spec.status === 'OUT_FOR_DELIVERY' || spec.status === 'DELIVERED')
+        ? courierUserId
+        : null;
+
     const orderData = {
       userId: clientUserId,
       status: spec.status,
@@ -443,6 +452,7 @@ export async function seedDemoOrders(
       agencyDropoffDate: spec.pickupType === 'AGENCY' ? dateOnly(createdAt) : null,
       pickupSlotId: pickupSlot?.id ?? null,
       deliverySlotId: deliverySlot.id,
+      courierId,
       deliveryCommune: address.commune,
       deliveryQuartier: address.quartier,
       deliveryDetails: address.details,

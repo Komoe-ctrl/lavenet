@@ -9,6 +9,7 @@
 //
 // Requires the demo client (client@lavenet.ci, from prisma/seed.ts) and
 // the catalog/agency (seed-catalog.ts/seed-agency.ts) to already exist.
+// The demo courier is optional -- see the tolerant check below.
 //
 // Run via `pnpm db:seed:demo-orders` (dev, reads .env) or
 // `pnpm db:seed:demo-orders:prod` (reads .env.production.local). Same
@@ -18,6 +19,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { seedDemoOrders } from './order-data';
 
 const DEMO_CLIENT_EMAIL = 'client@lavenet.ci';
+const DEMO_COURIER_EMAIL = 'livreur@lavenet.ci';
 
 const envFile = process.argv[2] ?? '.env';
 try {
@@ -46,7 +48,19 @@ async function main() {
     );
   }
 
-  const result = await seedDemoOrders(prisma, client.id);
+  // F-LIV-02. Tolerant, unlike the client above: a database seeded before
+  // this lot existed has orders and a client but no courier yet -- degrade
+  // to unassigned deliveries (courierId stays null) rather than blocking
+  // order sync on it. `pnpm db:seed:demo-accounts` backfills the account.
+  const courier = await prisma.user.findUnique({ where: { email: DEMO_COURIER_EMAIL } });
+  if (!courier) {
+    console.warn(
+      `Compte livreur de démo introuvable (${DEMO_COURIER_EMAIL}) — les commandes en livraison ` +
+        'resteront sans livreur assigné. Lancez pnpm db:seed:demo-accounts pour le créer.',
+    );
+  }
+
+  const result = await seedDemoOrders(prisma, client.id, courier?.id);
   console.log(
     `Commandes de démo synchronisées : ${result.created} créée(s), ${result.updated} mise(s) à jour.`,
   );
