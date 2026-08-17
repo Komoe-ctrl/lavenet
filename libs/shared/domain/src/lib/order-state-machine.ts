@@ -13,18 +13,21 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'ON_HOLD';
 
-// ON_HOLD is reachable from, and returns to, either PROCESSING or READY
-// (cahier: "ON_HOLD <-> (PROCESSING | READY)") -- canTransition is a pure
-// (from, to) graph with no memory of which of the two it came from, so
-// both return directions are valid regardless of origin.
+// ON_HOLD is reachable from, and returns to, PROCESSING, READY or
+// OUT_FOR_DELIVERY (cahier: "ON_HOLD <-> (PROCESSING | READY)", extended by
+// F-LIV-05 -- a courier marking "client absent" is the same kind of
+// incident as the two already documented, just encountered one status
+// later). canTransition is a pure (from, to) graph with no memory of which
+// status it came from, so every return direction is valid regardless of
+// origin.
 const TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   DRAFT: ['PENDING_PICKUP', 'CANCELLED'],
   PENDING_PICKUP: ['PICKED_UP', 'CANCELLED'],
   PICKED_UP: ['PROCESSING'],
   PROCESSING: ['READY', 'ON_HOLD'],
   READY: ['OUT_FOR_DELIVERY', 'ON_HOLD'],
-  ON_HOLD: ['PROCESSING', 'READY'],
-  OUT_FOR_DELIVERY: ['DELIVERED'],
+  ON_HOLD: ['PROCESSING', 'READY', 'OUT_FOR_DELIVERY'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'ON_HOLD'],
   DELIVERED: [],
   CANCELLED: [],
 };
