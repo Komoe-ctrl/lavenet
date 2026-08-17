@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
+import { OtpModule } from '../otp/otp.module';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardRepository } from './admin-dashboard.repository';
 import { AdminDashboardService } from './admin-dashboard.service';
@@ -15,7 +17,7 @@ import { AdminOrdersService } from './admin-orders.service';
 // couriers/promo codes/audit log in later lots, all ADMIN/STAFF-guarded
 // the same way (see AdminOrdersController).
 @Module({
-  imports: [AuthModule, OrdersModule],
+  imports: [AuthModule, OrdersModule, OtpModule, NotificationsModule],
   controllers: [AdminOrdersController, AdminDashboardController, AdminExportController],
   providers: [
     AdminOrdersService,
@@ -24,5 +26,10 @@ import { AdminOrdersService } from './admin-orders.service';
     AdminExportService,
     AdminExportRepository,
   ],
+  // AdminOrdersService exported for CouriersModule (F-LIV-04): a courier
+  // confirming delivery reuses the exact same OTP-gated DELIVERED
+  // transition a staff member's back-office override goes through, rather
+  // than a second implementation of it.
+  exports: [AdminOrdersService],
 })
 export class AdminModule {}
