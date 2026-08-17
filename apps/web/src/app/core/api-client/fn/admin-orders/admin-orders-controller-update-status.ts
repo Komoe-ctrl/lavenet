@@ -7,15 +7,15 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { AdminOrderDetailResponseDtoOutput } from '../../models/admin-order-detail-response-dto-output';
 import { AdminUpdateOrderStatusDto } from '../../models/admin-update-order-status-dto';
+import { AdminUpdateOrderStatusResponseDtoOutput } from '../../models/admin-update-order-status-response-dto-output';
 
 export interface AdminOrdersControllerUpdateStatus$Params {
   id: string;
       body: AdminUpdateOrderStatusDto
 }
 
-export function adminOrdersControllerUpdateStatus(http: HttpClient, rootUrl: string, params: AdminOrdersControllerUpdateStatus$Params, context?: HttpContext): Observable<StrictHttpResponse<AdminOrderDetailResponseDtoOutput>> {
+export function adminOrdersControllerUpdateStatus(http: HttpClient, rootUrl: string, params: AdminOrdersControllerUpdateStatus$Params, context?: HttpContext): Observable<StrictHttpResponse<AdminUpdateOrderStatusResponseDtoOutput>> {
   const rb = new RequestBuilder(rootUrl, adminOrdersControllerUpdateStatus.PATH, 'patch');
   if (params) {
     rb.path('id', params.id, {});
@@ -27,7 +27,7 @@ export function adminOrdersControllerUpdateStatus(http: HttpClient, rootUrl: str
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<AdminOrderDetailResponseDtoOutput>;
+      return r as StrictHttpResponse<AdminUpdateOrderStatusResponseDtoOutput>;
     })
   );
 }
