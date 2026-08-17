@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { OtpPurpose } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateRefreshTokenData {
@@ -14,13 +13,6 @@ interface CreateUserData {
   phone: string;
   email?: string;
   passwordHash: string;
-}
-
-interface CreateOtpData {
-  userId: string;
-  purpose: OtpPurpose;
-  codeHash: string;
-  expiresAt: Date;
 }
 
 interface UpdateProfileData {
@@ -84,31 +76,6 @@ export class AuthRepository {
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
-  }
-
-  // Most recent code for this (user, purpose) pair, consumed or not --
-  // callers decide what "most recent" means for their check (still valid?
-  // sent too recently to resend?).
-  findLatestOtp(userId: string, purpose: OtpPurpose) {
-    return this.prisma.otpCode.findFirst({
-      where: { userId, purpose },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  createOtp(data: CreateOtpData) {
-    return this.prisma.otpCode.create({ data });
-  }
-
-  incrementOtpAttempts(id: string) {
-    return this.prisma.otpCode.update({
-      where: { id },
-      data: { attempts: { increment: 1 } },
-    });
-  }
-
-  consumeOtp(id: string) {
-    return this.prisma.otpCode.update({ where: { id }, data: { consumedAt: new Date() } });
   }
 
   updatePasswordHash(userId: string, passwordHash: string) {
