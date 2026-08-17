@@ -1,5 +1,5 @@
-// Minimal demo dataset: one admin, one client, plus the full catalog.
-// Referenced by the README's "demo accounts" section — keep the
+// Minimal demo dataset: one admin, one client, one courier, plus the full
+// catalog. Referenced by the README's "demo accounts" section — keep the
 // credentials below in sync with it.
 //
 // Run via `pnpm db:seed` (dev, reads .env) or `pnpm db:seed:prod` (reads
@@ -56,7 +56,7 @@ async function main() {
 
   const passwordHash = await hash(DEMO_PASSWORD);
   await seedDemoAccounts(prisma, passwordHash);
-  console.log('Seeded demo accounts (password for both: %s).', DEMO_PASSWORD);
+  console.log('Seeded demo accounts (password for all: %s).', DEMO_PASSWORD);
 
   const catalogResult = await seedCatalog(prisma);
   console.log(
@@ -71,7 +71,8 @@ async function main() {
   console.log(`Seeded ${slotsResult.created} time slot(s).`);
 
   const client = await prisma.user.findUniqueOrThrow({ where: { email: 'client@lavenet.ci' } });
-  const ordersResult = await seedDemoOrders(prisma, client.id);
+  const courier = await prisma.user.findUniqueOrThrow({ where: { email: 'livreur@lavenet.ci' } });
+  const ordersResult = await seedDemoOrders(prisma, client.id, courier.id);
   console.log(`Seeded ${ordersResult.created} demo order(s).`);
 
   await prisma.$disconnect();
