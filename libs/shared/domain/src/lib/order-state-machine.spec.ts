@@ -34,7 +34,11 @@ const VALID_PAIRS = new Set([
   'READY->ON_HOLD',
   'ON_HOLD->PROCESSING',
   'ON_HOLD->READY',
+  'ON_HOLD->OUT_FOR_DELIVERY',
   'OUT_FOR_DELIVERY->DELIVERED',
+  // F-LIV-05: a courier marking "client absent" is the same incident
+  // vocabulary as ON_HOLD from PROCESSING/READY, one status later.
+  'OUT_FOR_DELIVERY->ON_HOLD',
 ]);
 
 describe('canTransition — full matrix', () => {
