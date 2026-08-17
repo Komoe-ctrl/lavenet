@@ -91,6 +91,25 @@ describe('AccountPage', () => {
     expect(fixture.nativeElement.querySelector('a[href="/admin/commandes"]')).not.toBeNull();
   });
 
+  it('shows the cart link for a CLIENT', () => {
+    configureWith({ user: signal(SAMPLE_USER), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.cart-link')).not.toBeNull();
+  });
+
+  // A back-office role has no personal shopping cart -- showing the link
+  // let an admin land on another user's checkout funnel, which makes no
+  // sense for that account.
+  it.each(['ADMIN', 'STAFF', 'COURIER'] as const)('hides the cart link for %s', (role) => {
+    configureWith({ user: signal({ ...SAMPLE_USER, role }), logout: vi.fn() });
+    const fixture = TestBed.createComponent(AccountPage);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.cart-link')).toBeNull();
+  });
+
   it('nudges an unverified phone toward /otp-verify', () => {
     configureWith({ user: signal({ ...SAMPLE_USER, phoneVerified: false }), logout: vi.fn() });
     const fixture = TestBed.createComponent(AccountPage);
