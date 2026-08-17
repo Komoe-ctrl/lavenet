@@ -1,6 +1,7 @@
 import { Route } from '@angular/router';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
+import { courierGuard } from './core/auth/courier.guard';
 
 export const appRoutes: Route[] = [
   {
@@ -89,6 +90,12 @@ export const appRoutes: Route[] = [
       import('./features/admin/feature/admin-order-detail-page').then(
         (m) => m.AdminOrderDetailPage,
       ),
+  },
+  {
+    path: 'livreur/tournee',
+    canActivate: [courierGuard],
+    loadComponent: () =>
+      import('./features/courier/feature/courier-tour-page').then((m) => m.CourierTourPage),
   },
   {
     path: '**',

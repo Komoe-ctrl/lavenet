@@ -1,13 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { Api } from '../../../core/api-client/api';
 import {
+  adminOrdersControllerAssignCourier,
   adminOrdersControllerDetail,
   adminOrdersControllerList,
+  adminOrdersControllerListCouriers,
   adminOrdersControllerUpdateStatus,
 } from '../../../core/api-client/functions';
+import { AdminCourierListResponseDtoOutput } from '../../../core/api-client/models/admin-courier-list-response-dto-output';
 import { AdminOrderDetailResponseDtoOutput } from '../../../core/api-client/models/admin-order-detail-response-dto-output';
 import { AdminOrderListResponseDtoOutput } from '../../../core/api-client/models/admin-order-list-response-dto-output';
 import { AdminUpdateOrderStatusDto } from '../../../core/api-client/models/admin-update-order-status-dto';
+import { AdminUpdateOrderStatusResponseDtoOutput } from '../../../core/api-client/models/admin-update-order-status-response-dto-output';
 
 export type AdminOrderStatus = AdminOrderListResponseDtoOutput['orders'][number]['status'];
 
@@ -45,7 +49,16 @@ export class AdminOrdersService {
   updateStatus(
     id: string,
     body: AdminUpdateOrderStatusDto,
-  ): Promise<AdminOrderDetailResponseDtoOutput> {
+  ): Promise<AdminUpdateOrderStatusResponseDtoOutput> {
     return this.api.invoke(adminOrdersControllerUpdateStatus, { id, body });
+  }
+
+  // F-LIV-02.
+  assignCourier(id: string, courierId: string): Promise<AdminOrderDetailResponseDtoOutput> {
+    return this.api.invoke(adminOrdersControllerAssignCourier, { id, body: { courierId } });
+  }
+
+  listCouriers(): Promise<AdminCourierListResponseDtoOutput> {
+    return this.api.invoke(adminOrdersControllerListCouriers);
   }
 }

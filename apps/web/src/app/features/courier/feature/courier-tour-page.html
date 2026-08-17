@@ -1,0 +1,167 @@
+<app-site-header />
+
+<main class="tour">
+  <header class="tour__head">
+    <span class="tour__tag">Livreur</span>
+    <h1>Ma tournée du jour</h1>
+    @if (tour.hasValue()) {
+      <p class="tour__count">
+        <strong>{{ tour.value().deliveries.length }}</strong>
+        livraison{{ tour.value().deliveries.length > 1 ? 's' : '' }}
+      </p>
+    }
+  </header>
+
+  @if (tour.isLoading()) {
+    @for (placeholder of [1, 2]; track placeholder) {
+      <div class="skeleton-card" aria-hidden="true">
+        <p class="skeleton skeleton-line skeleton-line--title"></p>
+        <p class="skeleton skeleton-line skeleton-line--wide"></p>
+        <p class="skeleton skeleton-line skeleton-line--short"></p>
+      </div>
+    }
+    <p class="sr-only" role="status">Chargement de la tournée…</p>
+  } @else if (tour.error()) {
+    <p class="state-error" role="alert">
+      Impossible de charger la tournée. Vérifiez votre connexion et réessayez.
+    </p>
+  } @else if (tour.hasValue()) {
+    @let data = tour.value();
+    @if (data.deliveries.length === 0) {
+      <div class="empty-state">
+        <svg
+          class="empty-state__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+        <p class="empty-state__title">Aucune livraison en attente</p>
+        <p class="empty-state__hint">Votre tournée est vide pour l'instant.</p>
+      </div>
+    } @else {
+      <ul class="delivery-list">
+        @for (delivery of data.deliveries; track delivery.id) {
+          <li class="delivery-card">
+            <div class="delivery-card__head">
+              <span class="delivery-card__ref">{{ delivery.reference }}</span>
+              @if (delivery.deliverySlotStartsAt && delivery.deliverySlotEndsAt) {
+                <span class="delivery-card__slot">
+                  {{ formatSlotLabel(delivery.deliverySlotStartsAt, delivery.deliverySlotEndsAt) }}
+                </span>
+              }
+            </div>
+
+            <p class="delivery-card__client">{{ delivery.clientName ?? delivery.clientPhone }}</p>
+            <a class="delivery-card__phone" [href]="telHref(delivery.clientPhone)">
+              {{ delivery.clientPhone }}
+            </a>
+            <p class="delivery-card__address">
+              {{ delivery.deliveryQuartier }}, {{ delivery.deliveryCommune }}
+              <span class="delivery-card__details">{{ delivery.deliveryDetails }}</span>
+            </p>
+
+            <p class="delivery-card__amount">
+              @if (delivery.amountDueXof !== null) {
+                À encaisser : <strong>{{ delivery.amountDueXof | money }}</strong>
+              } @else {
+                <span class="delivery-card__paid">Déjà payé en ligne</span>
+              }
+            </p>
+
+            @if (active()?.orderId === delivery.id) {
+              @let mode = active()?.mode;
+              @if (mode === 'confirm') {
+                <form class="action-panel" (submit)="$event.preventDefault(); submitConfirm()">
+                  <label for="otp-{{ delivery.id }}">Code de remise (communiqué par le client)</label>
+                  <input
+                    id="otp-{{ delivery.id }}"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="123456"
+                    [value]="otpCode()"
+                    (input)="otpCode.set($any($event.target).value)"
+                  />
+                  <div class="action-panel__actions">
+                    <button type="button" class="action-panel__cancel" (click)="closeAction()">
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      class="action-panel__confirm"
+                      [disabled]="otpCode().trim().length !== 6 || isSubmitting()"
+                    >
+                      Confirmer la remise
+                    </button>
+                  </div>
+                </form>
+              } @else if (mode === 'absent') {
+                <form class="action-panel" (submit)="$event.preventDefault(); submitAbsent()">
+                  <label for="reason-{{ delivery.id }}">Motif</label>
+                  <textarea
+                    id="reason-{{ delivery.id }}"
+                    rows="2"
+                    placeholder="Client injoignable après plusieurs appels…"
+                    [value]="absentReason()"
+                    (input)="absentReason.set($any($event.target).value)"
+                  ></textarea>
+
+                  <label for="slot-{{ delivery.id }}">Nouveau créneau</label>
+                  @if (slots.isLoading()) {
+                    <p class="state">Chargement des créneaux…</p>
+                  } @else {
+                    <select
+                      id="slot-{{ delivery.id }}"
+                      [value]="newSlotId()"
+                      (change)="newSlotId.set($any($event.target).value)"
+                    >
+                      <option value="" disabled>Choisir un créneau</option>
+                      @for (slot of availableSlots(); track slot.id) {
+                        <option [value]="slot.id">{{ formatSlotLabel(slot.startsAt, slot.endsAt) }}</option>
+                      }
+                    </select>
+                  }
+
+                  <div class="action-panel__actions">
+                    <button type="button" class="action-panel__cancel" (click)="closeAction()">
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      class="action-panel__confirm"
+                      [disabled]="
+                        absentReason().trim().length === 0 || !newSlotId() || isSubmitting()
+                      "
+                    >
+                      Replanifier
+                    </button>
+                  </div>
+                </form>
+              }
+              @if (actionError()) {
+                <p class="state-error" role="alert">{{ actionError() }}</p>
+              }
+            } @else {
+              <div class="delivery-card__actions">
+                <button type="button" class="delivery-card__absent" (click)="openAbsent(delivery.id)">
+                  Client absent
+                </button>
+                <button type="button" class="delivery-card__deliver" (click)="openConfirm(delivery.id)">
+                  Confirmer la remise
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+</main>
+
+<app-site-footer />

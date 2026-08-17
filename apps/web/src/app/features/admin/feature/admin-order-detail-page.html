@@ -82,6 +82,9 @@
             <strong>{{ data.deliveryCommune }}, {{ data.deliveryQuartier }}</strong>
             <span>{{ data.deliveryDetails }}</span>
           </p>
+          <p class="delivery__courier">
+            Livreur : <strong>{{ data.courierName ?? 'Non affecté' }}</strong>
+          </p>
         </section>
 
         @if (data.statusHistory.length > 0) {
@@ -110,6 +113,16 @@
         <section class="panel panel--action transitions">
           <h2 class="panel__title">Changer le statut</h2>
 
+          @if (deliveryDemoOtpCode(); as demoCode) {
+            <div class="demo-panel">
+              <p class="demo-panel__title">Mode démonstration</p>
+              <p class="demo-panel__text">
+                Aucun SMS réel n'est envoyé. Code de remise transmis au client :
+                <code>{{ demoCode }}</code>
+              </p>
+            </div>
+          }
+
           @if (availableTransitions().length === 0) {
             <p class="state">
               Aucune transition possible depuis ce statut -- la commande est dans un état terminal.
@@ -137,36 +150,114 @@
           }
 
           @if (pendingTarget(); as target) {
-            <div class="reason-form">
-              <label for="reason-input">
-                Motif <span class="reason-form__target">{{ statusLabels[target] }}</span>
-              </label>
-              <textarea
-                id="reason-input"
-                rows="3"
-                placeholder="Vêtement taché, en attente de confirmation du client…"
-                [value]="reason()"
-                (input)="reason.set($any($event.target).value)"
-              ></textarea>
-              <p class="reason-form__note">Obligatoire : il apparaîtra dans l'historique client.</p>
-              <div class="reason-form__actions">
-                <button type="button" class="reason-form__cancel" (click)="cancelPending()">
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  class="reason-form__confirm"
-                  [disabled]="reason().trim().length === 0 || isSubmitting()"
-                  (click)="confirmPending()"
-                >
-                  Confirmer
-                </button>
+            @if (requiresOtp(target)) {
+              <div class="reason-form">
+                <label for="otp-input">
+                  Code de remise <span class="reason-form__target">{{ statusLabels[target] }}</span>
+                </label>
+                <input
+                  id="otp-input"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="123456"
+                  [value]="otpCode()"
+                  (input)="otpCode.set($any($event.target).value)"
+                />
+                <p class="reason-form__note">
+                  Communiqué au client par SMS à la mise en livraison -- à demander au livreur.
+                </p>
+                <div class="reason-form__actions">
+                  <button type="button" class="reason-form__cancel" (click)="cancelPending()">
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    class="reason-form__confirm"
+                    [disabled]="otpCode().trim().length !== 6 || isSubmitting()"
+                    (click)="confirmPending()"
+                  >
+                    Confirmer
+                  </button>
+                </div>
               </div>
-            </div>
+            } @else {
+              <div class="reason-form">
+                <label for="reason-input">
+                  Motif <span class="reason-form__target">{{ statusLabels[target] }}</span>
+                </label>
+                <textarea
+                  id="reason-input"
+                  rows="3"
+                  placeholder="Vêtement taché, en attente de confirmation du client…"
+                  [value]="reason()"
+                  (input)="reason.set($any($event.target).value)"
+                ></textarea>
+                <p class="reason-form__note">Obligatoire : il apparaîtra dans l'historique client.</p>
+                <div class="reason-form__actions">
+                  <button type="button" class="reason-form__cancel" (click)="cancelPending()">
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    class="reason-form__confirm"
+                    [disabled]="reason().trim().length === 0 || isSubmitting()"
+                    (click)="confirmPending()"
+                  >
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            }
           }
 
           @if (actionError()) {
             <p class="state-error" role="alert">{{ actionError() }}</p>
+          }
+        </section>
+
+        <section class="panel panel--action">
+          <h2 class="panel__title">Livreur</h2>
+          @if (!couriersRequested()) {
+            <button type="button" class="reason-form__confirm" (click)="openCourierPicker()">
+              {{ data.courierName ? 'Réaffecter' : 'Affecter un livreur' }}
+            </button>
+          } @else if (couriers.isLoading()) {
+            <p class="state">Chargement des livreurs…</p>
+          } @else if (couriers.error()) {
+            <p class="state-error" role="alert">Impossible de charger les livreurs.</p>
+          } @else if (couriers.hasValue()) {
+            @if (couriers.value().length === 0) {
+              <p class="state">Aucun compte livreur pour l'instant.</p>
+            } @else {
+              <div class="reason-form">
+                <select
+                  aria-label="Choisir un livreur"
+                  [value]="selectedCourierId()"
+                  (change)="selectedCourierId.set($any($event.target).value)"
+                >
+                  <option value="" disabled>Choisir un livreur</option>
+                  @for (courier of couriers.value(); track courier.id) {
+                    <option [value]="courier.id">
+                      {{ courier.fullName ?? courier.phone }}
+                    </option>
+                  }
+                </select>
+                <div class="reason-form__actions">
+                  <button
+                    type="button"
+                    class="reason-form__confirm"
+                    [disabled]="!selectedCourierId() || isAssigningCourier()"
+                    (click)="assignCourier()"
+                  >
+                    Affecter
+                  </button>
+                </div>
+              </div>
+            }
+          }
+          @if (courierError()) {
+            <p class="state-error" role="alert">{{ courierError() }}</p>
           }
         </section>
       </aside>
