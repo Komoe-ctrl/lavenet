@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { otpCodeSchema } from './auth.schemas';
 import { orderDetailSchema, orderListItemSchema, placedOrderStatusSchema } from './order.schemas';
 
 // F-ADM-02. "Liste filtrable (statut, date), recherche par référence" --
@@ -36,6 +37,11 @@ export const adminOrderDetailSchema = orderDetailSchema.extend({
   clientName: z.string().nullable(),
   clientPhone: z.string(),
   clientEmail: z.string().nullable(),
+  // F-LIV-02. Both null until a courier is assigned -- never assumed from
+  // courierId alone (a deleted/renamed account would leave a dangling
+  // name), always read together from the same join.
+  courierId: z.string().nullable(),
+  courierName: z.string().nullable(),
 });
 export type AdminOrderDetail = z.infer<typeof adminOrderDetailSchema>;
 
@@ -49,8 +55,44 @@ export type AdminOrderDetailResponse = z.infer<typeof adminOrderDetailResponseSc
 // *required* for this particular toStatus (ON_HOLD) is enforced by
 // requiresReason(), checked in the service against the state machine, not
 // something zod alone can express (it depends on another field's value).
+//
+// otpCode: F-LIV-04. Same story -- zod can't know fromStatus here, so it
+// only validates the *shape* if present; AdminOrdersService is what
+// actually requires it for the OUT_FOR_DELIVERY -> DELIVERED transition.
 export const adminUpdateOrderStatusSchema = z.object({
   toStatus: placedOrderStatusSchema,
   reason: z.string().trim().min(1).optional(),
+  otpCode: otpCodeSchema.optional(),
 });
 export type AdminUpdateOrderStatus = z.infer<typeof adminUpdateOrderStatusSchema>;
+
+// F-LIV-04. demoOtpCode: same convention as registerResponseSchema/
+// otpResponseSchema -- present only when this call just generated one (the
+// OUT_FOR_DELIVERY transition) and DEMO_MODE=true, absent every other time.
+export const adminUpdateOrderStatusResponseSchema = adminOrderDetailResponseSchema.extend({
+  demoOtpCode: z.string().optional(),
+});
+export type AdminUpdateOrderStatusResponse = z.infer<typeof adminUpdateOrderStatusResponseSchema>;
+
+// F-LIV-02. courierId always required (there's no "unassign" flow in this
+// lot) -- AdminOrdersService checks the target user actually has
+// role=COURIER, zod can't express a DB-dependent constraint like that.
+export const assignCourierSchema = z.object({
+  courierId: z.string(),
+});
+export type AssignCourier = z.infer<typeof assignCourierSchema>;
+
+// F-LIV-02. Feeds the assignment picker -- deliberately not a full
+// "Livreurs" CRUD list (F-ADM-06, a separate lot), just enough to assign
+// one to an order: id to submit, name/phone to tell two couriers apart.
+export const adminCourierListItemSchema = z.object({
+  id: z.string(),
+  fullName: z.string().nullable(),
+  phone: z.string(),
+});
+export type AdminCourierListItem = z.infer<typeof adminCourierListItemSchema>;
+
+export const adminCourierListResponseSchema = z.object({
+  couriers: z.array(adminCourierListItemSchema),
+});
+export type AdminCourierListResponse = z.infer<typeof adminCourierListResponseSchema>;

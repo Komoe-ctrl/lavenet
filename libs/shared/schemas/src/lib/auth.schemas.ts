@@ -89,8 +89,13 @@ export const registerSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 const OTP_CODE_PATTERN = /^\d{6}$/;
+// Shared shape for every OTP code field in the app (phone verification,
+// password reset, F-LIV-04 delivery handoff) -- OtpService always mints a
+// 6-digit code (apps/api/src/otp/otp.service.ts), so this regex is the one
+// place that format is asserted client-side.
+export const otpCodeSchema = z.string().regex(OTP_CODE_PATTERN, 'Le code doit contenir 6 chiffres.');
 export const verifyOtpSchema = z.object({
-  code: z.string().regex(OTP_CODE_PATTERN, 'Le code doit contenir 6 chiffres.'),
+  code: otpCodeSchema,
 });
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 
