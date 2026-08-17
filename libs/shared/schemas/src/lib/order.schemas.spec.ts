@@ -43,6 +43,11 @@ function validOrder() {
     deliveryGeoLat: null,
     deliveryGeoLng: null,
     createdAt: '2026-08-08T10:00:00.000Z',
+    // Ignored by orderSchema (extra keys are stripped, not rejected) --
+    // required by orderDetailSchema below, which is why this lives in the
+    // shared helper rather than only the describe block that needs it.
+    payment: null,
+    invoice: null,
   };
 }
 
