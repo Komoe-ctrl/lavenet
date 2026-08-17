@@ -115,3 +115,64 @@ jobs:
 
       - name: Test
         run: pnpm exec nx affected -t test
+
+      # CLAUDE.md §7 : 3 parcours Playwright de bout en bout (inscription +
+      # OTP, commande complète jusqu'au paiement, changement de statut par
+      # un admin), aucun mock du mécanisme testé. `pnpm db:seed` seul
+      # fournit tout ce dont ils dépendent -- comptes de démo (dont
+      # admin@lavenet.ci), catalogue, agence, créneaux, commandes de démo
+      # (dont LN-DEMO-024) -- sur la base Postgres jetable de ce job,
+      # forcément vide à ce stade puisque rien avant ce step n'y écrit.
+      - name: Seed demo data for e2e
+        run: pnpm db:seed
+
+      # Chromium seulement : c'est le seul navigateur installé et validé en
+      # local pendant l'écriture de ces parcours (firefox/webkit n'ont
+      # jamais été exercés) -- pas la peine d'alourdir le job avec des
+      # navigateurs jamais réellement testés contre l'app.
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Démarré ici en arrière-plan, séparément du serveur web : la config
+      # Playwright (apps/web-e2e/playwright.config.mts) ne pilote que
+      # `web:serve`, pas l'API. `api:serve` (mode développement, pas un
+      # build de production) reste exactement ce qui a été validé en local.
+      - name: Start API server in the background
+        run: nohup pnpm exec nx run api:serve > /tmp/api-serve.log 2>&1 &
+
+      - name: Wait for the API server to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/docs -o /dev/null; then
+              echo "API is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready within 120s -- server log:" >&2
+          cat /tmp/api-serve.log
+          exit 1
+
+      # web:serve reste en configuration `development` par défaut (voir
+      # apps/web/project.json) : environment.ts pointe vers
+      # localhost:3000, jamais l'API de production -- contrairement à
+      # `nx build web` (utilisé plus haut pour le check OG tags), dont la
+      # configuration par défaut est `production` et bascule sur
+      # environment.prod.ts (l'API Render réelle). Playwright démarre ce
+      # serveur lui-même (reuseExistingServer: true dans sa config) ; pas
+      # besoin de le lancer ici. --workers=1 : délibéré, pas juste plus
+      # lent -- une seule commande d'inscription passe le rate-limit
+      # (5/60s) mais l'ordre d'exécution des 3 parcours partage la même
+      # base fraîche, et les exécuter en série reproduit exactement ce qui
+      # a été validé en local plutôt que d'introduire une concurrence
+      # jamais exercée (réservation de créneau notamment).
+      - name: Run Playwright e2e (CLAUDE.md §7)
+        run: pnpm exec playwright test --config apps/web-e2e/playwright.config.mts --project=chromium --workers=1
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: dist/.playwright/apps/web-e2e/playwright-report
+          retention-days: 7
