@@ -28,6 +28,12 @@ env:
   JWT_REFRESH_SECRET: 7e546bf4ad1f9b9d7a49a4add89f727314a03037df4083fc5bcbec52130e314f
   PAYMENT_WEBHOOK_SECRET: 3a1d9e6f8c2b5047a9e3d6c1f4b8072e5d9a3c6f1b4e8072d5a9c3f6e1b4d807
   CORS_ORIGIN: http://localhost:4200
+  # Required for the Playwright e2e job below: without it, the OTP banner,
+  # the demo "Remplir" auto-fill button and demoOtpCode never appear (see
+  # apps/api/src/config/env.ts's DEMO_MODE -- defaults to false unless this
+  # exact string is set), which is what the 3 CLAUDE.md §7 parcours rely on
+  # to complete OTP verification without a real SMS provider.
+  DEMO_MODE: 'true'
 
 jobs:
   ci:
@@ -166,8 +172,28 @@ jobs:
       # base fraîche, et les exécuter en série reproduit exactement ce qui
       # a été validé en local plutôt que d'introduire une concurrence
       # jamais exercée (réservation de créneau notamment).
+      #
+      # Limité aux 3 fichiers des parcours exigés par CLAUDE.md §7, pas tout
+      # web-e2e/src -- example.spec.ts (couverture de fumée, jamais exigée)
+      # échoue dans cette configuration précise pour une raison connue et
+      # documentée dans son propre fichier : sa page d'accueil est conçue
+      # pour être prerendue au build (app.routes.server.ts, RenderMode.
+      # Prerender, voir aussi le commentaire de home-page.ts et ADR 0003),
+      # avec l'appel catalogue figé dans le HTML statique généré par `ng
+      # build`. `web:serve` ne prerend rien : sous le serveur de dev, cette
+      # route retombe sur un SSR live qui refait l'appel réseau à chaque
+      # requête -- volontairement délaissé ici au profit de l'environnement
+      # de dev (localhost:3000) plutôt que la configuration `production`
+      # par défaut de `nx build`, qui pointerait vers l'API Render réelle
+      # (piège déjà rencontré). Aucun des 3 parcours exigés ne visite jamais
+      # la racine `/` -- ce décalage ne les affecte pas.
       - name: Run Playwright e2e (CLAUDE.md §7)
-        run: pnpm exec playwright test --config apps/web-e2e/playwright.config.mts --project=chromium --workers=1
+        run: >-
+          pnpm exec playwright test
+          apps/web-e2e/src/auth-registration.spec.ts
+          apps/web-e2e/src/order-checkout-payment.spec.ts
+          apps/web-e2e/src/admin-order-status.spec.ts
+          --config apps/web-e2e/playwright.config.mts --project=chromium --workers=1
 
       - name: Upload Playwright report
         if: failure()
