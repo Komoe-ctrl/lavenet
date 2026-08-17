@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OtpModule } from '../otp/otp.module';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
@@ -11,7 +12,7 @@ import { RolesGuard } from './roles.guard';
   // No global secret/expiry here: AuthService passes them explicitly per
   // sign()/verify() call, sourced from the zod-validated `env` — one place
   // for config, not duplicated into JwtModule.register().
-  imports: [JwtModule.register({}), NotificationsModule],
+  imports: [JwtModule.register({}), NotificationsModule, OtpModule],
   controllers: [AuthController],
   providers: [AuthService, AuthRepository, JwtAuthGuard, RolesGuard],
   exports: [AuthService, JwtAuthGuard, RolesGuard],

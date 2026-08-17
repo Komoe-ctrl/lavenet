@@ -9,29 +9,24 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
 import { OtpPurpose } from '@prisma/client';
-import { createHash, randomBytes, randomInt } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { AuthUser } from '@lavenet/shared-schemas';
 import { env } from '../config/env';
 import { EMAIL_PROVIDER, EmailProvider } from '../notifications/email/email-provider.interface';
 import { SMS_PROVIDER, SmsProvider } from '../notifications/sms/sms-provider.interface';
+import { OtpService } from '../otp/otp.service';
 import { AuthRepository } from './auth.repository';
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-// CLAUDE.md §4 rule 7: OTP 6 digits, 10 min TTL, 5 attempts max, resend
-// after 60s.
+// CLAUDE.md §4 rule 7: OTP 10 min TTL, resend after 60s (digit count/max
+// attempts are OtpService's own purpose-independent defaults).
 const OTP_TTL_MS = 10 * 60 * 1000;
-const OTP_MAX_ATTEMPTS = 5;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
-}
-
-function generateOtpCode(): string {
-  // 100000-999999: always 6 digits, never zero-padded-from-shorter.
-  return randomInt(100_000, 1_000_000).toString();
 }
 
 interface UserRecord {
@@ -52,6 +47,7 @@ export class AuthService {
   constructor(
     private readonly repository: AuthRepository,
     private readonly jwt: JwtService,
+    private readonly otp: OtpService,
     @Inject(SMS_PROVIDER) private readonly smsProvider: SmsProvider,
     @Inject(EMAIL_PROVIDER) private readonly emailProvider: EmailProvider,
   ) {}
@@ -97,20 +93,7 @@ export class AuthService {
       return this.toAuthUser(user);
     }
 
-    const stored = await this.repository.findLatestOtp(userId, OtpPurpose.PHONE_VERIFICATION);
-    if (!stored || stored.consumedAt || stored.expiresAt < new Date()) {
-      throw new BadRequestException('Code expiré ou introuvable, demandez-en un nouveau.');
-    }
-    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new BadRequestException('Trop de tentatives, demandez un nouveau code.');
-    }
-
-    if (hashToken(code) !== stored.codeHash) {
-      await this.repository.incrementOtpAttempts(stored.id);
-      throw new BadRequestException('Code invalide.');
-    }
-
-    await this.repository.consumeOtp(stored.id);
+    await this.assertOtpValid(userId, OtpPurpose.PHONE_VERIFICATION, code);
     const verified = await this.repository.markPhoneVerified(userId);
     return this.toAuthUser(verified);
   }
@@ -124,7 +107,7 @@ export class AuthService {
       throw new BadRequestException('Téléphone déjà vérifié.');
     }
 
-    const last = await this.repository.findLatestOtp(userId, OtpPurpose.PHONE_VERIFICATION);
+    const last = await this.otp.findLatest(userId, OtpPurpose.PHONE_VERIFICATION);
     if (last && Date.now() - last.createdAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
       throw new HttpException(
         'Veuillez patienter avant de redemander un code.',
@@ -184,19 +167,7 @@ export class AuthService {
       throw new BadRequestException('Code invalide.');
     }
 
-    const stored = await this.repository.findLatestOtp(user.id, OtpPurpose.PASSWORD_RESET);
-    if (!stored || stored.consumedAt || stored.expiresAt < new Date()) {
-      throw new BadRequestException('Code expiré ou introuvable, demandez-en un nouveau.');
-    }
-    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new BadRequestException('Trop de tentatives, demandez un nouveau code.');
-    }
-    if (hashToken(code) !== stored.codeHash) {
-      await this.repository.incrementOtpAttempts(stored.id);
-      throw new BadRequestException('Code invalide.');
-    }
-
-    await this.repository.consumeOtp(stored.id);
+    await this.assertOtpValid(user.id, OtpPurpose.PASSWORD_RESET, code);
     const passwordHash = await hash(newPassword);
     await this.repository.updatePasswordHash(user.id, passwordHash);
     // No "current" session to preserve here -- the caller isn't
@@ -346,15 +317,22 @@ export class AuthService {
     return rawToken;
   }
 
-  private async createOtp(userId: string, purpose: OtpPurpose): Promise<string> {
-    const code = generateOtpCode();
-    await this.repository.createOtp({
-      userId,
-      purpose,
-      codeHash: hashToken(code),
-      expiresAt: new Date(Date.now() + OTP_TTL_MS),
-    });
-    return code;
+  private createOtp(userId: string, purpose: OtpPurpose): Promise<string> {
+    return this.otp.generate(userId, purpose, OTP_TTL_MS);
+  }
+
+  private async assertOtpValid(userId: string, purpose: OtpPurpose, code: string): Promise<void> {
+    const result = await this.otp.verify(userId, purpose, code);
+    if (result.ok) {
+      return;
+    }
+    if (result.reason === 'TOO_MANY_ATTEMPTS') {
+      throw new BadRequestException('Trop de tentatives, demandez un nouveau code.');
+    }
+    if (result.reason === 'INVALID_CODE') {
+      throw new BadRequestException('Code invalide.');
+    }
+    throw new BadRequestException('Code expiré ou introuvable, demandez-en un nouveau.');
   }
 
   // Returns the raw code only in DEMO_MODE (see registerResponseSchema) --
