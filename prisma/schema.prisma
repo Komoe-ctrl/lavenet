@@ -42,6 +42,11 @@ model User {
   addresses          Address[]
   orders             Order[]
   orderStatusActions OrderStatusHistory[]
+  // F-LIV-02. Only ever populated for role=COURIER, but not constrained at
+  // the schema level -- same reasoning as Order.agencyId not constraining
+  // PickupType at this layer (CLAUDE.md: DB shape stays permissive, the
+  // service layer is where "must be a COURIER" is actually enforced).
+  courierDeliveries  Order[]              @relation("CourierDelivery")
 
   @@index([role])
   @@map("users")
@@ -50,6 +55,10 @@ model User {
 enum OtpPurpose {
   PHONE_VERIFICATION
   PASSWORD_RESET
+  // F-LIV-04. Same OtpCode table, same OtpService (apps/api/src/otp) as the
+  // two purposes above -- only the TTL differs (24h vs 10min), passed by
+  // the caller, not encoded per-purpose in the schema.
+  DELIVERY_HANDOFF
 }
 
 // Generic across both uses (F-AUTH-02 phone verification, F-AUTH-04
@@ -322,6 +331,14 @@ model Order {
   pickupSlotId   String?
   deliverySlotId String?
 
+  // F-LIV-02. Null until back-office assigns a courier (any time from
+  // READY onward) -- not written at checkout, unlike everything else in
+  // this section. Nullable at the DB level even for OUT_FOR_DELIVERY: the
+  // service layer, not a constraint here, is what actually requires one
+  // before that transition (same "permissive schema, enforcing service"
+  // split as pickupType/agencyId above).
+  courierId String?
+
   // F-CMD-05/07 (increment 4). Everything below is null for the entire time
   // the order is DRAFT and gets its one and only write at checkout, in the
   // same transaction that books the slot seats -- same "frozen, never
@@ -368,6 +385,7 @@ model Order {
   pickupSlot      TimeSlot?            @relation("PickupSlot", fields: [pickupSlotId], references: [id])
   deliverySlot    TimeSlot?            @relation("DeliverySlot", fields: [deliverySlotId], references: [id])
   deliveryAddress Address?             @relation(fields: [deliveryAddressId], references: [id])
+  courier         User?                @relation("CourierDelivery", fields: [courierId], references: [id])
   items           OrderItem[]
   statusHistory   OrderStatusHistory[]
   payment         Payment?
@@ -383,6 +401,9 @@ model Order {
   // status+date-range aggregates (admin-dashboard.repository.ts) gave it a
   // real query to serve.
   @@index([status, createdAt])
+  // F-LIV-03. Serves "ma tournée du jour" directly: every courier-facing
+  // query filters on exactly this pair.
+  @@index([courierId, status])
   @@map("orders")
 }
 
