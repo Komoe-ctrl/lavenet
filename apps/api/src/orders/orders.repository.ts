@@ -84,6 +84,10 @@ const orderDetailInclude = {
   items: { include: { service: true, articleType: true }, orderBy: { createdAt: 'asc' } },
   statusHistory: { orderBy: { createdAt: 'asc' } },
   user: { select: { fullName: true, phone: true, email: true } },
+  // F-LIV-02. Always joined, like user/payment/invoice above -- only
+  // AdminOrderDetail actually exposes it (toAdminOrderDetail), the
+  // client-facing shape has no use for it, same split as clientName/Phone.
+  courier: { select: { fullName: true, phone: true } },
   payment: true,
   invoice: true,
 } satisfies Prisma.OrderInclude;
@@ -106,13 +110,20 @@ export type DeliveredTransitionResult =
   | { ok: true; order: OrderDetailRecord }
   | { ok: false; reason: DeliveredTransitionFailureReason };
 
+// F-LIV-05.
+export type RescheduleFailureReason = 'ALREADY_TRANSITIONED' | 'SLOT_FULL';
+
+export type RescheduleAfterAbsenceResult =
+  | { ok: true; order: OrderDetailRecord }
+  | { ok: false; reason: RescheduleFailureReason };
+
 // Thrown only inside commitCheckout's own transaction, to force a rollback
 // of a partial booking (e.g. pickup slot seat taken, then delivery slot
 // turns out full) -- always caught before leaving this class, never a
 // Nest HTTP exception (CLAUDE.md §3: repositories don't carry HTTP
 // semantics, CheckoutService translates CheckoutResult into one).
-class SlotFullSignal extends Error {
-  constructor(readonly reason: CheckoutSlotFullReason) {
+class SlotFullSignal<T extends string = CheckoutSlotFullReason> extends Error {
+  constructor(readonly reason: T) {
     super(reason);
   }
 }
@@ -249,6 +260,56 @@ export class OrdersRepository {
   // AddressesService.assertOwnedAddress.
   findOrderDetail(orderId: string) {
     return this.prisma.order.findUnique({ where: { id: orderId }, include: orderDetailInclude });
+  }
+
+  // F-LIV-02. role/deletedAt filtered here rather than left to the caller:
+  // a null result means "not a valid courier to assign", whether that's
+  // because the id doesn't exist, belongs to a CLIENT, or was soft-deleted.
+  findCourierById(courierId: string) {
+    return this.prisma.user.findFirst({
+      where: { id: courierId, role: 'COURIER', deletedAt: null },
+    });
+  }
+
+  // F-LIV-02. Feeds the admin assignment picker -- not a "Livreurs" CRUD
+  // list (F-ADM-06, out of scope), just the accounts a courierId can
+  // legally be set to.
+  listCouriers() {
+    return this.prisma.user.findMany({
+      where: { role: 'COURIER', deletedAt: null },
+      select: { id: true, fullName: true, phone: true },
+      orderBy: { fullName: 'asc' },
+    });
+  }
+
+  // F-LIV-03. Lean projection, not orderDetailInclude -- a tour is a list
+  // of stops (address, phone, amount to collect), never items/invoice/
+  // status history. Ownership (courierId = caller) is baked into the WHERE
+  // itself, not checked after the fact: the query can only ever return
+  // this courier's own deliveries.
+  findTourForCourier(courierId: string) {
+    return this.prisma.order.findMany({
+      where: { courierId, status: 'OUT_FOR_DELIVERY' },
+      select: {
+        id: true,
+        reference: true,
+        deliveryCommune: true,
+        deliveryQuartier: true,
+        deliveryDetails: true,
+        user: { select: { fullName: true, phone: true } },
+        payment: { select: { provider: true, status: true, amountXof: true } },
+        deliverySlot: { select: { startsAt: true, endsAt: true } },
+      },
+      orderBy: { deliverySlot: { startsAt: 'asc' } },
+    });
+  }
+
+  assignCourier(orderId: string, courierId: string) {
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { courierId },
+      include: orderDetailInclude,
+    });
   }
 
   // F-ADM-02. DRAFT excluded unconditionally, same reason as
@@ -524,6 +585,65 @@ export class OrdersRepository {
       });
       return { ok: true, order } as const;
     }, { timeout: 15_000 });
+  }
+
+  // F-LIV-05. One atomic action for "client absent": records the incident
+  // (OUT_FOR_DELIVERY -> ON_HOLD, motif required by the domain layer --
+  // requiresReason) and immediately reschedules (ON_HOLD -> OUT_FOR_DELIVERY
+  // on a newly booked slot) in the same transaction. A courier standing at
+  // the door does both in one tap; the order never sits in ON_HOLD waiting
+  // on a second, separate back-office action. Two history rows are written
+  // (one per hop) -- F-STA-02 requires every transition logged, and
+  // collapsing the two into one row would hide the incident from the
+  // audit trail, not just the UI.
+  async rescheduleAfterAbsence(
+    orderId: string,
+    fromStatus: OrderStatus,
+    newDeliverySlotId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<RescheduleAfterAbsenceResult> {
+    try {
+      const order = await this.prisma.$transaction(async (tx) => {
+        const heldOn = await tx.order.updateMany({
+          where: { id: orderId, status: fromStatus },
+          data: { status: 'ON_HOLD' },
+        });
+        if (heldOn.count === 0) {
+          throw new SlotFullSignal<RescheduleFailureReason>('ALREADY_TRANSITIONED');
+        }
+        await tx.orderStatusHistory.create({
+          data: { orderId, fromStatus, toStatus: 'ON_HOLD', actorId, reason },
+        });
+
+        const booked = await this.bookSeat(tx, newDeliverySlotId, orderId);
+        if (!booked) {
+          throw new SlotFullSignal<RescheduleFailureReason>('SLOT_FULL');
+        }
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: { status: 'OUT_FOR_DELIVERY', deliverySlotId: newDeliverySlotId },
+        });
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId,
+            fromStatus: 'ON_HOLD',
+            toStatus: 'OUT_FOR_DELIVERY',
+            actorId,
+            reason: 'Nouvelle livraison replanifiée après absence du client',
+          },
+        });
+
+        return tx.order.findUniqueOrThrow({ where: { id: orderId }, include: orderDetailInclude });
+      });
+      return { ok: true, order };
+    } catch (err) {
+      if (err instanceof SlotFullSignal) {
+        return { ok: false, reason: err.reason as RescheduleFailureReason };
+      }
+      throw err;
+    }
   }
 
   // F-PAY-05/CLAUDE.md §4 rule 5. Row-locked counter, not a SEQUENCE --

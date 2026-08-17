@@ -5,10 +5,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import {
+  AdminCourierListResponseDto,
   AdminListOrdersQueryDto,
   AdminOrderDetailResponseDto,
   AdminOrderListResponseDto,
   AdminUpdateOrderStatusDto,
+  AdminUpdateOrderStatusResponseDto,
+  AssignCourierDto,
 } from './admin-orders.dto';
 import { AdminOrdersService } from './admin-orders.service';
 
@@ -28,6 +31,15 @@ export class AdminOrdersController {
     return this.adminOrdersService.list(query);
   }
 
+  // F-LIV-02. Declared before @Get(':id') -- 'couriers' would otherwise be
+  // swallowed as an :id value, matching this literal route instead only
+  // because Nest resolves routes in declaration order.
+  @Get('couriers')
+  @ZodResponse({ type: AdminCourierListResponseDto })
+  listCouriers() {
+    return this.adminOrdersService.listCouriers();
+  }
+
   @Get(':id')
   @ZodResponse({ type: AdminOrderDetailResponseDto })
   detail(@Param('id') id: string) {
@@ -35,12 +47,25 @@ export class AdminOrdersController {
   }
 
   @Patch(':id/status')
-  @ZodResponse({ type: AdminOrderDetailResponseDto })
+  @ZodResponse({ type: AdminUpdateOrderStatusResponseDto })
   updateStatus(
     @CurrentUser() actorId: string,
     @Param('id') id: string,
     @Body() body: AdminUpdateOrderStatusDto,
   ) {
-    return this.adminOrdersService.updateStatus(id, actorId, body.toStatus, body.reason);
+    return this.adminOrdersService.updateStatus(
+      id,
+      actorId,
+      body.toStatus,
+      body.reason,
+      body.otpCode,
+    );
+  }
+
+  // F-LIV-02.
+  @Patch(':id/courier')
+  @ZodResponse({ type: AdminOrderDetailResponseDto })
+  assignCourier(@Param('id') id: string, @Body() body: AssignCourierDto) {
+    return this.adminOrdersService.assignCourier(id, body.courierId);
   }
 }
