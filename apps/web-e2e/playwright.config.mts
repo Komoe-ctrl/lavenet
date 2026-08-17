@@ -29,6 +29,14 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
   },
+  // The default 5s is tuned for a locally-mocked backend. Every spec here
+  // hits a real API backed by a remote Postgres (Neon) -- a save-then-
+  // reload step in the checkout funnel, or checkout's own multi-write
+  // transaction, can genuinely take longer than that under real network
+  // latency, without anything being broken.
+  expect: {
+    timeout: 15_000,
+  },
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'pnpm exec nx run web:serve',

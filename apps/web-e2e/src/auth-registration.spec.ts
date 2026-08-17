@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { fillReliably, waitForHydration } from './utils';
 
 // One of the 3 parcours required by CLAUDE.md §7. Needs a local API server
 // running against a reachable database (same assumption as example.spec.ts)
@@ -11,7 +12,11 @@ test('registers, verifies the phone via the demo OTP banner, and reaches the acc
   const phone = `+22506${uniqueDigits}`;
 
   await page.goto('/register');
-  await page.getByLabel('Nom complet').fill('Aya Kouassi');
+  // This app hydrates client-side after SSR, and the very first field
+  // filled right after a fresh navigation can race that hydration -- see
+  // utils.ts. waitForHydration first, fillReliably as a second safety net.
+  await waitForHydration(page);
+  await fillReliably(page.getByLabel('Nom complet'), 'Aya Kouassi');
   await page.getByLabel('Téléphone').fill(phone);
   await page.getByLabel('Mot de passe').fill('Demo1234!');
   await page.getByRole('button', { name: 'Créer mon compte' }).click();

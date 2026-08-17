@@ -17,8 +17,8 @@ test('homepage renders and links to login', async ({ page }) => {
 });
 
 // Depends on the demo seed (pnpm db:seed) existing in whatever database the
-// target server uses — true for local dev, not wired into CI yet (no
-// e2e step there today, so this doesn't run against the unseeded CI DB).
+// target server uses — true for local dev, and now also true in CI (see
+// .github/workflows/ci.yml's "Seed demo data for e2e" step).
 test('login with valid demo credentials reaches the protected account page', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill('admin@lavenet.ci');
