@@ -16,6 +16,7 @@ const DEMO_PASSWORD = 'Demo1234!';
 const DEMO_ACCOUNTS: DemoAccount[] = [
   { label: 'Client', email: 'client@lavenet.ci' },
   { label: 'Admin', email: 'admin@lavenet.ci' },
+  { label: 'Livreur', email: 'livreur@lavenet.ci' },
 ];
 
 @Component({
@@ -49,7 +50,12 @@ export class LoginPage {
     this.error.set(null);
     try {
       await this.session.login(this.identifier(), this.password());
-      await this.router.navigateByUrl('/compte');
+      // F-LIV-03. A courier has no use for /compte (client-only account
+      // features) -- straight to their tour, the one screen their role is
+      // actually for. Every other role keeps landing on /compte, same as
+      // before.
+      const landing = this.session.user()?.role === 'COURIER' ? '/livreur/tournee' : '/compte';
+      await this.router.navigateByUrl(landing);
     } catch {
       this.error.set('Identifiants invalides.');
     } finally {

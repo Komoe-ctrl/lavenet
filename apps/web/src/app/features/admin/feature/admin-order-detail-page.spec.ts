@@ -46,6 +46,8 @@ const BASE_ORDER = {
   clientName: 'Aya Kouassi',
   clientPhone: '+2250700000001',
   clientEmail: 'aya@example.com',
+  courierId: null,
+  courierName: null,
   payment: null,
   invoice: null,
   statusHistory: [
@@ -60,7 +62,9 @@ const BASE_ORDER = {
 
 type FakeAdminOrdersService = {
   detail: (id: string) => Promise<AdminOrderDetailResponseDtoOutput>;
-  updateStatus: (id: string, body: unknown) => Promise<AdminOrderDetailResponseDtoOutput>;
+  updateStatus: (id: string, body: unknown) => Promise<unknown>;
+  listCouriers: () => Promise<{ couriers: { id: string; fullName: string | null; phone: string }[] }>;
+  assignCourier: (id: string, courierId: string) => Promise<AdminOrderDetailResponseDtoOutput>;
 };
 
 function configureWith(service: Partial<FakeAdminOrdersService>) {
@@ -77,6 +81,8 @@ function configureWith(service: Partial<FakeAdminOrdersService>) {
         useValue: {
           detail: vi.fn().mockResolvedValue({ order: BASE_ORDER }),
           updateStatus: vi.fn().mockResolvedValue({ order: BASE_ORDER }),
+          listCouriers: vi.fn().mockResolvedValue({ couriers: [] }),
+          assignCourier: vi.fn().mockResolvedValue({ order: BASE_ORDER }),
           ...service,
         },
       },
@@ -165,7 +171,11 @@ describe('AdminOrderDetailPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(updateStatus).toHaveBeenCalledWith('ord_1', { toStatus: 'READY', reason: undefined });
+    expect(updateStatus).toHaveBeenCalledWith('ord_1', {
+      toStatus: 'READY',
+      reason: undefined,
+      otpCode: undefined,
+    });
   });
 
   it('requires a non-blank reason before confirming ON_HOLD', async () => {
@@ -203,6 +213,7 @@ describe('AdminOrderDetailPage', () => {
     expect(updateStatus).toHaveBeenCalledWith('ord_1', {
       toStatus: 'ON_HOLD',
       reason: 'Article manquant',
+      otpCode: undefined,
     });
   });
 
@@ -216,5 +227,125 @@ describe('AdminOrderDetailPage', () => {
 
     expect(fixture.nativeElement.querySelectorAll('.transition-button').length).toBe(0);
     expect(fixture.nativeElement.textContent).toContain('Aucune transition possible');
+  });
+
+  it('requires a 6-digit OTP before confirming DELIVERED (F-LIV-04)', async () => {
+    const updateStatus = vi
+      .fn()
+      .mockResolvedValue({ order: { ...BASE_ORDER, status: 'DELIVERED' as const } });
+    configureWith({
+      detail: () =>
+        Promise.resolve({ order: { ...BASE_ORDER, status: 'OUT_FOR_DELIVERY' as const } }),
+      updateStatus,
+    });
+    const fixture = TestBed.createComponent(AdminOrderDetailPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('.transition-button'),
+    ) as HTMLButtonElement[];
+    const deliverButton = buttons.find((btn) => btn.textContent?.trim().startsWith('Livré'));
+    deliverButton?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(updateStatus).not.toHaveBeenCalled();
+    const confirm: HTMLButtonElement = fixture.nativeElement.querySelector('.reason-form__confirm');
+    expect(confirm.disabled).toBe(true);
+
+    const otpInput: HTMLInputElement = fixture.nativeElement.querySelector('#otp-input');
+    otpInput.value = '123456';
+    otpInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(confirm.disabled).toBe(false);
+
+    confirm.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(updateStatus).toHaveBeenCalledWith('ord_1', {
+      toStatus: 'DELIVERED',
+      reason: undefined,
+      otpCode: '123456',
+    });
+  });
+
+  it('shows the demo OTP code returned by the OUT_FOR_DELIVERY transition', async () => {
+    const updateStatus = vi.fn().mockResolvedValue({
+      order: { ...BASE_ORDER, status: 'OUT_FOR_DELIVERY' as const },
+      demoOtpCode: '654321',
+    });
+    configureWith({
+      detail: () => Promise.resolve({ order: { ...BASE_ORDER, status: 'READY' as const } }),
+      updateStatus,
+    });
+    const fixture = TestBed.createComponent(AdminOrderDetailPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const buttons = Array.from(
+      fixture.nativeElement.querySelectorAll('.transition-button'),
+    ) as HTMLButtonElement[];
+    const outButton = buttons.find((btn) => btn.textContent?.trim() === 'En livraison');
+    expect(outButton).toBeDefined();
+    outButton?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    // The click's own applyTransition() is a bare async call, not itself a
+    // resource() Angular's zoneless whenStable() tracks -- one more
+    // microtask flush plus a render pass covers the gap.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(updateStatus).toHaveBeenCalledWith(
+      'ord_1',
+      expect.objectContaining({ toStatus: 'OUT_FOR_DELIVERY' }),
+    );
+    expect(fixture.nativeElement.textContent).toContain('654321');
+    expect(fixture.nativeElement.textContent).toContain('Mode démonstration');
+  });
+
+  it('lazily loads couriers and assigns one on demand (F-LIV-02)', async () => {
+    const listCouriers = vi.fn().mockResolvedValue({
+      couriers: [{ id: 'courier_1', fullName: 'Yao Kouadio', phone: '+2250700000009' }],
+    });
+    const assignCourier = vi.fn().mockResolvedValue({ order: BASE_ORDER });
+    configureWith({ listCouriers, assignCourier });
+    const fixture = TestBed.createComponent(AdminOrderDetailPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(listCouriers).not.toHaveBeenCalled();
+
+    const openButton = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((btn) => (btn as HTMLElement).textContent?.trim() === 'Affecter un livreur') as
+      | HTMLButtonElement
+      | undefined;
+    openButton?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(listCouriers).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.textContent).toContain('Yao Kouadio');
+
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector(
+      'select[aria-label="Choisir un livreur"]',
+    );
+    select.value = 'courier_1';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const assignButton = Array.from(
+      fixture.nativeElement.querySelectorAll('.reason-form__confirm'),
+    ).find((btn) => (btn as HTMLElement).textContent?.trim() === 'Affecter') as
+      | HTMLButtonElement
+      | undefined;
+    assignButton?.click();
+    await fixture.whenStable();
+
+    expect(assignCourier).toHaveBeenCalledWith('ord_1', 'courier_1');
   });
 });

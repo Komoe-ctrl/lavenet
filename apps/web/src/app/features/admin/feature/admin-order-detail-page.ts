@@ -55,12 +55,22 @@ export class AdminOrderDetailPage {
   });
 
   // The status a click is pending confirmation for -- null once idle.
-  // ON_HOLD stays pending until a non-blank reason is entered; every other
-  // target applies immediately on click (requiresReason() decides which).
+  // ON_HOLD stays pending until a non-blank reason is entered, DELIVERED
+  // until a 6-digit OTP is entered (F-LIV-04: the transition requires one
+  // regardless of who triggers it, staff included); every other target
+  // applies immediately on click.
   protected readonly pendingTarget = signal<OrderStatus | null>(null);
   protected readonly reason = signal('');
+  protected readonly otpCode = signal('');
   protected readonly isSubmitting = signal(false);
   protected readonly actionError = signal<string | null>(null);
+
+  // F-LIV-04. Only ever populated in DEMO_MODE, by the one response that
+  // can carry it (the READY -> OUT_FOR_DELIVERY transition itself) --
+  // OtpService only ever stores a hash, so this is the one moment the raw
+  // code exists anywhere to show. Nowhere else (a page reload, the client's
+  // own order view) can ever recover it after the fact.
+  protected readonly deliveryDemoOtpCode = signal<string | null>(null);
 
   protected readonly availableTransitions = computed<OrderStatus[]>(() => {
     if (!this.order.hasValue()) {
@@ -78,11 +88,19 @@ export class AdminOrderDetailPage {
     return requiresReason(status);
   }
 
+  // F-LIV-04. Not part of the shared state-machine domain (order-state-
+  // machine.ts) -- unlike requiresReason, this is an API implementation
+  // detail (OtpService), not a rule about which transitions are legal.
+  protected requiresOtp(status: OrderStatus): boolean {
+    return status === 'DELIVERED';
+  }
+
   protected selectTransition(target: OrderStatus): void {
     this.actionError.set(null);
-    if (requiresReason(target)) {
+    if (requiresReason(target) || this.requiresOtp(target)) {
       this.pendingTarget.set(target);
       this.reason.set('');
+      this.otpCode.set('');
       return;
     }
     void this.applyTransition(target);
@@ -91,34 +109,90 @@ export class AdminOrderDetailPage {
   protected cancelPending(): void {
     this.pendingTarget.set(null);
     this.reason.set('');
+    this.otpCode.set('');
   }
 
   protected confirmPending(): void {
     const target = this.pendingTarget();
-    if (!target || this.reason().trim().length === 0) {
+    if (!target) {
+      return;
+    }
+    if (this.requiresOtp(target)) {
+      if (this.otpCode().trim().length !== 6) {
+        return;
+      }
+      void this.applyTransition(target, undefined, this.otpCode().trim());
+      return;
+    }
+    if (this.reason().trim().length === 0) {
       return;
     }
     void this.applyTransition(target, this.reason().trim());
   }
 
-  private async applyTransition(target: OrderStatus, reason?: string): Promise<void> {
+  private async applyTransition(
+    target: OrderStatus,
+    reason?: string,
+    otpCode?: string,
+  ): Promise<void> {
     this.isSubmitting.set(true);
     this.actionError.set(null);
     try {
-      await this.adminOrdersService.updateStatus(this.orderId(), {
+      const result = await this.adminOrdersService.updateStatus(this.orderId(), {
         // target is never 'DRAFT' at runtime -- canTransition()'s own
         // TRANSITIONS map never lists it as a target of anything, which is
         // exactly why the API's toStatus type excludes it too.
         toStatus: target as AdminUpdateOrderStatusDto['toStatus'],
         reason,
+        otpCode,
       });
+      this.deliveryDemoOtpCode.set(result.demoOtpCode ?? null);
       this.pendingTarget.set(null);
       this.reason.set('');
+      this.otpCode.set('');
       this.refreshTick.update((n) => n + 1);
-    } catch {
-      this.actionError.set('Le changement de statut a échoué -- réessayez.');
+    } catch (err) {
+      this.actionError.set(this.requiresOtp(target) ? this.deliveryErrorMessage(err) : 'Le changement de statut a échoué -- réessayez.');
     } finally {
       this.isSubmitting.set(false);
+    }
+  }
+
+  private deliveryErrorMessage(err: unknown): string {
+    const message = (err as { error?: { message?: unknown } })?.error?.message;
+    return typeof message === 'string' ? message : 'Le changement de statut a échoué -- réessayez.';
+  }
+
+  // F-LIV-02. Fetched lazily: most visits to this page never touch
+  // assignment, no need to load every courier account up front.
+  protected readonly couriersRequested = signal(false);
+  protected readonly couriers = resource({
+    params: () => (this.couriersRequested() ? {} : undefined),
+    loader: () => this.adminOrdersService.listCouriers().then((r) => r.couriers),
+  });
+  protected readonly selectedCourierId = signal('');
+  protected readonly isAssigningCourier = signal(false);
+  protected readonly courierError = signal<string | null>(null);
+
+  protected openCourierPicker(): void {
+    this.couriersRequested.set(true);
+    this.courierError.set(null);
+  }
+
+  protected async assignCourier(): Promise<void> {
+    const courierId = this.selectedCourierId();
+    if (!courierId) {
+      return;
+    }
+    this.isAssigningCourier.set(true);
+    this.courierError.set(null);
+    try {
+      await this.adminOrdersService.assignCourier(this.orderId(), courierId);
+      this.refreshTick.update((n) => n + 1);
+    } catch {
+      this.courierError.set("L'affectation a échoué -- réessayez.");
+    } finally {
+      this.isAssigningCourier.set(false);
     }
   }
 }

@@ -5,19 +5,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { SessionStore } from '../../../core/auth/session.store';
 import { LoginPage } from './login-page';
 
-type FakeSession = { login: (identifier: string, password: string) => Promise<void> };
+type FakeSession = {
+  login: (identifier: string, password: string) => Promise<void>;
+  user?: () => { role: string } | null;
+};
 
 // SiteHeader (rendered by LoginPage) reads isAuthenticated()/user() -- not
 // under test here, so always "logged out" regardless of what the login
-// call under test does.
+// call under test does. user() defaults to null (no role) unless a test
+// overrides it, matching how a real login updates it before this
+// component ever reads it back.
 function configureWith(session: FakeSession) {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
-      provideRouter([{ path: 'compte', children: [] }]),
+      provideRouter([
+        { path: 'compte', children: [] },
+        { path: 'livreur/tournee', children: [] },
+      ]),
       {
         provide: SessionStore,
-        useValue: { ...session, isAuthenticated: () => false, user: () => null },
+        useValue: { isAuthenticated: () => false, user: () => null, ...session },
       },
     ],
   });
@@ -34,6 +42,7 @@ describe('LoginPage', () => {
     expect(text).toContain('Mode démonstration');
     expect(text).toContain('client@lavenet.ci');
     expect(text).toContain('admin@lavenet.ci');
+    expect(text).toContain('livreur@lavenet.ci');
     expect(text).toContain('Demo1234!');
     expect(text).toContain('projet de démonstration');
   });
@@ -68,6 +77,23 @@ describe('LoginPage', () => {
     await fixture.whenStable();
 
     expect(navigateSpy).toHaveBeenCalledWith('/compte');
+  });
+
+  it('navigates a COURIER straight to their tour, not /compte', async () => {
+    configureWith({
+      login: vi.fn(() => Promise.resolve()),
+      user: () => ({ role: 'COURIER' }),
+    });
+    const fixture = TestBed.createComponent(LoginPage);
+    fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigateByUrl');
+
+    const form: HTMLFormElement = fixture.nativeElement.querySelector('form');
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    await fixture.whenStable();
+
+    expect(navigateSpy).toHaveBeenCalledWith('/livreur/tournee');
   });
 
   it('shows an error and does not navigate when login fails', async () => {
