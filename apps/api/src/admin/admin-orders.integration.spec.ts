@@ -27,6 +27,7 @@ describe('Admin orders (integration)', () => {
   let adminUser: { id: string };
   let staffUser: { id: string };
   let clientUser: { id: string; phone: string };
+  let courierUser: { id: string; phone: string };
   let tokenAdmin: string;
   let tokenStaff: string;
   let tokenClient: string;
@@ -119,6 +120,16 @@ describe('Admin orders (integration)', () => {
         phoneVerifiedAt: new Date(),
       },
     });
+    courierUser = await prisma.user.create({
+      data: {
+        fullName: 'Livreur Test',
+        email: `admin-orders-courier-${runId}@lavenet.test`,
+        phone: `+22538${phoneDigits}`,
+        passwordHash,
+        phoneVerifiedAt: new Date(),
+        role: 'COURIER',
+      },
+    });
     tokenAdmin = signToken(adminUser.id, 'ADMIN');
     tokenStaff = signToken(staffUser.id, 'STAFF');
     tokenClient = signToken(clientUser.id, 'CLIENT');
@@ -170,7 +181,7 @@ describe('Admin orders (integration)', () => {
   }, 30_000);
 
   afterAll(async () => {
-    const userIds = [adminUser.id, staffUser.id, clientUser.id];
+    const userIds = [adminUser.id, staffUser.id, clientUser.id, courierUser.id];
     await prisma.orderStatusHistory.deleteMany({ where: { order: { userId: { in: userIds } } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: userIds } } } });
     await prisma.order.deleteMany({ where: { userId: { in: userIds } } });
@@ -232,6 +243,27 @@ describe('Admin orders (integration)', () => {
       expect(res.body.total).toBeGreaterThanOrEqual(4);
       expect(res.body.page).toBe(1);
       expect(res.body.pageSize).toBe(2);
+    });
+  });
+
+  describe('GET /admin/orders/couriers', () => {
+    it('rejects a CLIENT token with 403', async () => {
+      await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/admin/orders/couriers`)
+        .set('Authorization', `Bearer ${tokenClient}`)
+        .expect(403);
+    });
+
+    it('lists COURIER-role accounts, matched by literal route before :id', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/${API_GLOBAL_PREFIX}/admin/orders/couriers`)
+        .set('Authorization', `Bearer ${tokenAdmin}`)
+        .send();
+      expect(res.status).toBe(200);
+      const ids = res.body.couriers.map((c: { id: string }) => c.id);
+      expect(ids).toContain(courierUser.id);
+      const row = res.body.couriers.find((c: { id: string }) => c.id === courierUser.id);
+      expect(row).toMatchObject({ fullName: 'Livreur Test', phone: courierUser.phone });
     });
   });
 
@@ -333,6 +365,42 @@ describe('Admin orders (integration)', () => {
       ]);
       const statuses = [first.status, second.status].sort();
       expect(statuses).toEqual([200, 409]);
+    });
+  });
+
+  describe('PATCH /admin/orders/:id/courier', () => {
+    it('rejects a CLIENT token with 403', async () => {
+      await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${processingOrderId}/courier`)
+        .set('Authorization', `Bearer ${tokenClient}`)
+        .send({ courierId: courierUser.id })
+        .expect(403);
+    });
+
+    it('assigns a real COURIER-role user', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${processingOrderId}/courier`)
+        .set('Authorization', `Bearer ${tokenAdmin}`)
+        .send({ courierId: courierUser.id });
+      expect(res.status).toBe(200);
+      expect(res.body.order.courierId).toBe(courierUser.id);
+      expect(res.body.order.courierName).toBe('Livreur Test');
+    });
+
+    it('rejects a client id -- not a COURIER-role account', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${processingOrderId}/courier`)
+        .set('Authorization', `Bearer ${tokenAdmin}`)
+        .send({ courierId: clientUser.id });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a made-up courier id', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${processingOrderId}/courier`)
+        .set('Authorization', `Bearer ${tokenAdmin}`)
+        .send({ courierId: 'does-not-exist' });
+      expect(res.status).toBe(400);
     });
   });
 });

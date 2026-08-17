@@ -3,13 +3,16 @@ import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from '@node-rs/argon2';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, OtpPurpose } from '@prisma/client';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../app/app.module';
 import { env } from '../config/env';
+import { OtpService } from '../otp/otp.service';
 import { API_GLOBAL_PREFIX } from '../swagger.config';
 import { PrismaService } from '../prisma/prisma.service';
+
+const DELIVERY_OTP_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Real HTTP + real database, same convention as admin-orders.integration.spec.ts
 // (fixture orders inserted directly at the target status, not marched
@@ -20,6 +23,7 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let jwt: JwtService;
+  let otpService: OtpService;
 
   const PASSWORD = 'Integration1234!';
   const runId = randomUUID().slice(0, 8);
@@ -69,6 +73,15 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
     return order.id;
   }
 
+  // F-LIV-04. Fixtures here are inserted directly at OUT_FOR_DELIVERY
+  // (createOrderAt above), bypassing the READY -> OUT_FOR_DELIVERY
+  // transition that normally generates this code (AdminOrdersService) --
+  // so any test that needs a real DELIVERED attempt mints one by hand,
+  // through the same OtpService the real transition uses.
+  function issueDeliveryOtp(): Promise<string> {
+    return otpService.generate(clientUser.id, OtpPurpose.DELIVERY_HANDOFF, DELIVERY_OTP_TTL_MS);
+  }
+
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
@@ -77,6 +90,7 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
 
     prisma = app.get(PrismaService);
     jwt = app.get(JwtService);
+    otpService = app.get(OtpService);
     const passwordHash = await hash(PASSWORD);
 
     adminUser = await prisma.user.create({
@@ -134,10 +148,11 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
 
   it('rejects DELIVERED with no payment at all', async () => {
     const orderId = await createOrderAt('OUT_FOR_DELIVERY', `LN-TEST-${runId}-NOPAY`);
+    const otpCode = await issueDeliveryOtp();
     const res = await request(app.getHttpServer())
       .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
       .set('Authorization', `Bearer ${tokenAdmin}`)
-      .send({ toStatus: 'DELIVERED' });
+      .send({ toStatus: 'DELIVERED', otpCode });
     expect(res.status).toBe(400);
 
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
@@ -153,11 +168,49 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
     expect(res.status).toBe(201);
     expect(res.body.payment.status).toBe('PENDING');
 
+    const otpCode = await issueDeliveryOtp();
     const deliverRes = await request(app.getHttpServer())
       .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
       .set('Authorization', `Bearer ${tokenAdmin}`)
-      .send({ toStatus: 'DELIVERED' });
+      .send({ toStatus: 'DELIVERED', otpCode });
     expect(deliverRes.status).toBe(400);
+  });
+
+  it('rejects DELIVERED with no otpCode at all, even with a settled payment', async () => {
+    const orderId = await createOrderAt('OUT_FOR_DELIVERY', `LN-TEST-${runId}-NOOTP`);
+    await request(app.getHttpServer())
+      .post(`/${API_GLOBAL_PREFIX}/orders/${orderId}/payment`)
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ provider: 'CASH' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ toStatus: 'DELIVERED' });
+    expect(res.status).toBe(400);
+
+    const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe('OUT_FOR_DELIVERY');
+  });
+
+  it('rejects DELIVERED with a wrong otpCode, even with a settled payment', async () => {
+    const orderId = await createOrderAt('OUT_FOR_DELIVERY', `LN-TEST-${runId}-WRONGOTP`);
+    await request(app.getHttpServer())
+      .post(`/${API_GLOBAL_PREFIX}/orders/${orderId}/payment`)
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ provider: 'CASH' })
+      .expect(201);
+    await issueDeliveryOtp();
+
+    const res = await request(app.getHttpServer())
+      .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ toStatus: 'DELIVERED', otpCode: '000000' });
+    expect(res.status).toBe(400);
+
+    const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe('OUT_FOR_DELIVERY');
   });
 
   it('never lets the client set the payment amount -- it is always order.totalXof', async () => {
@@ -196,6 +249,31 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
     expect(res.status).toBe(404);
   });
 
+  it('mints a usable demoOtpCode on the READY -> OUT_FOR_DELIVERY transition itself (DEMO_MODE)', async () => {
+    const orderId = await createOrderAt('READY', `LN-TEST-${runId}-MINTOTP`);
+    await request(app.getHttpServer())
+      .post(`/${API_GLOBAL_PREFIX}/orders/${orderId}/payment`)
+      .set('Authorization', `Bearer ${tokenClient}`)
+      .send({ provider: 'CASH' })
+      .expect(201);
+
+    const outRes = await request(app.getHttpServer())
+      .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ toStatus: 'OUT_FOR_DELIVERY' });
+    expect(outRes.status).toBe(200);
+    expect(outRes.body.demoOtpCode).toMatch(/^\d{6}$/);
+
+    const deliverRes = await request(app.getHttpServer())
+      .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
+      .send({ toStatus: 'DELIVERED', otpCode: outRes.body.demoOtpCode });
+    expect(deliverRes.status).toBe(200);
+    expect(deliverRes.body.order.status).toBe('DELIVERED');
+    // Not reusable -- OtpService.verify consumes it on success.
+    expect(deliverRes.body.demoOtpCode).toBeUndefined();
+  });
+
   describe('the cash happy path: one call collects and delivers', () => {
     let orderId: string;
     let invoiceId: string;
@@ -211,10 +289,11 @@ describe('Delivery payment gate + invoice issuance (integration)', () => {
     });
 
     it('DELIVERED settles the cash payment and mints an invoice, in one call', async () => {
+      const otpCode = await issueDeliveryOtp();
       const res = await request(app.getHttpServer())
         .patch(`/${API_GLOBAL_PREFIX}/admin/orders/${orderId}/status`)
         .set('Authorization', `Bearer ${tokenAdmin}`)
-        .send({ toStatus: 'DELIVERED' });
+        .send({ toStatus: 'DELIVERED', otpCode });
       expect(res.status).toBe(200);
       expect(res.body.order.status).toBe('DELIVERED');
       expect(res.body.order.payment).toMatchObject({ provider: 'CASH', status: 'PAID' });
