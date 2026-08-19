@@ -87,6 +87,42 @@ jobs:
       - name: Check schema.prisma matches the migrations directory
         run: pnpm db:check-drift
 
+      # Seeded and started here, before the Build step below -- not just
+      # before the e2e step further down. '/' and '/tarifs' are prerendered
+      # at build time (app.routes.server.ts's RenderMode.Prerender) and
+      # their resource() loaders genuinely call the catalog API during that
+      # prerender step (home-page.ts's own comment, ADR 0003) -- with no
+      # API reachable yet, that call hangs until Angular's own prerender
+      # timeout aborts it, and `nx build web` fails outright. This had never
+      # actually run in CI before: nx's cache was serving a stale result for
+      # `web:build:production` on every prior run where apps/web itself
+      # wasn't affected, so nothing ever exercised this path live until a
+      # change to apps/web finally invalidated it. `pnpm db:seed` covers
+      # everything needed here and later by the e2e step (demo accounts,
+      # catalog, agency, slots, demo orders) in one call, safe because this
+      # throwaway Postgres is guaranteed empty at this point in the job.
+      - name: Seed demo data
+        run: pnpm db:seed
+
+      # `api:serve` (dev mode, not a production build) -- matches what was
+      # validated locally for the e2e step below, which reuses this same
+      # already-running instance rather than starting its own.
+      - name: Start API server in the background
+        run: nohup pnpm exec nx run api:serve > /tmp/api-serve.log 2>&1 &
+
+      - name: Wait for the API server to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/docs -o /dev/null; then
+              echo "API is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready within 120s -- server log:" >&2
+          cat /tmp/api-serve.log
+          exit 1
+
       - name: Typecheck
         run: pnpm exec nx affected -t typecheck
 
@@ -122,16 +158,6 @@ jobs:
       - name: Test
         run: pnpm exec nx affected -t test
 
-      # CLAUDE.md §7 : 3 parcours Playwright de bout en bout (inscription +
-      # OTP, commande complète jusqu'au paiement, changement de statut par
-      # un admin), aucun mock du mécanisme testé. `pnpm db:seed` seul
-      # fournit tout ce dont ils dépendent -- comptes de démo (dont
-      # admin@lavenet.ci), catalogue, agence, créneaux, commandes de démo
-      # (dont LN-DEMO-024) -- sur la base Postgres jetable de ce job,
-      # forcément vide à ce stade puisque rien avant ce step n'y écrit.
-      - name: Seed demo data for e2e
-        run: pnpm db:seed
-
       # Chromium seulement : c'est le seul navigateur installé et validé en
       # local pendant l'écriture de ces parcours (firefox/webkit n'ont
       # jamais été exercés) -- pas la peine d'alourdir le job avec des
@@ -139,29 +165,16 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      # Démarré ici en arrière-plan, séparément du serveur web : la config
+      # CLAUDE.md §7 : 3 parcours Playwright de bout en bout (inscription +
+      # OTP, commande complète jusqu'au paiement, changement de statut par
+      # un admin), aucun mock du mécanisme testé. L'API tourne déjà depuis
+      # le step "Start API server" plus haut (nécessaire dès le build, voir
+      # son commentaire) ; ce step la réutilise telle quelle, la config
       # Playwright (apps/web-e2e/playwright.config.mts) ne pilote que
-      # `web:serve`, pas l'API. `api:serve` (mode développement, pas un
-      # build de production) reste exactement ce qui a été validé en local.
-      - name: Start API server in the background
-        run: nohup pnpm exec nx run api:serve > /tmp/api-serve.log 2>&1 &
-
-      - name: Wait for the API server to be ready
-        run: |
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:3000/docs -o /dev/null; then
-              echo "API is up."
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "API did not become ready within 120s -- server log:" >&2
-          cat /tmp/api-serve.log
-          exit 1
-
-      # web:serve reste en configuration `development` par défaut (voir
-      # apps/web/project.json) : environment.ts pointe vers
-      # localhost:3000, jamais l'API de production -- contrairement à
+      # `web:serve`, pas l'API. web:serve reste en configuration
+      # `development` par défaut (voir apps/web/project.json) :
+      # environment.ts pointe vers localhost:3000, jamais l'API de
+      # production -- contrairement à
       # `nx build web` (utilisé plus haut pour le check OG tags), dont la
       # configuration par défaut est `production` et bascule sur
       # environment.prod.ts (l'API Render réelle). Playwright démarre ce
