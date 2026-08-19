@@ -38,6 +38,11 @@ env:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # Default is 360 minutes -- a full green run takes ~3. Without this, a
+    # runner-level hang (e.g. "Install Playwright browsers" stuck on an apt
+    # lock, observed once for ~5h on run 32235076404) sits silently until
+    # someone notices and cancels it by hand instead of failing fast.
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
